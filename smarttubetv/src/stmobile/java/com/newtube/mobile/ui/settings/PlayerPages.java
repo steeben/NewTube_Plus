@@ -175,6 +175,16 @@ final class PlayerPages {
                 context.getString(R.string.mobile_settings_gesture_seek_summary),
                 () -> PlayerGesturePrefs.isSeekSwipeOn(context),
                 on -> PlayerGesturePrefs.setSeekSwipeOn(context, on)));
+        // NEWTUBE(speed-swipe)
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_gesture_speed),
+                context.getString(R.string.mobile_settings_gesture_speed_summary),
+                () -> PlayerGesturePrefs.isSpeedSwipeOn(context),
+                on -> PlayerGesturePrefs.setSpeedSwipeOn(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_gesture_speed_stop),
+                context.getString(R.string.mobile_settings_gesture_speed_stop_summary),
+                () -> PlayerGesturePrefs.isSpeedStopAtNormal(context),
+                on -> PlayerGesturePrefs.setSpeedStopAtNormal(context, on))
+                .enabledWhen(() -> PlayerGesturePrefs.isSpeedSwipeOn(context)));
 
         // NEWTUBE(mini-style): how a minimized video docks (MiniPlayerStyle); applies to the next
         // minimize, and to a mini player already docked when its screen comes back.

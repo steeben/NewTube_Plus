@@ -92,13 +92,13 @@ public class PlayerTimeBar extends View implements TimeBar {
         mGlowPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
                 new int[] {(tail & 0x00FFFFFF) | 0x99000000, (accent & 0x00FFFFFF) | 0x40000000, accent & 0x00FFFFFF},
                 new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
-        // The scrubber: no solid dot, a larger and brighter glow of the same kind - a hot,
-        // nearly-white core in the accent's shade that fades out through the accent.
-        int core = androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.55f);
+        // The scrubber: no solid dot, a larger and brighter glow of the same kind.
+        // The centre burns white, through a near-white of the accent, into its glow.
+        int hot = androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.7f);
         mScrubberPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
-                new int[] {core | 0xFF000000, (tail & 0x00FFFFFF) | 0xFF000000, (accent & 0x00FFFFFF) | 0xB3000000,
-                        (accent & 0x00FFFFFF) | 0x40000000, accent & 0x00FFFFFF},
-                new float[] {0f, 0.2f, 0.36f, 0.62f, 1f}, Shader.TileMode.CLAMP));
+                new int[] {0xFFFFFFFF, 0xFFFFFFFF, hot | 0xFF000000, (tail & 0x00FFFFFF) | 0xE6000000,
+                        (accent & 0x00FFFFFF) | 0x8C000000, (accent & 0x00FFFFFF) | 0x33000000, accent & 0x00FFFFFF},
+                new float[] {0f, 0.14f, 0.24f, 0.36f, 0.5f, 0.72f, 1f}, Shader.TileMode.CLAMP));
     }
 
     /** NEWTUBE(accent): the scrubber's glow, this many times the old dot's radius. */

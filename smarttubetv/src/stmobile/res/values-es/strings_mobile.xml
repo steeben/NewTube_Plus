@@ -126,6 +126,10 @@
     <string name="mobile_settings_gesture_levels_summary">Arriba y abajo a la izquierda o a la derecha del vídeo a pantalla completa</string>
     <string name="mobile_settings_gesture_seek">Deslizar para avanzar o retroceder</string>
     <string name="mobile_settings_gesture_seek_summary">De lado sobre el vídeo</string>
+    <string name="mobile_settings_gesture_speed">Deslizar para cambiar la velocidad</string>
+    <string name="mobile_settings_gesture_speed_summary">De lado por la parte de arriba del vídeo en pantalla completa, de 0,25x en 0,25x</string>
+    <string name="mobile_settings_gesture_speed_stop">Parar en 1x</string>
+    <string name="mobile_settings_gesture_speed_stop_summary">Al volver hacia 1x se detiene ahí; desliza otra vez para pasarla</string>
     <string name="mobile_settings_mini_player">Minirreproductor</string>
     <string name="mobile_settings_mini_style">Estilo del minirreproductor</string>
     <string name="mobile_settings_mini_style_card">Tarjeta flotante</string>
@@ -458,6 +462,8 @@
     <string name="mobile_settings_messages">Mensajes</string>
     <string name="mobile_settings_hide_error_toasts">Ocultar mensajes de error</string>
     <string name="mobile_settings_hide_error_toasts_summary">No muestra avisos emergentes cuando algo falla</string>
+    <string name="mobile_you_collapsed">Contraído</string>
+    <string name="mobile_you_expanded">Desplegado</string>
     <string name="mobile_mini_next">Siguiente vídeo</string>
     <string name="mobile_appearance_logo_play">Reproducir</string>
     <string name="mobile_appearance_bottom_bar">Barra inferior</string>

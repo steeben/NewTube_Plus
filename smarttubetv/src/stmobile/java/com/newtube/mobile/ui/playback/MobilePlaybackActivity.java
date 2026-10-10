@@ -4905,6 +4905,17 @@ public class MobilePlaybackActivity extends MobileActivity
     private static final int SWIPE_BRIGHTNESS = 4;
     private static final int SWIPE_VOLUME = 5;
     private static final int SWIPE_SEEK = 6;
+    /** NEWTUBE(speed-swipe): sideways across the top of the fullscreen video. */
+    private static final int SWIPE_SPEED = 7;
+    /** The top share of the fullscreen video where a sideways swipe sets the speed, not the time. */
+    private static final float SPEED_ZONE = 0.25f;
+    /** Finger travel (dp) per 0.25x: low on purpose, so a small swipe is a small change. */
+    private static final float SPEED_STEP_DP = 56f;
+    private static final float SPEED_STEP = 0.25f;
+    private static final float SPEED_MIN = 0.25f;
+    private static final float SPEED_MAX = 4f;
+    private float mSpeedSwipeStart;
+    private float mSpeedSwipeLast;
     /**
      * Fullscreen: this share of the screen on the left (brightness) and the right (volume) - the
      * zones of ReVanced's swipe controls, which most people who swipe on YouTube learned them from.
@@ -4943,6 +4954,9 @@ public class MobilePlaybackActivity extends MobileActivity
         mSwipeDownRawX = downRawX;
         boolean vertical = direction == PlayerContainerLayout.UP || direction == PlayerContainerLayout.DOWN;
         if (!vertical) {
+            if (isLandscape() && isInSpeedZone(downRawY)) {
+                return beginSpeedSwipe();
+            }
             return beginSeekSwipe(downRawX + dx);
         }
         if (!isLandscape()) {
@@ -4982,6 +4996,9 @@ public class MobilePlaybackActivity extends MobileActivity
             case SWIPE_SEEK:
                 mTimeBar.moveSwipeScrub(mSwipeDownRawX + dx);
                 break;
+            case SWIPE_SPEED:
+                moveSpeedSwipe(dx);
+                break;
             default:
                 break;
         }
@@ -5010,6 +5027,10 @@ public class MobilePlaybackActivity extends MobileActivity
                 mTimeBar.moveSwipeScrub(mSwipeDownRawX + dx);
                 mTimeBar.stopSwipeScrub(false);
                 break;
+            case SWIPE_SPEED:
+                moveSpeedSwipe(dx);
+                endSpeedSwipe();
+                break;
             default:
                 break;
         }
@@ -5035,8 +5056,72 @@ public class MobilePlaybackActivity extends MobileActivity
             case SWIPE_SEEK:
                 mTimeBar.stopSwipeScrub(true);
                 break;
+            case SWIPE_SPEED:
+                endSpeedSwipe(); // the speed set so far stays
+                break;
             default:
                 break;
+        }
+    }
+
+    /** NEWTUBE(speed-swipe): a finger down at {@code rawY} is in the top band of the fullscreen video. */
+    private boolean isInSpeedZone(float rawY) {
+        if (!PlayerGesturePrefs.isSpeedSwipeOn(this) || mContainer == null) {
+            return false;
+        }
+        int[] at = new int[2];
+        mContainer.getLocationOnScreen(at);
+        float height = Math.max(1, mContainer.getHeight());
+        return (rawY - at[1]) / height < SPEED_ZONE;
+    }
+
+    /**
+     * Sideways across the top of the fullscreen video: the speed in 0.25x steps, one per
+     * {@link #SPEED_STEP_DP} of travel, shown in the top pill. With "Stop at 1x" a swipe toward
+     * normal speed stops there; going past it takes a new swipe.
+     */
+    private int beginSpeedSwipe() {
+        Video video = getVideo();
+        if (mExoPlayerController == null || mPlayer == null || isCastOverlayShown()
+                || (video != null && video.isLive)
+                || (mCastSessionManager != null && mCastSessionManager.isConnected())) {
+            return PlayerContainerLayout.SWIPE_NONE;
+        }
+        mSpeedSwipeStart = Math.round(getSpeed() / SPEED_STEP) * SPEED_STEP;
+        mSpeedSwipeLast = getSpeed();
+        hideControls();
+        showTopPill(speedLabel(mSpeedSwipeLast), R.drawable.ic_player_hold_speed);
+        return SWIPE_SPEED;
+    }
+
+    private void moveSpeedSwipe(float dx) {
+        float step = SPEED_STEP_DP * getResources().getDisplayMetrics().density;
+        int steps = (int) (dx / step); // toward zero: a step needs the whole distance
+        float speed = Math.max(SPEED_MIN, Math.min(SPEED_MAX, mSpeedSwipeStart + steps * SPEED_STEP));
+        if (PlayerGesturePrefs.isSpeedStopAtNormal(this)) {
+            if (mSpeedSwipeStart > 1f && speed < 1f) {
+                speed = 1f;
+            } else if (mSpeedSwipeStart < 1f && speed > 1f) {
+                speed = 1f;
+            }
+        }
+        if (Math.abs(speed - mSpeedSwipeLast) > 0.001f) {
+            mSpeedSwipeLast = speed;
+            setSpeed(speed);
+            Haptics.tick(mPlayerView);
+            showTopPill(speedLabel(speed), R.drawable.ic_player_hold_speed);
+        }
+    }
+
+    private void endSpeedSwipe() {
+        // Kept like a pick from the speed menu (the per-video memory), without its snackbar.
+        commitSpeed(mSpeedSwipeLast);
+        if (mTopPill != null) {
+            mTopPill.postDelayed(() -> {
+                if (mExoPlayerController == null || !mExoPlayerController.isHoldSpeedOn()) {
+                    showTopPill(null);
+                }
+            }, 700);
         }
     }
 
@@ -7640,7 +7725,17 @@ public class MobilePlaybackActivity extends MobileActivity
      */
     private void applySpeed(float speed) {
         setSpeed(speed);
+        commitSpeed(speed);
 
+        com.google.android.material.snackbar.Snackbar.make(
+                        findViewById(android.R.id.content),
+                        getString(R.string.mobile_speed_toast, speedLabel(speed)),
+                        com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                .show();
+    }
+
+    /** The per-video State save a speed pick needs (the engine's change persists the rest). */
+    private void commitSpeed(float speed) {
         Video video = getVideo();
         if (video != null && PlayerData.instance(this).isSpeedPerVideoEnabled()) {
             VideoStateService stateService = VideoStateService.instance(this);
@@ -7649,12 +7744,6 @@ public class MobilePlaybackActivity extends MobileActivity
                 stateService.save(new State(state.video, state.positionMs, state.durationMs, speed));
             }
         }
-
-        com.google.android.material.snackbar.Snackbar.make(
-                        findViewById(android.R.id.content),
-                        getString(R.string.mobile_speed_toast, speedLabel(speed)),
-                        com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
-                .show();
     }
 
     private void onCommentsEntryClicked() {

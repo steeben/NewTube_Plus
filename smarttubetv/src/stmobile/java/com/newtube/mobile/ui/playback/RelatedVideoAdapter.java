@@ -199,6 +199,8 @@ public class RelatedVideoAdapter extends ListAdapter<Video, RelatedVideoAdapter.
         }
 
         private void bindBadge(Video video, boolean isCurrent) {
+            // NEWTUBE(frosted): a rounded pill of dark glass over the thumbnail.
+            com.newtube.mobile.ui.common.BadgeGlassDrawable.apply(mBadge, mThumbnail, 0x73000000);
             // The playing row takes over the badge slot: in a queue the duration matters far less
             // than knowing where you are, and this needs no extra view in the row layout.
             if (isCurrent) {
@@ -264,6 +266,23 @@ public class RelatedVideoAdapter extends ListAdapter<Video, RelatedVideoAdapter.
                         .centerCrop());
             }
 
+            request = request.addListener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                @Override
+                public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model,
+                        com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                        boolean isFirstResource) {
+                    return false;
+                }
+
+                @Override
+                public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model,
+                        com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                        com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                    mBadge.post(mBadge::invalidate); // NEWTUBE(frosted): the badge's glass shows it
+                    mBadge.postDelayed(mBadge::invalidate, 200);
+                    return false;
+                }
+            });
             request.into(mThumbnail);
         }
 

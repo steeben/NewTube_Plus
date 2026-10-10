@@ -262,6 +262,10 @@
     <string name="mobile_settings_gesture_levels_summary">Up and down on the left or right of the fullscreen video</string>
     <string name="mobile_settings_gesture_seek">Swipe to seek</string>
     <string name="mobile_settings_gesture_seek_summary">Sideways on the video</string>
+    <string name="mobile_settings_gesture_speed">Swipe to change speed</string>
+    <string name="mobile_settings_gesture_speed_summary">Sideways across the top of the fullscreen video, 0.25x at a time</string>
+    <string name="mobile_settings_gesture_speed_stop">Stop at 1x</string>
+    <string name="mobile_settings_gesture_speed_stop_summary">A swipe back toward 1x stops there; swipe again to go past it</string>
     <!-- NEWTUBE(mini-style): Settings > Playback, how a minimized video docks (MiniPlayerStyle). -->
     <string name="mobile_settings_mini_player">Mini player</string>
     <string name="mobile_settings_mini_style">Mini player style</string>
@@ -502,6 +506,8 @@
     <string name="mobile_settings_messages">Messages</string>
     <string name="mobile_settings_hide_error_toasts">Hide error messages</string>
     <string name="mobile_settings_hide_error_toasts_summary">Don\'t show pop-up messages when something fails</string>
+    <string name="mobile_you_collapsed">Collapsed</string>
+    <string name="mobile_you_expanded">Expanded</string>
     <string name="mobile_mini_next">Next video</string>
     <string name="mobile_appearance_logo_play">Play</string>
     <string name="mobile_appearance_bottom_bar">Bottom bar</string>

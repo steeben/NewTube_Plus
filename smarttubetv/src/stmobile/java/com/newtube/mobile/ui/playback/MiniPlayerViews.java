@@ -243,17 +243,11 @@ final class MiniPlayerViews {
             text.setPadding(px(12, density), px(6, density), px(12, density), px(6, density));
             title.setTextColor(onVideo);
             channel.setVisibility(View.GONE);
-            // At most a third of the bar; a longer title scrolls slowly through instead of being cut.
+            // At most 45% of the bar; a longer title ends in an ellipsis.
             title.setSingleLine(true);
-            title.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-            title.setMarqueeRepeatLimit(-1);
-            title.setHorizontalFadingEdgeEnabled(true);
-            title.setFadingEdgeLength(px(12, density));
-            title.setSelected(true); // a marquee runs only on a selected (or focused) view
+            title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             limitTitleWidth();
         } else {
-            title.setSelected(false);
-            title.setHorizontalFadingEdgeEnabled(false);
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setMaxWidth(Integer.MAX_VALUE);
             textParams.setMarginStart(thumbWidth + px(12, density));
@@ -413,7 +407,7 @@ final class MiniPlayerViews {
         }
     };
 
-    /** NEWTUBE(mini-style): the video bar's title takes no more than a third of the bar's width. */
+    /** NEWTUBE(mini-style): the video bar's title takes no more than 45% of the bar's width. */
     private void limitTitleWidth() {
         card.removeOnLayoutChangeListener(mTitleWidthLimit);
         if (style != MiniPlayerStyle.BAR_VIDEO) {
@@ -424,7 +418,7 @@ final class MiniPlayerViews {
         if (width <= 0) {
             return; // the listener sets it once the bar is laid out
         }
-        int max = Math.max(0, Math.round(width / 3f) - text.getPaddingLeft() - text.getPaddingRight());
+        int max = Math.max(0, Math.round(width * 0.45f) - text.getPaddingLeft() - text.getPaddingRight());
         if (title.getMaxWidth() != max) {
             title.setMaxWidth(max);
         }

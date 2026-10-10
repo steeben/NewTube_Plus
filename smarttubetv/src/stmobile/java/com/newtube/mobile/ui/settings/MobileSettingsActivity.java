@@ -52,12 +52,15 @@ public class MobileSettingsActivity extends MobileActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mobile_settings);
+        // The window is see-through (Theme.NewTube.Settings): the page colour under the bars too.
+        findViewById(android.R.id.content).setBackgroundColor(
+                androidx.core.content.ContextCompat.getColor(this, R.color.mobile_color_background));
 
         // NEWTUBE(predictive-back): Back on a page is a predictive gesture - the page blurs and fades
         // as the finger moves, revealing the page under it (which stays loaded beneath), and goes
-        // once it is released. On the top level the callback is off, so the system's own
-        // predictive back (to the screen under Settings, or home) plays instead of a plain finish().
-        mPageBack = new OnBackPressedCallback(false) {
+        // once it is released. On the top level Settings itself goes the same way, over the
+        // screen it was opened from (kept drawn underneath: the window is see-through).
+        mPageBack = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
                 peekStart();
@@ -160,9 +163,7 @@ public class MobileSettingsActivity extends MobileActivity {
     private float mPeekProgress;
 
     private void updatePageBack() {
-        if (mPageBack != null) {
-            mPageBack.setEnabled(getSupportFragmentManager().getBackStackEntryCount() > 0);
-        }
+        // Always ours: a page goes over the one under it, the top level over the screen below.
     }
 
     @Override
@@ -221,6 +222,8 @@ public class MobileSettingsActivity extends MobileActivity {
     }
 
     private int mLastDepth;
+    /** The top level's own fade-out is under way (a second Back just waits for it). */
+    private boolean mLeaving;
 
     @Nullable
     private Fragment fragmentOf(View view) {
@@ -233,9 +236,15 @@ public class MobileSettingsActivity extends MobileActivity {
     }
 
     private void peekStart() {
+        mPeekProgress = 0f;
         java.util.List<Fragment> pages = pages();
         if (pages.size() < 2) {
-            mPeekView = null;
+            // The top level: all of Settings blurs and fades over the screen below.
+            mPeekView = findViewById(android.R.id.content);
+            mPeekUnder = null;
+            if (mPeekView != null) {
+                mPeekView.animate().cancel();
+            }
             return;
         }
         mPeekView = pages.get(pages.size() - 1).getView();
@@ -306,7 +315,31 @@ public class MobileSettingsActivity extends MobileActivity {
     private void handleBack() {
         FragmentManager fragments = getSupportFragmentManager();
         if (fragments.getBackStackEntryCount() == 0) {
-            finish();
+            // Settings goes the way its pages do - finishing the blur and fade from where the
+            // gesture left it (or all of it, for the back arrow) - then leaves without a slide.
+            View content = findViewById(android.R.id.content);
+            float from = mPeekView == content ? new DecelerateInterpolator().getInterpolation(mPeekProgress) : 0f;
+            mPeekView = null;
+            if (content == null || mLeaving) {
+                finish();
+                return;
+            }
+            mLeaving = true;
+            android.animation.ValueAnimator out = android.animation.ValueAnimator.ofFloat(from, 1f);
+            out.setDuration(Math.round(200 * (1f - from)) + 40);
+            out.addUpdateListener(animation -> {
+                float t = (float) animation.getAnimatedValue();
+                applyPeek(content, t);
+                content.setAlpha(Math.min(content.getAlpha(), 1f - t));
+            });
+            out.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator animation) {
+                    finish();
+                    overridePendingTransition(0, 0);
+                }
+            });
+            out.start();
             return;
         }
         java.util.List<Fragment> pages = pages();

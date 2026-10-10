@@ -393,8 +393,9 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
                 mBadge.setVisibility(View.GONE);
             } else {
                 mBadge.setText(badgeText);
-                mBadge.setBackgroundColor(ContextCompat.getColor(context,
-                        video.isLive || video.isUpcoming ? R.color.mobile_color_badge_live_bg : R.color.mobile_color_badge_bg));
+                // NEWTUBE(frosted): a rounded pill of dark glass over the thumbnail (red for live).
+                com.newtube.mobile.ui.common.BadgeGlassDrawable.apply(mBadge, mThumbnail,
+                        video.isLive || video.isUpcoming ? 0xB3D32F2F : 0x73000000);
                 mBadge.setVisibility(View.VISIBLE);
             }
         }
@@ -496,8 +497,29 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
                         .centerCrop());
             }
 
+            request = request.addListener(mBadgeRefresh); // NEWTUBE(frosted): the badge's glass shows it
             request.into(mThumbnail);
         }
+
+        /** The thumbnail arrived (and once its fade-in is done): the badge's glass draws it again. */
+        private final com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> mBadgeRefresh =
+                new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model,
+                            com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                            boolean isFirstResource) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model,
+                            com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
+                            com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                        mBadge.post(mBadge::invalidate);
+                        mBadge.postDelayed(mBadge::invalidate, 200);
+                        return false;
+                    }
+                };
 
         private static final com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> FIRST_THUMB_LISTENER =
                 new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {

@@ -235,6 +235,7 @@ public class MobileBrowseActivity extends MobileActivity
             applyFrostedBars();
         }
         setupYouPanel();
+        setupTabSlider();
         setupErrorAction();
         setupSearchButton();
         setupCastButton();
@@ -378,6 +379,9 @@ public class MobileBrowseActivity extends MobileActivity
         if (mBottomNav != null) {
             float clamped = Math.max(0f, Math.min(1f, reveal));
             mBottomNav.setTranslationY((1f - clamped) * mBottomNav.getHeight());
+            if (mNavGlass != null) {
+                mNavGlass.setTranslationY(mBottomNav.getTranslationY()); // NEWTUBE(frosted)
+            }
         }
     }
 
@@ -555,6 +559,8 @@ public class MobileBrowseActivity extends MobileActivity
     @Nullable
     private com.newtube.mobile.ui.common.BackdropBlurDrawable mNavGlassDrawable;
     @Nullable
+    private View mNavGlass;
+    @Nullable
     private View mMiniGlass;
     @Nullable
     private com.newtube.mobile.ui.common.BackdropBlurDrawable mMiniGlassDrawable;
@@ -564,8 +570,8 @@ public class MobileBrowseActivity extends MobileActivity
         if (mTopGlass != null) {
             mTopGlass.invalidate();
         }
-        if (mBottomNav != null) {
-            mBottomNav.invalidate();
+        if (mNavGlass != null) {
+            mNavGlass.invalidate();
         }
         if (mMiniGlass != null && mMiniGlass.isShown()) {
             mMiniGlass.invalidate();
@@ -588,9 +594,191 @@ public class MobileBrowseActivity extends MobileActivity
         if (mTopGlass != null) {
             mTopGlass.invalidate();
         }
-        if (mBottomNav != null) {
-            mBottomNav.invalidate();
+        if (mNavGlass != null) {
+            mNavGlass.invalidate();
         }
+    }
+
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(tab-slide): tabs slide sideways, and a sideways swipe on the page changes tab
+    // ---------------------------------------------------------------------------------
+
+    @Nullable
+    private TabSlider mTabSlider;
+    /** The tab change under way came from a slide: the page that lands is shown as it is (no fade). */
+    private boolean mSlideSwap;
+    /** Each section's scroll when it was left, so it comes back where it was (and as its picture). */
+    private final android.util.SparseArray<android.os.Parcelable> mScrollStates = new android.util.SparseArray<>();
+    @Nullable
+    private android.os.Parcelable mPendingScrollRestore;
+
+    private void setupTabSlider() {
+        ViewGroup root = findViewById(R.id.mobile_browse_root);
+        if (root == null) {
+            return;
+        }
+        mTabSlider = new TabSlider(this, root, new TabSlider.Host() {
+            @Override
+            public List<View> pageViews() {
+                List<View> views = new ArrayList<>();
+                for (View view : new View[] {mContentSwipe, mFeedSkeleton, mErrorContainer, mYouPanel}) {
+                    if (view != null && view.getVisibility() == View.VISIBLE) {
+                        views.add(view);
+                    }
+                }
+                return views;
+            }
+
+            @Override
+            public int[] tabIds() {
+                Menu menu = mBottomNav.getMenu();
+                int[] ids = new int[menu.size()];
+                for (int i = 0; i < ids.length; i++) {
+                    ids[i] = menu.getItem(i).getItemId();
+                }
+                return ids;
+            }
+
+            @Override
+            public int selectedTabId() {
+                return mBottomNav.getSelectedItemId();
+            }
+
+            @Override
+            public void switchTo(int tabId) {
+                mSlideSwap = true;
+                if (mBottomNav.getSelectedItemId() != tabId) {
+                    mSuppressNavCallback = true;
+                    mBottomNav.setSelectedItemId(tabId);
+                    mSuppressNavCallback = false;
+                }
+                onNavItemChosen(tabId);
+                if (!mSectionSwapPending) {
+                    mSlideSwap = false;
+                }
+            }
+
+            @Override
+            public android.graphics.Rect pageRect() {
+                return slidePageRect();
+            }
+
+            @Override
+            public View placeholders() {
+                return mFeedSkeleton;
+            }
+
+            @Override
+            public int pageColor() {
+                return getColorInt(R.color.mobile_color_background);
+            }
+        });
+    }
+
+    /** The page between the bars (and above a docked mini player), in the root's coordinates. */
+    private android.graphics.Rect slidePageRect() {
+        android.graphics.Rect rect = new android.graphics.Rect(0, 0, 0, 0);
+        View root = findViewById(R.id.mobile_browse_root);
+        if (root == null || mBottomNav == null) {
+            return rect;
+        }
+        int top = mFrostedApplied
+                ? getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height) + mStatusInset
+                : mContentSwipe.getTop();
+        int bottom = mFrostedApplied ? Math.round(mBottomNav.getTop() + mBottomNav.getTranslationY())
+                : mContentSwipe.getBottom();
+        View mini = findViewById(R.id.mobile_mini_player);
+        if (mini != null && mini.getVisibility() == View.VISIBLE && mini.getTop() > top) {
+            bottom = Math.min(bottom, mini.getTop());
+        }
+        rect.set(0, top, root.getWidth(), Math.max(top, bottom));
+        return rect;
+    }
+
+    private float mSwipeDownX;
+    private float mSwipeDownY;
+    /** 0 = not a candidate, 1 = maybe (deciding), 2 = dragging tabs. */
+    private int mTabSwipe;
+    @Nullable
+    private android.view.VelocityTracker mTabVelocity;
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        if (mTabSlider == null) {
+            return super.dispatchTouchEvent(event);
+        }
+        switch (event.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                mSwipeDownX = event.getX();
+                mSwipeDownY = event.getY();
+                mTabSwipe = canSwipeTabsAt(event.getX(), event.getY()) ? 1 : 0;
+                if (mTabVelocity != null) {
+                    mTabVelocity.recycle();
+                }
+                mTabVelocity = mTabSwipe != 0 ? android.view.VelocityTracker.obtain() : null;
+                break;
+            case android.view.MotionEvent.ACTION_POINTER_DOWN:
+                if (mTabSwipe == 1) {
+                    mTabSwipe = 0; // a pinch, not a swipe
+                }
+                break;
+            case android.view.MotionEvent.ACTION_MOVE:
+                if (mTabSwipe == 1) {
+                    float dx = event.getX() - mSwipeDownX;
+                    float dy = event.getY() - mSwipeDownY;
+                    int slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+                    if (Math.abs(dx) > slop * 1.5f && Math.abs(dx) > Math.abs(dy) * 2f) {
+                        mTabSwipe = 2;
+                        // The feed lets go of the touch (no scroll, no tap) - it is a tab swipe now.
+                        android.view.MotionEvent cancel = android.view.MotionEvent.obtain(event);
+                        cancel.setAction(android.view.MotionEvent.ACTION_CANCEL);
+                        super.dispatchTouchEvent(cancel);
+                        cancel.recycle();
+                        mSwipeDownX += dx > 0 ? slop * 1.5f : -slop * 1.5f; // no jump at the start
+                    } else if (Math.abs(dy) > slop) {
+                        mTabSwipe = 0;
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+        if (mTabVelocity != null) {
+            mTabVelocity.addMovement(event);
+        }
+        if (mTabSwipe != 2) {
+            return super.dispatchTouchEvent(event);
+        }
+        int action = event.getActionMasked();
+        if (action == android.view.MotionEvent.ACTION_MOVE) {
+            mTabSlider.drag(event.getX() - mSwipeDownX);
+        } else if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) {
+            float velocity = 0f;
+            if (mTabVelocity != null && action == android.view.MotionEvent.ACTION_UP) {
+                mTabVelocity.computeCurrentVelocity(1000);
+                velocity = mTabVelocity.getXVelocity();
+            }
+            mTabSlider.release(velocity);
+            mTabSwipe = 0;
+            if (mTabVelocity != null) {
+                mTabVelocity.recycle();
+                mTabVelocity = null;
+            }
+        }
+        return true;
+    }
+
+    /** A finger down here may start a tab swipe: on the page, with nothing else moving. */
+    private boolean canSwipeTabsAt(float x, float y) {
+        if (mTabSlider == null || mTabSlider.isBusy() || mBottomNav == null || mBottomNav.getMenu().size() < 2
+                || mContentSwipe.isRefreshing() || (mSectionFromYou && !mYouShowing)) {
+            return false;
+        }
+        View root = findViewById(R.id.mobile_browse_root);
+        int[] at = new int[2];
+        root.getLocationInWindow(at);
+        android.graphics.Rect page = slidePageRect();
+        return page.contains(Math.round(x - at[0]), Math.round(y - at[1]));
     }
 
     /** NEWTUBE(frosted): this screen was laid out with the feed under glass bars. */
@@ -628,7 +816,9 @@ public class MobileBrowseActivity extends MobileActivity
         int tint = (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
         float density = getResources().getDisplayMetrics().density;
         // The top bar's glass ends in a soft edge (fading out over this), not a sharp line.
-        final int fade = Math.round(16 * density);
+        final int fade = Math.round(44 * density);
+        // The first row starts this far into the fade (the rest of it lies over the row's top).
+        final int fadeInset = Math.round(10 * density);
 
         // The top bar's glass: a view of its own behind the title, the cast and search buttons.
         View glass = new View(this);
@@ -654,8 +844,28 @@ public class MobileBrowseActivity extends MobileActivity
         }
         // Whatever else is declared after the feed stays above it already (the You panel, the mini
         // player, the bottom navigation).
-        mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, mBottomNav, page, tint);
-        mBottomNav.setBackground(mNavGlassDrawable);
+        // The bottom navigation's glass: a view of its own behind it, reaching a soft edge's height
+        // above it (the bar itself is see-through).
+        View navGlass = new View(this);
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams navGlassParams =
+                new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, fade);
+        navGlassParams.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        navGlassParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        navGlassParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        root.addView(navGlass, navGlassParams);
+        mNavGlass = navGlass;
+        mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, navGlass, page, tint);
+        mNavGlassDrawable.setFadeTop(fade);
+        navGlass.setBackground(mNavGlassDrawable);
+        mBottomNav.setBackground(null);
+        mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            int height = b - t + fade;
+            if (navGlassParams.height != height) {
+                navGlassParams.height = height;
+                navGlass.setLayoutParams(navGlassParams);
+            }
+        });
+        navGlass.bringToFront();
         mBottomNav.bringToFront();
         View mini = findViewById(R.id.mobile_mini_player);
         if (mini != null) {
@@ -681,7 +891,7 @@ public class MobileBrowseActivity extends MobileActivity
                 }
                 int spans = mLayoutManager != null ? mLayoutManager.getSpanCount() : 1;
                 if (position < spans) {
-                    outRect.top += titleHeight + mStatusInset + fade;
+                    outRect.top += titleHeight + mStatusInset + fadeInset;
                 }
                 if (position >= state.getItemCount() - spans) {
                     outRect.bottom += mBottomNav.getHeight();
@@ -773,7 +983,11 @@ public class MobileBrowseActivity extends MobileActivity
         applyNavLabels();
         mBottomNav.setOnItemSelectedListener(item -> {
             if (!mSuppressNavCallback) {
-                onNavItemChosen(item.getItemId());
+                if (mTabSlider != null) {
+                    mTabSlider.slideTo(item.getItemId()); // NEWTUBE(tab-slide): it changes as it lands
+                } else {
+                    onNavItemChosen(item.getItemId());
+                }
             }
             return true;
         });
@@ -876,23 +1090,45 @@ public class MobileBrowseActivity extends MobileActivity
      */
     private static int personalRank(int sectionId) {
         switch (sectionId) {
-            case MediaGroup.TYPE_USER_PLAYLISTS:
+            case MediaGroup.TYPE_SUBSCRIPTIONS:
                 return 0;
-            case MediaGroup.TYPE_MY_VIDEOS:
+            case MediaGroup.TYPE_HISTORY:
                 return 1;
-            case VideoDownloads.SECTION_ID:
+            case MediaGroup.TYPE_USER_PLAYLISTS:
                 return 2;
-            case MediaGroup.TYPE_CHANNEL_UPLOADS:
+            case MediaGroup.TYPE_MY_VIDEOS:
                 return 3;
-            case MediaGroup.TYPE_PLAYBACK_QUEUE:
+            case VideoDownloads.SECTION_ID:
                 return 4;
-            default:
+            case MediaGroup.TYPE_CHANNEL_UPLOADS:
                 return 5;
+            case MediaGroup.TYPE_PLAYBACK_QUEUE:
+                return 6;
+            default:
+                return 7;
+        }
+    }
+
+    /**
+     * NEWTUBE(you-rows): the You list always has these, whether or not they are also bottom-bar
+     * tabs - the user's own places, where they expect them.
+     */
+    private static boolean isAlwaysInYou(int sectionId) {
+        switch (sectionId) {
+            case MediaGroup.TYPE_SUBSCRIPTIONS:
+            case MediaGroup.TYPE_HISTORY:
+            case MediaGroup.TYPE_USER_PLAYLISTS:
+            case VideoDownloads.SECTION_ID:
+                return true;
+            default:
+                return false;
         }
     }
 
     private static boolean isPersonalSection(int sectionId) {
         switch (sectionId) {
+            case MediaGroup.TYPE_SUBSCRIPTIONS:
+            case MediaGroup.TYPE_HISTORY:
             case MediaGroup.TYPE_USER_PLAYLISTS:
             case MediaGroup.TYPE_MY_VIDEOS:
             case MediaGroup.TYPE_CHANNEL_UPLOADS:
@@ -928,7 +1164,7 @@ public class MobileBrowseActivity extends MobileActivity
 
         for (BrowseSection section : mSections) {
             if (!section.isEnabled()
-                    || navSections.contains(section)
+                    || (navSections.contains(section) && !isAlwaysInYou(section.getId()))
                     || section.getId() == MediaGroup.TYPE_SETTINGS
                     || section.getId() == MediaGroup.TYPE_SHORTS) {
                 continue;
@@ -956,10 +1192,14 @@ public class MobileBrowseActivity extends MobileActivity
         }
 
         if (!explore.isEmpty()) {
-            addYouGroupLabel(getString(R.string.mobile_you_explore));
+            // NEWTUBE(you-explore): a heading that folds its rows away, and stays as left.
+            TextView label = addYouGroupLabel(getString(R.string.mobile_you_explore));
+            int first = mYouRows.getChildCount();
             for (BrowseSection section : explore) {
                 addYouSectionRow(section);
             }
+            int end = mYouRows.getChildCount();
+            makeCollapsible(label, first, end);
         }
 
         addYouDivider();
@@ -1076,7 +1316,67 @@ public class MobileBrowseActivity extends MobileActivity
                 hasNotes ? () -> MobileUpdateActivity.startWhatsNew(this) : null, MobileSnackbar.NOTICE_DURATION_MS);
     }
 
-    private void addYouGroupLabel(CharSequence text) {
+    /** The rows {@code first} to {@code end} (exclusive) of the You list fold under {@code label}. */
+    private void makeCollapsible(TextView label, int first, int end) {
+        boolean[] collapsed = {com.newtube.mobile.ui.common.UiPrefs.isYouExploreCollapsed(this)};
+        android.graphics.drawable.Drawable chevron = androidx.core.content.ContextCompat.getDrawable(this,
+                R.drawable.ic_watch_expand);
+        if (chevron != null) {
+            chevron = chevron.mutate();
+            int size = Math.round(20 * getResources().getDisplayMetrics().density);
+            chevron.setBounds(0, 0, size, size);
+            chevron.setTint(getColorInt(R.color.mobile_color_on_surface_secondary));
+        }
+        // The chevron points up while the rows show and down when they are folded away.
+        android.graphics.drawable.RotateDrawable turn = new android.graphics.drawable.RotateDrawable();
+        turn.setDrawable(chevron);
+        turn.setFromDegrees(0f);
+        turn.setToDegrees(180f);
+        if (chevron != null) {
+            turn.setBounds(chevron.getBounds());
+        }
+        label.setCompoundDrawablesRelative(null, null, turn, null);
+        label.setCompoundDrawablePadding(Math.round(4 * getResources().getDisplayMetrics().density));
+        label.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        android.util.TypedValue ripple = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true)) {
+            label.setBackgroundResource(ripple.resourceId);
+        }
+        Runnable apply = () -> {
+            for (int i = first; i < end && i < mYouRows.getChildCount(); i++) {
+                mYouRows.getChildAt(i).setVisibility(collapsed[0] ? View.GONE : View.VISIBLE);
+            }
+            turn.setLevel(collapsed[0] ? 0 : 10000);
+            label.setContentDescription(label.getText());
+            androidx.core.view.ViewCompat.setStateDescription(label, getString(collapsed[0]
+                    ? R.string.mobile_you_collapsed : R.string.mobile_you_expanded));
+        };
+        apply.run();
+        label.setOnClickListener(v -> {
+            collapsed[0] = !collapsed[0];
+            com.newtube.mobile.ui.common.UiPrefs.setYouExploreCollapsed(this, collapsed[0]);
+            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) mYouRows,
+                    new android.transition.AutoTransition().setDuration(220));
+            ValueAnimatorCompat.level(turn, collapsed[0] ? 0 : 10000);
+            for (int i = first; i < end && i < mYouRows.getChildCount(); i++) {
+                mYouRows.getChildAt(i).setVisibility(collapsed[0] ? View.GONE : View.VISIBLE);
+            }
+            androidx.core.view.ViewCompat.setStateDescription(label, getString(collapsed[0]
+                    ? R.string.mobile_you_collapsed : R.string.mobile_you_expanded));
+        });
+    }
+
+    /** A drawable level animated (the Explore chevron's turn). */
+    private static final class ValueAnimatorCompat {
+        static void level(android.graphics.drawable.Drawable drawable, int to) {
+            android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofInt(drawable.getLevel(), to);
+            animator.setDuration(220);
+            animator.addUpdateListener(a -> drawable.setLevel((int) a.getAnimatedValue()));
+            animator.start();
+        }
+    }
+
+    private TextView addYouGroupLabel(CharSequence text) {
         TextView label = new TextView(this);
         label.setText(text);
         label.setTextColor(getColorInt(R.color.mobile_color_on_surface_secondary));
@@ -1086,6 +1386,7 @@ public class MobileBrowseActivity extends MobileActivity
         int padV = Math.round(10 * getResources().getDisplayMetrics().density);
         label.setPadding(pad, padV, pad, padV / 2);
         mYouRows.addView(label);
+        return label;
     }
 
     private void addYouDivider() {
@@ -1132,6 +1433,9 @@ public class MobileBrowseActivity extends MobileActivity
         }
 
         boolean switched = mCurrentSectionId != sectionId;
+        if (switched && mCurrentSectionId != -1 && mLayoutManager != null && !mCurrentVideos.isEmpty()) {
+            mScrollStates.put(mCurrentSectionId, mLayoutManager.onSaveInstanceState()); // NEWTUBE(tab-slide)
+        }
         mCurrentSectionId = sectionId;
         paintCachedSnapshot(sectionId, switched);
         syncNavHighlight(sectionId);
@@ -1176,6 +1480,8 @@ public class MobileBrowseActivity extends MobileActivity
         mLastNearEndTriggerCount = -1;
         mContentGrid.animate().cancel();
         mContentGrid.setAlpha(1f);
+        // NEWTUBE(tab-slide): a section shown from its cards comes back at the scroll it was left at.
+        mPendingScrollRestore = switched && !mCurrentVideos.isEmpty() ? mScrollStates.get(sectionId) : null;
         if (switched) {
             // NEWTUBE(motion): another section is a new page, not an edit of the old one. Through
             // the item animator it played as a shuffle (Pixel 9, History -> Home: the old cards
@@ -1193,7 +1499,9 @@ public class MobileBrowseActivity extends MobileActivity
         }
         if (!mCurrentVideos.isEmpty()) {
             setSkeletonVisible(false);
-            mContentGrid.scrollToPosition(0);
+            if (mPendingScrollRestore == null) {
+                mContentGrid.scrollToPosition(0);
+            }
             com.newtube.mobile.LaunchMilestones.onFeedSnapshotPainted(sectionId, mCurrentVideos.size());
         } else if (mLastSessionFallback != null) {
             setSkeletonVisible(true);
@@ -2243,9 +2551,17 @@ public class MobileBrowseActivity extends MobileActivity
         }
         mSectionSwapPending = false;
         // DiffUtil keeps the viewport anchored on a card both sections share; a new section starts
-        // at its top.
-        mLayoutManager.scrollToPositionWithOffset(0, 0);
-        if (mAdapter.getItemCount() > 0) {
+        // at its top - or, NEWTUBE(tab-slide), where it was left.
+        android.os.Parcelable restore = mPendingScrollRestore;
+        mPendingScrollRestore = null;
+        if (restore != null) {
+            mLayoutManager.onRestoreInstanceState(restore);
+        } else {
+            mLayoutManager.scrollToPositionWithOffset(0, 0);
+        }
+        boolean slid = mSlideSwap;
+        mSlideSwap = false;
+        if (mAdapter.getItemCount() > 0 && !slid) {
             mContentGrid.setAlpha(0f);
             mContentGrid.animate().alpha(1f).setDuration(Motion.FADE_IN_MS)
                     .setInterpolator(Motion.STANDARD).withLayer().start();

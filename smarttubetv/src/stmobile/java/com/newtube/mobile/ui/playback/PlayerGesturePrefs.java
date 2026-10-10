@@ -18,6 +18,8 @@ public final class PlayerGesturePrefs {
     private static final String PREFS_NAME = "newtube_gestures";
     private static final String KEY_LEVEL_SWIPES = "level_swipes";
     private static final String KEY_SEEK_SWIPE = "seek_swipe";
+    private static final String KEY_SPEED_SWIPE = "speed_swipe";
+    private static final String KEY_SPEED_STOP_AT_NORMAL = "speed_swipe_stop_at_1x";
 
     private PlayerGesturePrefs() {
     }
@@ -42,5 +44,23 @@ public final class PlayerGesturePrefs {
 
     public static void setSeekSwipeOn(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_SEEK_SWIPE, on).apply();
+    }
+
+    /** NEWTUBE(speed-swipe): sideways across the top of the fullscreen video sets the speed. */
+    public static boolean isSpeedSwipeOn(Context context) {
+        return prefs(context).getBoolean(KEY_SPEED_SWIPE, true);
+    }
+
+    public static void setSpeedSwipeOn(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_SPEED_SWIPE, on).apply();
+    }
+
+    /** A speed swipe toward 1x stops there; going past it takes a new swipe. */
+    public static boolean isSpeedStopAtNormal(Context context) {
+        return prefs(context).getBoolean(KEY_SPEED_STOP_AT_NORMAL, true);
+    }
+
+    public static void setSpeedStopAtNormal(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_SPEED_STOP_AT_NORMAL, on).apply();
     }
 }

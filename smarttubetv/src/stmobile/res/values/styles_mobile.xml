@@ -237,6 +237,15 @@
         * The activity draws its own scrim + bottom sheet (or an opaque full-screen surface),
           so backgroundDimEnabled is left off and window animations are handled per-mode in code.
     -->
+    <!-- NEWTUBE(predictive-back): Settings over the screen it was opened from. See-through, so
+         that screen stays drawn (and loaded) underneath and Back can reveal it as Settings blurs
+         and fades away (MobileSettingsActivity); the page colour is painted by the activity. -->
+    <style name="Theme.NewTube.Settings" parent="Theme.NewTube">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <style name="Theme.NewTube.Dialog" parent="Theme.NewTube">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>

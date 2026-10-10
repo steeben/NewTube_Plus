@@ -32,6 +32,8 @@ public final class BackdropBlurDrawable extends Drawable {
     private View mSource;
     /** NEWTUBE(frosted): the height of a soft bottom edge (the glass fading out), 0 for a sharp one. */
     private int mFadeBottomPx;
+    /** NEWTUBE(frosted): the same at the top edge (the bottom navigation's soft upper edge). */
+    private int mFadeTopPx;
     @Nullable
     private android.graphics.Paint mFadePaint;
     private final View mHost;
@@ -65,6 +67,25 @@ public final class BackdropBlurDrawable extends Drawable {
         }
     }
 
+    /** The glass fades out over its first {@code px} (the bottom navigation's soft upper edge). */
+    public void setFadeTop(int px) {
+        mFadeTopPx = px;
+        invalidateSelf();
+    }
+
+    /** Opaque to clear over the fade, eased (a cosine) so neither end shows where it starts. */
+    private static final int[] FADE_COLORS = new int[9];
+    private static final float[] FADE_STOPS = new float[9];
+
+    static {
+        for (int i = 0; i < 9; i++) {
+            float t = i / 8f;
+            FADE_STOPS[i] = t;
+            int alpha = Math.round(255 * (0.5f + 0.5f * (float) Math.cos(Math.PI * t)));
+            FADE_COLORS[i] = alpha << 24;
+        }
+    }
+
     /** The glass fades out over its last {@code px} (the top bar's soft lower edge). */
     public void setFadeBottom(int px) {
         mFadeBottomPx = px;
@@ -78,19 +99,25 @@ public final class BackdropBlurDrawable extends Drawable {
         if (bounds.isEmpty()) {
             return;
         }
-        if (mFadeBottomPx > 0 && bounds.height() > mFadeBottomPx) {
+        if ((mFadeBottomPx > 0 || mFadeTopPx > 0) && bounds.height() > mFadeBottomPx + mFadeTopPx) {
             int save = canvas.saveLayer(bounds.left, bounds.top, bounds.right, bounds.bottom, null);
             drawGlass(canvas, bounds);
             if (mFadePaint == null) {
                 mFadePaint = new android.graphics.Paint();
                 mFadePaint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN));
             }
-            float fadeTop = bounds.bottom - mFadeBottomPx;
-            // Eased (a few stops), so the edge melts away rather than ending in a visible ramp.
-            mFadePaint.setShader(new android.graphics.LinearGradient(0, fadeTop, 0, bounds.bottom,
-                    new int[] {0xFF000000, 0xC0000000, 0x60000000, 0x18000000, 0x00000000},
-                    new float[] {0f, 0.3f, 0.6f, 0.85f, 1f}, Shader.TileMode.CLAMP));
-            canvas.drawRect(bounds.left, fadeTop, bounds.right, bounds.bottom, mFadePaint);
+            if (mFadeBottomPx > 0) {
+                float fadeTop = bounds.bottom - mFadeBottomPx;
+                mFadePaint.setShader(new android.graphics.LinearGradient(0, fadeTop, 0, bounds.bottom,
+                        FADE_COLORS, FADE_STOPS, Shader.TileMode.CLAMP));
+                canvas.drawRect(bounds.left, fadeTop, bounds.right, bounds.bottom, mFadePaint);
+            }
+            if (mFadeTopPx > 0) {
+                float fadeEnd = bounds.top + mFadeTopPx;
+                mFadePaint.setShader(new android.graphics.LinearGradient(0, fadeEnd, 0, bounds.top,
+                        FADE_COLORS, FADE_STOPS, Shader.TileMode.CLAMP));
+                canvas.drawRect(bounds.left, bounds.top, bounds.right, fadeEnd, mFadePaint);
+            }
             canvas.restoreToCount(save);
             return;
         }

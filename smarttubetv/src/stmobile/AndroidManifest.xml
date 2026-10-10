@@ -299,7 +299,7 @@
             android:launchMode="singleTop"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden|uiMode"
             android:screenOrientation="unspecified"
-            android:theme="@style/Theme.NewTube" />
+            android:theme="@style/Theme.NewTube.Settings" />
 
         <!-- NEWTUBE(branding): Appearance > Logo > Custom - the system picker, nothing of its own. -->
         <activity

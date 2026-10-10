@@ -102,7 +102,7 @@ final class AccentDialog {
             row.addView(new View(context), new LinearLayout.LayoutParams(0, 1, 1f));
         }
 
-        dialog[0] = com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(context)
+        dialog[0] = com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(context, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_appearance_accent)
                 .setView(grid)
                 .setNegativeButton(android.R.string.cancel, null)
@@ -294,7 +294,7 @@ final class AccentDialog {
             }
         });
 
-        com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(context, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_appearance_accent)
                 .setView(column)
                 .setPositiveButton(R.string.mobile_appearance_apply, (dialog, which) -> {

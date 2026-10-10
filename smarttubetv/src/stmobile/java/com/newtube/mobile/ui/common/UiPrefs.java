@@ -210,9 +210,24 @@ public final class UiPrefs {
                     .putBoolean(KEY_FULL_WIDTH_THUMBS, true)
                     .putBoolean(KEY_ROUNDED_THUMBS, true)
                     .putBoolean(KEY_HIDE_CARD_MENU, true)
-                    .putInt(KEY_LOGO, LOGO_PLAY);
+                    .putInt(KEY_LOGO, LOGO_PLAY)
+                    // The bottom bar: Playlists in, Downloads to the You tab.
+                    .putBoolean(KEY_PLAYLISTS_TAB, true)
+                    .putBoolean(KEY_DOWNLOADS_TAB, false);
+            // Playback > Under the video > Show dislike counts.
+            com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData.instance(context)
+                    .setReturnYouTubeDislikeEnabled(true);
         }
         editor.apply();
+    }
+
+    /** NEWTUBE(you-explore): the You list's Explore rows are folded away (as last left). */
+    public static boolean isYouExploreCollapsed(Context context) {
+        return prefs(context).getBoolean("you_explore_collapsed", false);
+    }
+
+    public static void setYouExploreCollapsed(Context context, boolean collapsed) {
+        prefs(context).edit().putBoolean("you_explore_collapsed", collapsed).apply();
     }
 
     /** NEWTUBE(error-toasts): Settings > Advanced - failure messages are not shown. */

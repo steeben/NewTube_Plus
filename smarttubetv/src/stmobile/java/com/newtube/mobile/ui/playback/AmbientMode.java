@@ -171,6 +171,7 @@ final class AmbientMode {
 
     /** The page is fully open: the status bar's share of the glow fades in. */
     void showBand() {
+        mBandVisible = 1f;
         animateBand(1f, BAND_FADE_MS);
     }
 
@@ -184,26 +185,26 @@ final class AmbientMode {
     }
 
     /**
-     * The page is leaving under a minimize: the status bar's glow follows it out - gone by the
-     * time the page is {@code BAND_MORPH_SPAN} of the way to the mini player, and back if the
-     * minimize is called off.
+     * The page is leaving under a minimize: the status bar's band (its glow over the page colour)
+     * withdraws with it, from its bottom edge up - gone at the minimize's mid-point, and back if
+     * the minimize is called off. Drawn whole on its own, so the window backdrop under it can
+     * already be gone (the bar slide clears it at once to show the screen behind).
      */
     void setBandMorph(float fraction) {
-        if (mBandAnimator != null) {
-            mBandAnimator.cancel();
-            mBandAnimator = null;
-        }
         float t = Math.max(0f, Math.min(1f, fraction / BAND_MORPH_SPAN));
-        float alpha = 1f - t * t * (3f - 2f * t); // smoothstep
-        if (alpha != mBandAlpha) {
-            mBandAlpha = alpha;
+        float visible = 1f - t * t * (3f - 2f * t); // smoothstep
+        if (visible != mBandVisible) {
+            mBandVisible = visible;
             if (mWindowGlow != null) {
                 mWindowGlow.invalidateSelf();
             }
         }
     }
 
-    private static final float BAND_MORPH_SPAN = 0.45f;
+    /** The share of the band's height drawn (1 = all; less while a minimize withdraws it). */
+    private float mBandVisible = 1f;
+
+    private static final float BAND_MORPH_SPAN = 0.5f;
 
     private void animateBand(float to, long durationMs) {
         if (mBandAnimator != null) {
@@ -340,15 +341,25 @@ final class AmbientMode {
             mFillPaint.setAlpha(mAlpha);
             canvas.drawRect(bounds, mFillPaint);
             int band = statusBand();
-            if (band <= 0) {
+            float shown = band * mBandVisible;
+            if (band <= 0 || shown < 0.5f) {
                 return;
             }
+            // While a minimize withdraws it the band is its own opaque strip (page colour and
+            // glow), whatever became of the backdrop around it.
+            boolean withdrawing = mBandVisible < 1f;
+            int alpha = withdrawing ? Math.round(255 * mBandAlpha) : mAlpha;
             canvas.save();
-            canvas.clipRect(bounds.left, bounds.top, bounds.right, bounds.top + band);
-            drawGlow(canvas, 0f, 0f, Math.round(255 * strength() * mBandAlpha * mAlpha / 255f));
+            canvas.clipRect(bounds.left, bounds.top, bounds.right, bounds.top + shown);
+            if (withdrawing) {
+                mFillPaint.setColor(mPageColor);
+                mFillPaint.setAlpha(alpha);
+                canvas.drawRect(bounds.left, bounds.top, bounds.right, bounds.top + shown, mFillPaint);
+            }
+            drawGlow(canvas, 0f, 0f, Math.round(255 * strength() * mBandAlpha * alpha / 255f));
             // The vignette: the theme's darkest (or lightest) at the top edge, clear at the band's end.
             int edge = ThemeMode.isLight(mActivity) ? 0x99FFFFFF : 0x8C000000;
-            int edgeAlpha = Math.round((edge >>> 24) * mAlpha / 255f);
+            int edgeAlpha = Math.round((edge >>> 24) * alpha / 255f);
             mFillPaint.setShader(new LinearGradient(0, bounds.top, 0, bounds.top + band,
                     (edge & 0x00FFFFFF) | (edgeAlpha << 24), edge & 0x00FFFFFF, Shader.TileMode.CLAMP));
             canvas.drawRect(bounds.left, bounds.top, bounds.right, bounds.top + band, mFillPaint);

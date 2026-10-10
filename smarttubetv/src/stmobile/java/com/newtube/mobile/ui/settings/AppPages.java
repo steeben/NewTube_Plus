@@ -174,7 +174,7 @@ final class AppPages {
                 checked = i;
             }
         }
-        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_appearance_logo)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
@@ -218,7 +218,7 @@ final class AppPages {
                 checked = i;
             }
         }
-        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_appearance_header)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
@@ -246,7 +246,7 @@ final class AppPages {
         input.setText(UiPrefs.getHeaderText(context));
         input.setSelection(input.length());
         frame.addView(input);
-        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_appearance_header_custom)
                 .setView(frame)
                 .setPositiveButton(R.string.mobile_appearance_apply, (dialog, which) -> {
