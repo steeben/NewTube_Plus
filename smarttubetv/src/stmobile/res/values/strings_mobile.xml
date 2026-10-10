@@ -452,6 +452,24 @@
     <string name="mobile_theme_system">System default</string>
     <string name="mobile_theme_light">Light</string>
     <string name="mobile_theme_dark">Dark</string>
+    <!-- NEWTUBE(oled): the black theme (ThemeMode.OLED / SYSTEM_OLED). -->
+    <string name="mobile_theme_system_oled">System default (OLED)</string>
+    <string name="mobile_theme_system_oled_desc">Follows the system, with true black when dark</string>
+    <string name="mobile_theme_oled">OLED</string>
+    <string name="mobile_theme_oled_desc">Dark, with true black instead of dark grey</string>
+    <!-- NEWTUBE(branding) and NEWTUBE(ui-options): Settings > General (UiPrefs). -->
+    <string name="mobile_settings_branding">Branding</string>
+    <string name="mobile_settings_branding_none">No icon</string>
+    <string name="mobile_settings_branding_icon">NewTube icon</string>
+    <string name="mobile_settings_video_cards">Video cards</string>
+    <string name="mobile_settings_full_width_thumbs">Full-width thumbnails</string>
+    <string name="mobile_settings_full_width_thumbs_summary">Edge to edge when the feed is one column wide</string>
+    <string name="mobile_settings_rounded_thumbs">Rounded thumbnail corners</string>
+    <string name="mobile_settings_card_menu">More button under cards</string>
+    <string name="mobile_settings_card_menu_summary">Off: press and hold a card for its menu</string>
+    <!-- NEWTUBE(nav-playlists): Settings > Tabs and feeds > Tabs, the bottom bar's limit. -->
+    <string name="mobile_settings_tabs_bottom_bar_full">The bottom bar is full. Turn a tab off first.</string>
+    <string name="mobile_settings_tabs_bottom_bar_note">Up to 5 tabs, You included.</string>
 
     <!-- NEWTUBE(about-growth): the last two rows of Settings > About. Tap-only: no prompt, badge
          or counter. Never "ad-free" wording. -->

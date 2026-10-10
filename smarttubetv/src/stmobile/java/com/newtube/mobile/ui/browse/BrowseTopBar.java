@@ -42,5 +42,29 @@ final class BrowseTopBar {
         mTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, subScreen ? SUBSCREEN_TITLE_SP : WORDMARK_SP);
         mTitle.setPaddingRelative(subScreen ? mBesideBackInset : mWordmarkInset,
                 mTitle.getPaddingTop(), mTitle.getPaddingEnd(), mTitle.getPaddingBottom());
+        mSubScreen = subScreen;
+        applyBranding();
+    }
+
+    private boolean mSubScreen;
+
+    /**
+     * NEWTUBE(branding): Settings > General > Branding - the wordmark alone, or the NewTube icon
+     * before it. Only on a tab's wordmark: a sub-screen's title sits beside its back arrow.
+     */
+    void applyBranding() {
+        android.content.Context context = mTitle.getContext();
+        boolean icon = !mSubScreen
+                && com.newtube.mobile.ui.common.UiPrefs.getBranding(context) == com.newtube.mobile.ui.common.UiPrefs.BRANDING_ICON;
+        android.graphics.drawable.Drawable mark = null;
+        if (icon) {
+            mark = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_newtube_brand);
+            if (mark != null) {
+                int size = Math.round(28 * context.getResources().getDisplayMetrics().density);
+                mark.setBounds(0, 0, size, size);
+            }
+        }
+        mTitle.setCompoundDrawablesRelative(mark, null, null, null);
+        mTitle.setCompoundDrawablePadding(Math.round(8 * context.getResources().getDisplayMetrics().density));
     }
 }

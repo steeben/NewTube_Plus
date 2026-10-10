@@ -34,6 +34,8 @@
     <string name="mobile_settings_theme_system_short">System</string>
     <string name="mobile_settings_theme_light_short">Light</string>
     <string name="mobile_settings_theme_dark_short">Dark</string>
+    <string name="mobile_settings_theme_oled_short">OLED</string>
+    <string name="mobile_settings_theme_system_oled_short">System (OLED)</string>
     <string name="mobile_settings_feeds">Tabs and feeds</string>
     <string name="mobile_settings_feeds_summary">Tabs, hidden videos, video menu</string>
     <string name="mobile_settings_privacy">History and privacy</string>

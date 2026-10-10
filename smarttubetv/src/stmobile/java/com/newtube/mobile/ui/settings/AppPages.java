@@ -25,6 +25,7 @@ import com.liskovsoft.youtubeapi.service.internal.MediaServiceData;
 import com.newtube.mobile.CardMenuMigration;
 import com.newtube.mobile.ui.common.MobileSnackbar;
 import com.newtube.mobile.ui.common.ThemeMode;
+import com.newtube.mobile.ui.common.UiPrefs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,7 +58,17 @@ final class AppPages {
                 .option(context.getString(R.string.mobile_theme_system), ThemeMode.SYSTEM)
                 .option(context.getString(R.string.mobile_theme_light), ThemeMode.LIGHT)
                 .option(context.getString(R.string.mobile_theme_dark), ThemeMode.DARK)
+                .option(context.getString(R.string.mobile_theme_system_oled),
+                        context.getString(R.string.mobile_theme_system_oled_desc), ThemeMode.SYSTEM_OLED)
+                .option(context.getString(R.string.mobile_theme_oled),
+                        context.getString(R.string.mobile_theme_oled_desc), ThemeMode.OLED)
                 .bind(ThemeMode::get, mode -> ThemeMode.set(context, mode)));
+
+        // NEWTUBE(branding): the top bar's wordmark, with or without the NewTube icon.
+        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_branding))
+                .option(context.getString(R.string.mobile_settings_branding_none), UiPrefs.BRANDING_NONE)
+                .option(context.getString(R.string.mobile_settings_branding_icon), UiPrefs.BRANDING_ICON)
+                .bind(() -> UiPrefs.getBranding(context), branding -> UiPrefs.setBranding(context, branding)));
 
         LanguageSettingsPresenter language = LanguageSettingsPresenter.instance(context);
         rows.add(SettingsRow.fromRadio(language.createLanguageCategory(),
@@ -76,6 +87,17 @@ final class AppPages {
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_24_hour),
                 context.getString(R.string.mobile_settings_24_hour_summary),
                 generalData::is24HourLocaleEnabled, generalData::set24HourLocaleEnabled).needsRestart());
+
+        // NEWTUBE(ui-options): how the feeds' video cards look (UiPrefs).
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_video_cards)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_full_width_thumbs),
+                context.getString(R.string.mobile_settings_full_width_thumbs_summary),
+                () -> UiPrefs.isFullWidthThumbnails(context), on -> UiPrefs.setFullWidthThumbnails(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_rounded_thumbs), null,
+                () -> UiPrefs.isRoundedThumbnails(context), on -> UiPrefs.setRoundedThumbnails(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_card_menu),
+                context.getString(R.string.mobile_settings_card_menu_summary),
+                () -> !UiPrefs.isCardMenuHidden(context), on -> UiPrefs.setCardMenuHidden(context, !on)));
 
         return new SettingsPages.Page(context.getString(R.string.mobile_settings_general), rows);
     }
@@ -213,7 +235,7 @@ final class AppPages {
                 MediaGroup.TYPE_PLAYBACK_QUEUE, MediaGroup.TYPE_BLOCKED_CHANNELS};
 
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_tabs_bottom_bar)));
-        addSectionToggles(context, rows, sections, bottomBar, true);
+        addBottomBarToggles(context, rows, sections, bottomBar);
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_tabs_you)));
         addSectionToggles(context, rows, sections, you, true);
         rows.add(SettingsRow.header(context.getString(R.string.mobile_you_explore)));
@@ -236,6 +258,61 @@ final class AppPages {
         rows.add(SettingsRow.note(context.getString(R.string.mobile_settings_tabs_note)));
 
         return new SettingsPages.Page(context.getString(R.string.mobile_settings_tabs), rows);
+    }
+
+    /**
+     * NEWTUBE(nav-playlists): the bottom bar's tabs, Playlists among them. The bar holds five tabs
+     * and You is always one, so at most four of these are on: once four are, the rest are greyed
+     * out (and a switch turned on past that is refused with a message).
+     */
+    private static final int MAX_BOTTOM_BAR_TABS = 4;
+
+    private static void addBottomBarToggles(Context context, List<SettingsRow> rows, Map<Integer, Integer> sections,
+                                            int[] order) {
+        SidebarService sidebar = SidebarService.instance(context);
+        java.util.function.IntPredicate isOn = sectionId -> sectionId == MediaGroup.TYPE_USER_PLAYLISTS
+                ? UiPrefs.isPlaylistsInBottomBar(context) && sidebar.isSectionPinned(sectionId)
+                : sidebar.isSectionPinned(sectionId);
+        int[] all = Arrays.copyOf(order, order.length + 1);
+        all[order.length] = MediaGroup.TYPE_USER_PLAYLISTS;
+        java.util.function.IntSupplier onCount = () -> {
+            int count = 0;
+            for (int id : all) {
+                if (isOn.test(id)) {
+                    count++;
+                }
+            }
+            return count;
+        };
+        for (int sectionId : all) {
+            Integer titleRes = null;
+            for (Map.Entry<Integer, Integer> entry : sections.entrySet()) {
+                if (entry.getValue() == sectionId) {
+                    titleRes = entry.getKey();
+                    break;
+                }
+            }
+            if (titleRes == null) {
+                continue;
+            }
+            rows.add(SettingsRow.toggle(context.getString(sectionTitle(titleRes)), null,
+                    () -> isOn.test(sectionId),
+                    on -> {
+                        if (on && onCount.getAsInt() >= MAX_BOTTOM_BAR_TABS) {
+                            MobileSnackbar.show(context, R.string.mobile_settings_tabs_bottom_bar_full);
+                            return;
+                        }
+                        if (sectionId == MediaGroup.TYPE_USER_PLAYLISTS) {
+                            UiPrefs.setPlaylistsInBottomBar(context, on);
+                            if (on && !sidebar.isSectionPinned(sectionId)) {
+                                BrowsePresenter.instance(context).enableSection(sectionId, true);
+                            }
+                        } else {
+                            BrowsePresenter.instance(context).enableSection(sectionId, on);
+                        }
+                    }).enabledWhen(() -> isOn.test(sectionId) || onCount.getAsInt() < MAX_BOTTOM_BAR_TABS));
+        }
+        rows.add(SettingsRow.note(context.getString(R.string.mobile_settings_tabs_bottom_bar_note)));
     }
 
     private static void addSectionToggles(Context context, List<SettingsRow> rows, Map<Integer, Integer> sections,

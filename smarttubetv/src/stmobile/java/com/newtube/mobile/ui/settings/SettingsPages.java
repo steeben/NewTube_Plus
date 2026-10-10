@@ -152,7 +152,10 @@ public final class SettingsPages {
     private static CharSequence generalSummary(Context context) {
         int theme = ThemeMode.get();
         String themeLabel = context.getString(theme == ThemeMode.LIGHT ? R.string.mobile_settings_theme_light_short
-                : theme == ThemeMode.DARK ? R.string.mobile_settings_theme_dark_short : R.string.mobile_settings_theme_system_short);
+                : theme == ThemeMode.DARK ? R.string.mobile_settings_theme_dark_short
+                : theme == ThemeMode.OLED ? R.string.mobile_settings_theme_oled_short
+                : theme == ThemeMode.SYSTEM_OLED ? R.string.mobile_settings_theme_system_oled_short
+                : R.string.mobile_settings_theme_system_short);
         return context.getString(R.string.mobile_settings_general_summary_value, themeLabel);
     }
 

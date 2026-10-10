@@ -33,6 +33,21 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
  * and {@code MaterialCardView} elevation).
  */
 public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder> {
+    /**
+     * NEWTUBE(ui-options): the list this adapter fills, for its column count (full-width cards only
+     * in one column), and a listener that redraws the cards when General's card options change.
+     */
+    @androidx.annotation.Nullable
+    private RecyclerView mRecycler;
+    private int mAppearanceSpans = -1;
+    private final com.newtube.mobile.ui.common.UiPrefs.Listener mUiPrefsListener = this::onAppearanceChanged;
+    private final View.OnLayoutChangeListener mSpanWatcher =
+            (v, l, t, r, b, ol, ot, or, ob) -> {
+                if (mAppearanceSpans != -1 && spanCount() != mAppearanceSpans) {
+                    v.post(this::onAppearanceChanged); // rotated into (or out of) one column
+                }
+            };
+
     /** Regular video card (full-width thumbnail + title/meta). */
     private static final int VIEW_TYPE_VIDEO = 0;
     /** Channel result row (round avatar + name + subs) — e.g. channels in search results. */
@@ -110,7 +125,52 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             ((ChannelViewHolder) holder).bind(getItem(position), mLongClickListener);
         } else {
             ((VideoViewHolder) holder).bind(getItem(position), mLongClickListener);
+            applyAppearance((VideoViewHolder) holder);
         }
+    }
+
+    @Override
+    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
+        mRecycler = recyclerView;
+        com.newtube.mobile.ui.common.UiPrefs.addListener(mUiPrefsListener);
+        recyclerView.addOnLayoutChangeListener(mSpanWatcher);
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView);
+        recyclerView.removeOnLayoutChangeListener(mSpanWatcher);
+        com.newtube.mobile.ui.common.UiPrefs.removeListener(mUiPrefsListener);
+        if (mRecycler == recyclerView) {
+            mRecycler = null;
+        }
+    }
+
+    /** NEWTUBE(ui-options): General's card options changed, or the column count did: redraw. */
+    @SuppressLint("NotifyDataSetChanged")
+    private void onAppearanceChanged() {
+        mAppearanceSpans = -1;
+        notifyDataSetChanged();
+    }
+
+    private int spanCount() {
+        RecyclerView.LayoutManager manager = mRecycler != null ? mRecycler.getLayoutManager() : null;
+        return manager instanceof androidx.recyclerview.widget.GridLayoutManager
+                ? ((androidx.recyclerview.widget.GridLayoutManager) manager).getSpanCount() : 1;
+    }
+
+    /** NEWTUBE(ui-options): full-width cards (one column only), square corners, no ⋮. */
+    private void applyAppearance(VideoViewHolder holder) {
+        Context context = holder.itemView.getContext();
+        int spans = spanCount();
+        mAppearanceSpans = spans;
+        boolean fullWidth = spans == 1 && com.newtube.mobile.ui.common.UiPrefs.isFullWidthThumbnails(context);
+        holder.applyAppearance(fullWidth,
+                mRecycler != null ? mRecycler.getPaddingLeft() : 0,
+                mRecycler != null ? mRecycler.getPaddingRight() : 0,
+                com.newtube.mobile.ui.common.UiPrefs.isRoundedThumbnails(context),
+                com.newtube.mobile.ui.common.UiPrefs.isCardMenuHidden(context));
     }
 
     @Override
@@ -242,6 +302,63 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
          * arriving). Keeping the ImageView untouched for a same-URL sync is what stops the
          * just-watched card from blinking when Browse resumes after playback.
          */
+        /**
+         * NEWTUBE(ui-options): {@code fullWidth} - the card runs past the list's side padding
+         * ({@code padLeft}/{@code padRight}) to the screen's edges and its text keeps an inset of
+         * its own; {@code rounded} - the thumbnail's corners; {@code hideMenu} - no ⋮ (the same
+         * menu is still on a long press).
+         */
+        void applyAppearance(boolean fullWidth, int padLeft, int padRight, boolean rounded, boolean hideMenu) {
+            android.content.res.Resources res = itemView.getResources();
+            float density = res.getDisplayMetrics().density;
+            int spacing = res.getDimensionPixelSize(R.dimen.mobile_card_spacing);
+            ViewGroup.LayoutParams params = itemView.getLayoutParams();
+            if (params instanceof ViewGroup.MarginLayoutParams) {
+                ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
+                int left = fullWidth ? -padLeft : spacing;
+                int right = fullWidth ? -padRight : spacing;
+                if (margins.leftMargin != left || margins.rightMargin != right) {
+                    margins.leftMargin = left;
+                    margins.rightMargin = right;
+                    margins.setMarginStart(left);
+                    margins.setMarginEnd(right);
+                    itemView.setLayoutParams(margins);
+                }
+            }
+            int textInset = Math.round((fullWidth ? 16 : 4) * density);
+            setHorizontalMargins(mTitle, textInset, Math.round(4 * density));
+            setHorizontalMargins(mMeta, textInset, Math.round(4 * density));
+            if (mThumbnailFrame instanceof com.google.android.material.card.MaterialCardView) {
+                ((com.google.android.material.card.MaterialCardView) mThumbnailFrame).setRadius(rounded
+                        ? res.getDimension(R.dimen.mobile_card_corner_radius) : 0f);
+            }
+            if (hideMenu && mOverflow != null) {
+                mOverflow.setVisibility(View.GONE);
+            }
+            if (mOverflow != null) {
+                // With no ⋮ the text runs to the card's end, kept off the edge like its start.
+                setHorizontalMargins(mTitle, textInset, mOverflow.getVisibility() == View.GONE ? textInset
+                        : Math.round(4 * density));
+                setHorizontalMargins(mMeta, textInset, mOverflow.getVisibility() == View.GONE ? textInset
+                        : Math.round(4 * density));
+            }
+        }
+
+        private static void setHorizontalMargins(View view, int start, int end) {
+            ViewGroup.LayoutParams params = view.getLayoutParams();
+            if (!(params instanceof ViewGroup.MarginLayoutParams)) {
+                return;
+            }
+            ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
+            if (margins.getMarginStart() != start || margins.getMarginEnd() != end) {
+                margins.setMarginStart(start);
+                margins.setMarginEnd(end);
+                margins.leftMargin = start;
+                margins.rightMargin = end;
+                view.setLayoutParams(margins);
+            }
+        }
+
         void bindPartial(Video video) {
             mVideo = video;
             Context context = itemView.getContext();

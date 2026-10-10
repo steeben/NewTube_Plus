@@ -134,12 +134,14 @@ public class MobileBrowseActivity extends MobileActivity
             MediaGroup.TYPE_SUBSCRIPTIONS,
             MediaGroup.TYPE_HISTORY,
             VideoDownloads.SECTION_ID,
+            MediaGroup.TYPE_USER_PLAYLISTS, // NEWTUBE(nav-playlists): only when chosen (UiPrefs)
     };
     private static final int[] PREFERRED_SECTION_TITLE_RES = {
             R.string.header_home,
             R.string.header_subscriptions,
             R.string.header_history,
             R.string.header_downloads,
+            R.string.header_playlists,
     };
 
     private BrowsePresenter mPresenter;
@@ -298,6 +300,7 @@ public class MobileBrowseActivity extends MobileActivity
         mSearchButton = findViewById(R.id.mobile_search_button);
         mCastButton = findViewById(R.id.mobile_cast_button);
         mTopBar = new BrowseTopBar(this, () -> getOnBackPressedDispatcher().onBackPressed());
+        mPlaylistsTab = com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this);
 
         mMiniPlayerBar = findViewById(R.id.mobile_mini_player);
         mMiniPlayerFrame = findViewById(R.id.mobile_mini_player_frame);
@@ -1471,6 +1474,8 @@ public class MobileBrowseActivity extends MobileActivity
 
     private final android.os.Handler mNavHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private boolean mNavRebuildPosted;
+    /** NEWTUBE(nav-playlists): the Playlists-tab choice the bar was last built for. */
+    private boolean mPlaylistsTab;
     private final Runnable mNavRebuild = () -> {
         mNavRebuildPosted = false;
         if (isDestroyed()) {
@@ -1684,6 +1689,8 @@ public class MobileBrowseActivity extends MobileActivity
                 return R.drawable.ic_nav_history;
             case VideoDownloads.SECTION_ID:
                 return R.drawable.ic_nav_downloads;
+            case MediaGroup.TYPE_USER_PLAYLISTS:
+                return R.drawable.ic_nav_playlists; // NEWTUBE(nav-playlists)
             default:
                 return 0;
         }
@@ -1707,7 +1714,12 @@ public class MobileBrowseActivity extends MobileActivity
 
         List<BrowseSection> chosen = new ArrayList<>();
 
-        for (int i = 0; i < PREFERRED_SECTION_IDS.length && chosen.size() < MAX_NAV_ITEMS; i++) {
+        boolean playlists = com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this);
+        // NEWTUBE(nav-playlists): the You tab takes the last of the bar's MAX_NAV_ITEMS places.
+        for (int i = 0; i < PREFERRED_SECTION_IDS.length && chosen.size() < MAX_NAV_ITEMS - 1; i++) {
+            if (PREFERRED_SECTION_IDS[i] == MediaGroup.TYPE_USER_PLAYLISTS && !playlists) {
+                continue;
+            }
             BrowseSection match = findPreferredSection(
                     enabledSections, chosen, PREFERRED_SECTION_IDS[i], PREFERRED_SECTION_TITLE_RES[i]);
 
@@ -1750,6 +1762,13 @@ public class MobileBrowseActivity extends MobileActivity
         }
 
         updateAccountRow();
+        // NEWTUBE(ui-options): Branding and the Playlists tab may have changed in Settings.
+        mTopBar.applyBranding();
+        boolean playlistsTab = com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this);
+        if (playlistsTab != mPlaylistsTab) {
+            mPlaylistsTab = playlistsTab;
+            rebuildNavigation();
+        }
         getWindow().getDecorView().postDelayed(mUpdateCheckIfDue, UPDATE_CHECK_DELAY_MS);
         // Cheap re-sync; listener callbacks already cover changes while resumed.
         updateCastIconTint();

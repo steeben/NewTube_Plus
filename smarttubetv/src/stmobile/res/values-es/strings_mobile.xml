@@ -412,6 +412,21 @@
     <string name="mobile_theme_system">Predeterminado del sistema</string>
     <string name="mobile_theme_light">Claro</string>
     <string name="mobile_theme_dark">Oscuro</string>
+    <string name="mobile_theme_system_oled">Predeterminado del sistema (OLED)</string>
+    <string name="mobile_theme_system_oled_desc">Sigue al sistema, con negro puro en modo oscuro</string>
+    <string name="mobile_theme_oled">OLED</string>
+    <string name="mobile_theme_oled_desc">Oscuro, con negro puro en lugar de gris oscuro</string>
+    <string name="mobile_settings_branding">Marca</string>
+    <string name="mobile_settings_branding_none">Sin icono</string>
+    <string name="mobile_settings_branding_icon">Icono de NewTube</string>
+    <string name="mobile_settings_video_cards">Tarjetas de vídeo</string>
+    <string name="mobile_settings_full_width_thumbs">Miniaturas a todo el ancho</string>
+    <string name="mobile_settings_full_width_thumbs_summary">De borde a borde cuando el feed tiene una sola columna</string>
+    <string name="mobile_settings_rounded_thumbs">Esquinas redondeadas en las miniaturas</string>
+    <string name="mobile_settings_card_menu">Botón Más bajo las tarjetas</string>
+    <string name="mobile_settings_card_menu_summary">Desactivado: mantén pulsada una tarjeta para ver su menú</string>
+    <string name="mobile_settings_tabs_bottom_bar_full">La barra inferior está llena. Desactiva primero otra pestaña.</string>
+    <string name="mobile_settings_tabs_bottom_bar_note">Hasta 5 pestañas, incluida Tú.</string>
 
     <string name="mobile_about_star">Dale una estrella a NewTube en GitHub</string>
     <string name="mobile_about_star_desc">Libre y de código abierto. Una estrella ayuda a que otros lo encuentren</string>

@@ -216,7 +216,9 @@ public class MobileMainApplication extends MainApplication {
                     int[][] choices = {
                             {R.string.mobile_theme_system, ThemeMode.SYSTEM},
                             {R.string.mobile_theme_light, ThemeMode.LIGHT},
-                            {R.string.mobile_theme_dark, ThemeMode.DARK}};
+                            {R.string.mobile_theme_dark, ThemeMode.DARK},
+                            {R.string.mobile_theme_system_oled, ThemeMode.SYSTEM_OLED},
+                            {R.string.mobile_theme_oled, ThemeMode.OLED}};
                     for (int[] choice : choices) {
                         int mode = choice[1];
                         options.add(UiOptionItem.from(context.getString(choice[0]),

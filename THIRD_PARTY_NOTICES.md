@@ -38,6 +38,9 @@ separately from their code, and NewTube uses it under those terms:
   See [`slidableactivity/LICENSE.md`](slidableactivity/LICENSE.md).
 - **filepicker-lib** (`filepicker-lib/`) — **Apache-2.0**.
   See [`filepicker-lib/LICENSE`](filepicker-lib/LICENSE).
+- **Tabler Icons** — © 2020-2026 Paweł Kuna, **MIT** (https://github.com/tabler/tabler-icons).
+  The "playlist" icon (outline and filled) of the Playlists bottom-bar tab,
+  `ic_nav_playlists_outline.xml` / `ic_nav_playlists_fill.xml`.
 
 ## Submodules
 
