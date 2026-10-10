@@ -4,8 +4,8 @@
 
   A single Material RecyclerView GRID of the uploads/playlist contents (reuses
   VideoCardAdapter + the same runtime span-count math as the Home grid), under a simple
-  Toolbar with the list title + a back arrow. No bottom nav: this is a pushed detail
-  screen (parent = MobileBrowseActivity), so back returns to wherever it was opened from.
+  Toolbar with the list title + a back arrow. Back returns to wherever it was opened from;
+  Home's tabs stay at the bottom (NEWTUBE(nav-mirror)), and a tab goes back to Home on it.
 
   A PLAYLIST also gets a header (cover, name, owner, count, Play all + Shuffle) like the
   YouTube playlist page - it is the grid's first full-span ITEM, see
@@ -121,11 +121,28 @@
             android:indeterminateTint="@color/mobile_color_primary"
             android:indeterminateTintMode="src_in" />
 
+        <!-- Minimizing a video opened from this list keeps playback alive in this overlay. In
+             the list's area, so it docks above the tabs below. -->
+        <include layout="@layout/mobile_mini_player_overlay" />
+
     </FrameLayout>
 
-</LinearLayout>
+    <!-- NEWTUBE(nav-mirror): Home's tabs (BrowseNavMirror), styled like Home's bar. -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/mobile_uploads_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/mobile_color_background"
+        android:visibility="gone"
+        app:itemIconSize="24dp"
+        app:itemIconTint="@color/mobile_bottom_nav_item"
+        app:itemTextAppearanceActive="@style/MobileBottomNavText"
+        app:itemTextAppearanceActiveBoldEnabled="false"
+        app:itemTextAppearanceInactive="@style/MobileBottomNavText"
+        app:paddingBottomSystemWindowInsets="true"
+        app:itemTextColor="@color/mobile_bottom_nav_item"
+        app:labelVisibilityMode="labeled" />
 
-    <!-- Minimizing a video opened from this list keeps playback alive in this overlay. -->
-    <include layout="@layout/mobile_mini_player_overlay" />
+</LinearLayout>
 
 </FrameLayout>

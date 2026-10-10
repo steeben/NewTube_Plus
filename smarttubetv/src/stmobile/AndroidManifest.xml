@@ -87,6 +87,8 @@
     <application
         android:name="com.newtube.mobile.MobileMainApplication"
         android:theme="@style/Theme.NewTube"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="33"
         tools:replace="android:name,android:theme">
 
         <!-- The TV manifest makes Splash singleInstance, which puts it in a separate task and

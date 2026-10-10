@@ -101,6 +101,8 @@ public final class AccountsSheet {
         }
 
         sheet.setContentView(content);
+        sheet.setOnShowListener(d -> com.newtube.mobile.ui.common.FrostedDialog.applySheet(sheet,
+                sheet.findViewById(com.google.android.material.R.id.design_bottom_sheet)));
         sheet.show();
     }
 
@@ -173,7 +175,7 @@ public final class AccountsSheet {
         String who = account.getEmail() != null ? account.getEmail() :
                 account.getName() != null ? account.getName() : "";
 
-        new MaterialAlertDialogBuilder(activity, R.style.MobileAlertDialog)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(activity, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_accounts_sign_out_title)
                 .setMessage(activity.getString(R.string.mobile_accounts_sign_out_confirm, who))
                 .setPositiveButton(R.string.mobile_accounts_sign_out, (dialog, which) -> {
@@ -184,6 +186,6 @@ public final class AccountsSheet {
                     onAccountsChanged.run();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .show());
     }
 }

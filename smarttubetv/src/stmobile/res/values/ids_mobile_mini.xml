@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- NEWTUBE(mini-next): the mini player's Next button, built in code (MiniPlayerViews). -->
+    <item name="mobile_mini_next" type="id" />
+</resources>

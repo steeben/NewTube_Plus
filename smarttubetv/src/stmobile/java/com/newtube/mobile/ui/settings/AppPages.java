@@ -174,7 +174,7 @@ final class AppPages {
                 checked = i;
             }
         }
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.mobile_appearance_logo)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
@@ -187,7 +187,7 @@ final class AppPages {
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .show());
     }
 
     private static CharSequence headerSummary(Context context) {
@@ -218,7 +218,7 @@ final class AppPages {
                 checked = i;
             }
         }
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.mobile_appearance_header)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
@@ -230,7 +230,7 @@ final class AppPages {
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .show());
     }
 
     private static void showHeaderTextDialog(SettingsPageFragment page) {
@@ -246,7 +246,7 @@ final class AppPages {
         input.setText(UiPrefs.getHeaderText(context));
         input.setSelection(input.length());
         frame.addView(input);
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.mobile_appearance_header_custom)
                 .setView(frame)
                 .setPositiveButton(R.string.mobile_appearance_apply, (dialog, which) -> {
@@ -256,7 +256,7 @@ final class AppPages {
                     page.rebuild();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .show());
         input.requestFocus();
     }
 
@@ -702,12 +702,12 @@ final class AppPages {
 
     /** A confirmation whose button repeats the verb ("Clear"), red because it deletes something. */
     static void confirm(@NonNull SettingsPageFragment page, int titleRes, int bodyRes, int buttonRes, Runnable onConfirm) {
-        page.showDialog(new MaterialAlertDialogBuilder(page.requireContext(), R.style.MobileAlertDialog)
+        page.showDialog(com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(page.requireContext(), R.style.MobileAlertDialog)
                 .setTitle(titleRes)
                 .setMessage(bodyRes)
                 .setPositiveButton(buttonRes, (dialog, which) -> onConfirm.run())
                 .setNegativeButton(android.R.string.cancel, null)
-                .show());
+                .show()));
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -38,7 +38,17 @@ jobs:
           cache: gradle
 
       - name: Build the debug APKs
-        run: ./gradlew --no-daemon --stacktrace :smarttubetv:assembleStmobileDebug
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace :smarttubetv:assembleStmobileDebug 2>&1 | tee build.log
+
+      # A failed build's errors as annotations too, so they can be read without the full log.
+      - name: Report build errors
+        if: failure()
+        run: |
+          grep -a -E "error:|e: |ERROR:|What went wrong" -A2 build.log | head -60 | while IFS= read -r line; do
+            echo "::error::${line//%/%25}"
+          done
 
       - name: List what was built
         run: ls -l smarttubetv/build/outputs/renamed_apks/stmobileDebug/

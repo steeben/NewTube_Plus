@@ -36,6 +36,20 @@ public final class GlassStyle {
         return new InsetDrawable(ripple, 0, inset, 0, inset);
     }
 
+    /**
+     * A watch-page card (Comments, Live chat, the playlist queue) of glass: bg_watch_card's 12dp
+     * rounded surface, see-through with a fine light edge.
+     */
+    public static Drawable card(Context context) {
+        float density = context.getResources().getDisplayMetrics().density;
+        boolean light = ThemeMode.isLight(context);
+        GradientDrawable glass = new GradientDrawable();
+        glass.setCornerRadius(12 * density);
+        glass.setColor(light ? 0x8CFFFFFF : 0x17FFFFFF);
+        glass.setStroke(Math.max(1, Math.round(density)), light ? 0x1A000000 : 0x2EFFFFFF);
+        return new RippleDrawable(ColorStateList.valueOf(light ? 0x1F000000 : 0x33FFFFFF), glass, null);
+    }
+
     /** A view's pill background, made glass (and its padding kept). */
     public static void applyPill(View view) {
         if (view == null) {
@@ -50,18 +64,22 @@ public final class GlassStyle {
     }
 
     /**
-     * Subscribe as glass: still the strongest of the row while not subscribed (nearly opaque, in
-     * the main-action colours), see-through once subscribed.
+     * Subscribe as glass. Not subscribed it is still the strongest of the row: bright, nearly
+     * opaque glass in the main-action colours (near-white on the dark page, near-black on the
+     * light one) with a fine edge; subscribed, it is a see-through pill like the others.
      */
     public static void applySubscribe(MaterialButton button, boolean subscribed, int mainColor, int mainText,
                                       int quietText) {
         Context context = button.getContext();
         float density = context.getResources().getDisplayMetrics().density;
         boolean light = ThemeMode.isLight(context);
-        int fill = subscribed ? (light ? 0x8CFFFFFF : 0x1FFFFFFF) : (mainColor & 0x00FFFFFF) | 0xD9000000;
+        int fill = subscribed ? (light ? 0x8CFFFFFF : 0x1FFFFFFF)
+                : light ? 0xD90F0F0F : 0xE6F5F5F5;
+        int edge = subscribed ? (light ? 0x1F000000 : 0x38FFFFFF)
+                : light ? 0x33FFFFFF : 0xFFFFFFFF;
         button.setBackgroundTintList(ColorStateList.valueOf(fill));
-        button.setStrokeWidth(subscribed ? Math.max(1, Math.round(density)) : 0);
-        button.setStrokeColor(ColorStateList.valueOf(light ? 0x1F000000 : 0x38FFFFFF));
+        button.setStrokeWidth(Math.max(1, Math.round(density)));
+        button.setStrokeColor(ColorStateList.valueOf(edge));
         button.setTextColor(subscribed ? quietText : mainText);
     }
 }

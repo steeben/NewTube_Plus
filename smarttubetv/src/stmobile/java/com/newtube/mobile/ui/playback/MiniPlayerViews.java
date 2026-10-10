@@ -52,8 +52,11 @@ final class MiniPlayerViews {
     final TextView title;
     final TextView channel;
     final ImageView flash;
+    /** NEWTUBE(mini-next): skip to the playlist's next video; shown only while there is one. */
+    final ImageButton next;
 
     int style = -1;
+    private boolean mHasNext;
     boolean cardLeft;
 
     @Nullable
@@ -63,6 +66,8 @@ final class MiniPlayerViews {
     private FrostedIconDrawable mPlayIcon;
     @Nullable
     private FrostedIconDrawable mCloseIcon;
+    @Nullable
+    private FrostedIconDrawable mNextIcon;
     private boolean mPlaying = true;
     /** The card's own outline and clipping, put back when the rounded-top bar is left. */
     private final android.view.ViewOutlineProvider mCardOutline;
@@ -109,6 +114,17 @@ final class MiniPlayerViews {
         title = card.findViewById(R.id.mobile_mini_title);
         channel = card.findViewById(R.id.mobile_mini_channel);
         flash = card.findViewById(R.id.mobile_mini_flash);
+        // Built here rather than in the layout: the same overlay is inflated by the hosts and by
+        // the player's minimize copy, and both get it from this one place.
+        next = new ImageButton(card.getContext());
+        next.setId(R.id.mobile_mini_next);
+        next.setContentDescription(card.getContext().getString(R.string.mobile_mini_next));
+        next.setImageResource(R.drawable.ic_player_next);
+        next.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        next.setVisibility(View.GONE);
+        ViewGroup buttons = (ViewGroup) playPause.getParent();
+        buttons.addView(next, buttons.indexOfChild(playPause) + 1, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         mCardOutline = card.getOutlineProvider();
         mCardClips = card.getClipToOutline();
     }
@@ -123,6 +139,9 @@ final class MiniPlayerViews {
         int barHeight = px(MiniPlayerStyle.barHeightDp(style), density);
         int thumbWidth = Math.round(MiniPlayerStyle.barThumbWidthPx(density));
         int buttonSize = px(48, density);
+        // NEWTUBE(mini-next): a Next button beside play/pause while a playlist has a next video.
+        boolean showNext = mHasNext && style != MiniPlayerStyle.CARD_GESTURE;
+        int nextSlot = showNext ? buttonSize : 0;
 
         // The card: in a bottom corner, or a square-cornered bar across the screen.
         ViewGroup.LayoutParams params = card.getLayoutParams();
@@ -205,7 +224,7 @@ final class MiniPlayerViews {
         int onVideo = ContextCompat.getColor(context, R.color.mobile_player_on_video);
         if (style == MiniPlayerStyle.BAR_VIDEO) {
             textParams.setMarginStart(px(12, density));
-            textParams.setMarginEnd(buttonSize + px(12, density)); // only play/pause beside it
+            textParams.setMarginEnd(buttonSize + nextSlot + px(12, density)); // only play/pause (and next)
             if (mTitleFrost == null) {
                 mTitleFrost = new FrostedScrimDrawable(14f * density,
                         ContextCompat.getColor(context, R.color.mobile_mini_frost_tint));
@@ -216,7 +235,7 @@ final class MiniPlayerViews {
             channel.setVisibility(View.GONE);
         } else {
             textParams.setMarginStart(thumbWidth + px(12, density));
-            textParams.setMarginEnd(2 * buttonSize + px(4, density));
+            textParams.setMarginEnd(2 * buttonSize + nextSlot + px(4, density));
             text.setBackground(null);
             text.setPadding(0, 0, 0, 0);
             title.setTextColor(onSurface);
@@ -234,7 +253,7 @@ final class MiniPlayerViews {
             play.height = buttonSize;
             play.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
             // The video-background bar has no X (it closes by swiping): play/pause takes its place.
-            play.setMarginEnd(style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize);
+            play.setMarginEnd((style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize) + nextSlot);
             closeParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         } else {
             play.width = px(40, density);
@@ -243,6 +262,26 @@ final class MiniPlayerViews {
             play.setMarginEnd(0);
             closeParams.gravity = Gravity.TOP | Gravity.END;
         }
+        FrameLayout.LayoutParams nextParams = (FrameLayout.LayoutParams) next.getLayoutParams();
+        if (bar) {
+            // Right after play/pause: at the end of the video bar, before the plain bar's X.
+            nextParams.width = buttonSize;
+            nextParams.height = buttonSize;
+            nextParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+            nextParams.leftMargin = 0;
+            nextParams.setMarginStart(0);
+            nextParams.setMarginEnd(style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize);
+        } else {
+            // On the card, the same circle beside the centred play/pause.
+            nextParams.width = px(40, density);
+            nextParams.height = px(40, density);
+            nextParams.gravity = Gravity.CENTER;
+            nextParams.setMarginEnd(0);
+            nextParams.setMarginStart(0);
+            nextParams.rightMargin = 0;
+            nextParams.leftMargin = px(56, density);
+        }
+        next.setLayoutParams(nextParams);
         closeParams.width = buttonSize;
         closeParams.height = buttonSize;
         playPause.setLayoutParams(play);
@@ -255,6 +294,10 @@ final class MiniPlayerViews {
             setPadding(close, px(14, density));
             playPause.setImageTintList(ColorStateList.valueOf(onSurface));
             close.setImageTintList(ColorStateList.valueOf(onSurface));
+            next.setBackground(borderlessRipple(context));
+            setPadding(next, px(12, density));
+            next.setImageTintList(ColorStateList.valueOf(onSurface));
+            next.setImageResource(R.drawable.ic_player_next);
         } else if (style == MiniPlayerStyle.BAR_VIDEO) {
             // Just the two icons, no circle: each one nearly-white frosted glass over the video.
             if (mPlayIcon == null) {
@@ -271,6 +314,14 @@ final class MiniPlayerViews {
             close.setImageTintList(null);
             playPause.setImageDrawable(mPlayIcon);
             close.setImageDrawable(mCloseIcon);
+            if (mNextIcon == null) {
+                mNextIcon = new FrostedIconDrawable(ContextCompat.getDrawable(context, R.drawable.ic_player_next),
+                        ContextCompat.getColor(context, R.color.mobile_mini_button_frost_tint));
+            }
+            next.setBackground(borderlessRipple(context));
+            setPadding(next, px(12, density));
+            next.setImageTintList(null);
+            next.setImageDrawable(mNextIcon);
         } else {
             // White icons on dark circles over the card's video.
             playPause.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
@@ -279,6 +330,10 @@ final class MiniPlayerViews {
             setPadding(close, px(15, density));
             playPause.setImageTintList(null);
             close.setImageTintList(ColorStateList.valueOf(onVideo));
+            next.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
+            setPadding(next, px(10, density));
+            next.setImageTintList(ColorStateList.valueOf(onVideo));
+            next.setImageResource(R.drawable.ic_player_next);
         }
         if (style != MiniPlayerStyle.BAR_VIDEO) {
             close.setImageResource(R.drawable.ic_sheet_close);
@@ -287,6 +342,7 @@ final class MiniPlayerViews {
         int buttons = style == MiniPlayerStyle.CARD_GESTURE ? View.GONE : View.VISIBLE;
         playPause.setVisibility(buttons);
         close.setVisibility(style == MiniPlayerStyle.BAR_VIDEO ? View.GONE : buttons);
+        next.setVisibility(showNext ? View.VISIBLE : View.GONE);
 
         // The tap answer: over the gesture card's middle, or a soft light ring on the video bar's
         // play/pause (whose icon stays).
@@ -313,6 +369,23 @@ final class MiniPlayerViews {
         card.requestLayout();
     }
 
+    /**
+     * NEWTUBE(mini-next): whether the playlist has a video after this one - Next shows, and the
+     * title makes room for it. Lays the card out again only when that changes.
+     */
+    void setHasNext(boolean hasNext) {
+        if (hasNext == mHasNext) {
+            return;
+        }
+        mHasNext = hasNext;
+        if (style == MiniPlayerStyle.CARD_GESTURE) {
+            return; // no buttons on it (and laying it out again would reset its paused dim)
+        }
+        if (style >= 0) {
+            applyStyle(style, cardLeft);
+        }
+    }
+
     /** Show play/pause's state: the pause icon while it plays. */
     void setPlaying(boolean playing) {
         mPlaying = playing;
@@ -335,7 +408,7 @@ final class MiniPlayerViews {
         if (style == MiniPlayerStyle.CARD_GESTURE) {
             return new View[] {progress}; // its dim shows the paused state
         }
-        return new View[] {playPause, close, progress, backdrop, dim, text};
+        return new View[] {playPause, close, next, progress, backdrop, dim, text};
     }
 
     /**
@@ -391,6 +464,9 @@ final class MiniPlayerViews {
         }
         if (sourceFor(close, true) && mCloseIcon != null) {
             mCloseIcon.setFrame(mFrostBlur, mFrostSource);
+        }
+        if (next.getVisibility() == View.VISIBLE && sourceFor(next, true) && mNextIcon != null) {
+            mNextIcon.setFrame(mFrostBlur, mFrostSource);
         }
     }
 

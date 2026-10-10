@@ -422,6 +422,18 @@ public final class MiniPlayerBridge {
         }
     }
 
+    /** NEWTUBE(mini-next): the playing video is in a playlist with a video after it. */
+    public static boolean hasNext() {
+        return isActive() && sActivity.get().hasQueueNext();
+    }
+
+    /** NEWTUBE(mini-next): play the playlist's next video (the player's own Next). */
+    public static void playNext() {
+        if (isActive()) {
+            sActivity.get().playNextFromMini();
+        }
+    }
+
     /** Metadata of the playing video (title/author for the bar), or null. */
     @Nullable
     public static Video getVideo() {

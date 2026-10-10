@@ -115,6 +115,8 @@ public class MobileChannelActivity extends MobileActivity
         setContentView(R.layout.activity_mobile_channel);
 
         registerBackHandler(this::handleBack);
+        // NEWTUBE(nav-mirror): a tab on a list opened from here goes Home past this page too.
+        com.newtube.mobile.ui.browse.BrowseNavMirror.registerDetail(this);
 
         bindViews();
         mMiniPlayer = new MobileMiniPlayerController(this);

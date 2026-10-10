@@ -496,6 +496,8 @@
     <string name="mobile_appearance_logo">Logo</string>
     <string name="mobile_appearance_logo_none">None</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>
+    <string name="mobile_appearance_accent_custom">Custom color</string>
+    <string name="mobile_mini_next">Next video</string>
     <string name="mobile_appearance_logo_play">Play</string>
     <string name="mobile_appearance_bottom_bar">Bottom bar</string>
     <string name="mobile_appearance_nav_labels">Tab labels</string>

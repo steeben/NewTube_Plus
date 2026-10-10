@@ -126,6 +126,18 @@ public final class MobileMiniPlayerController {
             }
         });
         mClose.setOnClickListener(v -> close());
+        // NEWTUBE(mini-next): the playlist's next video, without leaving the mini player.
+        mViews.next.setOnClickListener(v -> {
+            if (mClosing || !MiniPlayerBridge.isActive()) {
+                return;
+            }
+            MiniPlayerBridge.playNext();
+            mViews.next.animate().cancel();
+            mViews.next.setScaleX(0.85f);
+            mViews.next.setScaleY(0.85f);
+            mViews.next.animate().scaleX(1f).scaleY(1f).setDuration(220)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(2.5f)).start();
+        });
 
         mGestures = MiniPlayerGestures.attach(mBar, new MiniPlayerGestures.Callback() {
             @Override
@@ -415,6 +427,7 @@ public final class MobileMiniPlayerController {
             applyStyle(style);
         }
         updateText();
+        mViews.setHasNext(MiniPlayerBridge.hasNext());
         // NEWTUBE(accent): the progress line in the accent, which may have changed since.
         mProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(MiniPlayerStyle.accent(mActivity)));
 
@@ -723,6 +736,7 @@ public final class MobileMiniPlayerController {
         }
         updatePlayPause(player);
         updateText(); // NEWTUBE(mini-style): an autoplayed next video
+        mViews.setHasNext(MiniPlayerBridge.hasNext()); // NEWTUBE(mini-next): and its place in the list
         MiniPlayerBridge.fitToVideo(mFrame); // an autoplayed next video may have another shape
         Utils.postDelayed(mTick, TICK_MS);
     }

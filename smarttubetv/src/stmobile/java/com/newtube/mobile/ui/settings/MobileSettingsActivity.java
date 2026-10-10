@@ -2,7 +2,14 @@ package com.newtube.mobile.ui.settings;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Outline;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewOutlineProvider;
+import android.view.animation.DecelerateInterpolator;
+
+import androidx.activity.BackEventCompat;
+import androidx.activity.OnBackPressedCallback;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -46,7 +53,33 @@ public class MobileSettingsActivity extends MobileActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mobile_settings);
 
-        registerBackHandler(this::handleBack);
+        // NEWTUBE(predictive-back): Back on a page is a predictive gesture - the page shrinks and
+        // leans toward the swipe as the finger moves, and only goes once it is released. On the
+        // top level the callback is off, so the system's own predictive back (to the screen
+        // under Settings, or home) plays instead of a plain finish().
+        mPageBack = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
+                peekStart();
+            }
+
+            @Override
+            public void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {
+                peek(backEvent.getProgress(), backEvent.getSwipeEdge() == BackEventCompat.EDGE_LEFT);
+            }
+
+            @Override
+            public void handleOnBackCancelled() {
+                peekCancel();
+            }
+
+            @Override
+            public void handleOnBackPressed() {
+                handleBack();
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, mPageBack);
+        getSupportFragmentManager().addOnBackStackChangedListener(this::updatePageBack);
 
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
@@ -118,7 +151,83 @@ public class MobileSettingsActivity extends MobileActivity {
                 .commit();
     }
 
+    private OnBackPressedCallback mPageBack;
+    @Nullable
+    private View mPeekView;
+    private float mPeekRadius;
+
+    private void updatePageBack() {
+        if (mPageBack != null) {
+            mPageBack.setEnabled(getSupportFragmentManager().getBackStackEntryCount() > 0);
+        }
+    }
+
+    @Override
+    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        updatePageBack(); // a recreated screen comes back with its pages
+    }
+
+    private void peekStart() {
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.settings_container);
+        mPeekView = current != null ? current.getView() : null;
+        if (mPeekView == null) {
+            return;
+        }
+        mPeekView.animate().cancel();
+        mPeekView.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), mPeekRadius);
+            }
+        });
+        mPeekView.setClipToOutline(true);
+    }
+
+    /** Material's predictive back for a full page: down to 90%, leaning toward the swipe. */
+    private void peek(float progress, boolean fromLeft) {
+        if (mPeekView == null) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float eased = new DecelerateInterpolator().getInterpolation(progress);
+        float scale = 1f - 0.1f * eased;
+        float shift = Math.max(0f, mPeekView.getWidth() / 20f - 8 * density) * eased;
+        mPeekView.setScaleX(scale);
+        mPeekView.setScaleY(scale);
+        mPeekView.setTranslationX(fromLeft ? shift : -shift);
+        mPeekRadius = 28 * density * eased;
+        mPeekView.invalidateOutline();
+    }
+
+    private void peekCancel() {
+        View view = mPeekView;
+        if (view == null) {
+            return;
+        }
+        float startRadius = mPeekRadius;
+        view.animate().scaleX(1f).scaleY(1f).translationX(0f).setDuration(200)
+                .setUpdateListener(animation -> {
+                    mPeekRadius = startRadius * (1f - animation.getAnimatedFraction());
+                    view.invalidateOutline();
+                })
+                .withEndAction(() -> peekReset(view))
+                .start();
+        mPeekView = null;
+    }
+
+    private void peekReset(View view) {
+        view.animate().setUpdateListener(null);
+        view.setScaleX(1f);
+        view.setScaleY(1f);
+        view.setTranslationX(0f);
+        view.setClipToOutline(false);
+        view.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
+        mPeekRadius = 0f;
+    }
+
     private void handleBack() {
+        mPeekView = null; // the page leaves as it is (shrunk), by its own return motion
         FragmentManager fragments = getSupportFragmentManager();
         if (fragments.getBackStackEntryCount() > 0) {
             fragments.popBackStack();

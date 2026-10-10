@@ -267,7 +267,7 @@ public final class SettingsPageFragment extends Fragment implements SettingsAdap
             }
         };
 
-        mDialog = new MaterialAlertDialogBuilder(requireContext(), R.style.MobileAlertDialog)
+        mDialog = com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(requireContext(), R.style.MobileAlertDialog)
                 .setTitle(row.title)
                 .setAdapter(adapter, (dialog, which) -> {
                     if (which != current) {
@@ -276,7 +276,7 @@ public final class SettingsPageFragment extends Fragment implements SettingsAdap
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .show());
         if (current > 0 && mDialog.getListView() != null) {
             // A long list (UI scale, quality) opens on the current option, not its first row.
             mDialog.getListView().setSelection(Math.max(0, current - 2));

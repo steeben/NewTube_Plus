@@ -1456,6 +1456,20 @@ public class MobileBrowseActivity extends MobileActivity
         menu.add(Menu.NONE, YOU_ITEM_ID, navSections.size(), R.string.mobile_nav_you)
                 .setIcon(R.drawable.ic_nav_you);
 
+        // NEWTUBE(nav-mirror): the same tabs for the list screens opened from here.
+        List<Integer> mirrorIds = new ArrayList<>();
+        List<CharSequence> mirrorTitles = new ArrayList<>();
+        List<Integer> mirrorIcons = new ArrayList<>();
+        for (BrowseSection section : navSections) {
+            mirrorIds.add(toMenuItemId(section.getId()));
+            mirrorTitles.add(section.getTitle());
+            mirrorIcons.add(navIconOrResFor(section));
+        }
+        mirrorIds.add(YOU_ITEM_ID);
+        mirrorTitles.add(getString(R.string.mobile_nav_you));
+        mirrorIcons.add(R.drawable.ic_nav_you);
+        BrowseNavMirror.publish(mirrorIds, mirrorTitles, mirrorIcons);
+
         // Re-assert the highlight after clear()/add() wiped it, so the current tab stays lit.
         reassertNavHighlight(menu, true);
 
@@ -1597,6 +1611,16 @@ public class MobileBrowseActivity extends MobileActivity
             mPresenter.onViewResumed();
         }
 
+        // NEWTUBE(nav-mirror): a tab tapped on a list screen's copy of the bar.
+        int requestedTab = BrowseNavMirror.takeRequestedTab();
+        if (requestedTab != 0 && mBottomNav != null && mBottomNav.getMenu().findItem(requestedTab) != null) {
+            if (mBottomNav.getSelectedItemId() != requestedTab) {
+                mBottomNav.setSelectedItemId(requestedTab);
+            } else if (requestedTab == YOU_ITEM_ID ? !mYouShowing : mYouShowing || mSectionFromYou) {
+                onNavItemChosen(requestedTab);
+            }
+        }
+
         updateAccountRow();
         // NEWTUBE(frosted): the feed runs under the bars or it does not - a new layout either way.
         if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) != mFrostedApplied) {
@@ -1686,6 +1710,9 @@ public class MobileBrowseActivity extends MobileActivity
     @Override
     protected void onPause() {
         super.onPause();
+        if (mBottomNav != null) {
+            BrowseNavMirror.setSelected(mBottomNav.getSelectedItemId()); // NEWTUBE(nav-mirror)
+        }
 
         if (mPresenter != null) {
             mPresenter.onViewPaused();

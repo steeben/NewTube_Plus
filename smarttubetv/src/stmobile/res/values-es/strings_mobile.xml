@@ -452,6 +452,8 @@
     <string name="mobile_appearance_logo">Logotipo</string>
     <string name="mobile_appearance_logo_none">Ninguno</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>
+    <string name="mobile_appearance_accent_custom">Color personalizado</string>
+    <string name="mobile_mini_next">Siguiente vídeo</string>
     <string name="mobile_appearance_logo_play">Reproducir</string>
     <string name="mobile_appearance_bottom_bar">Barra inferior</string>
     <string name="mobile_appearance_nav_labels">Nombres de pestañas</string>

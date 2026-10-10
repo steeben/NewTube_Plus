@@ -21,7 +21,9 @@ import com.newtube.mobile.ui.common.UiPrefs;
 import java.util.Locale;
 
 /**
- * NEWTUBE(accent): Settings > Appearance > Accent - a colour wheel, a brightness slider and a
+ * NEWTUBE(accent): Settings > Appearance > Accent. First a row of common colours as circles (YouTube
+ * red first, the default); the last circle, with a colour dropper in it, opens the custom picker -
+ * a colour wheel, a brightness slider and a
  * colour code field that follow each other. The field takes a code with or without its "#" (it
  * puts one in front, once) and three- or six-digit codes; Default puts the red back.
  */
@@ -29,7 +31,133 @@ final class AccentDialog {
     private AccentDialog() {
     }
 
+    /** The preset accents, in the order of the circles; the first is the default red. */
+    private static final int[] PRESETS = {
+            UiPrefs.DEFAULT_ACCENT, // YouTube red
+            0xFFFF6D00, // orange
+            0xFFFFC400, // amber
+            0xFF00C853, // green
+            0xFF00BFA5, // teal
+            0xFF00B8D4, // cyan
+            0xFF2979FF, // blue
+            0xFF651FFF, // violet
+            0xFFD500F9, // purple
+            0xFFF50057, // pink
+            0xFF9E9E9E, // grey
+    };
+    private static final int COLUMNS = 4;
+
     static void show(Context context, Runnable onChanged) {
+        float density = context.getResources().getDisplayMetrics().density;
+        int current = UiPrefs.getAccent(context);
+        boolean isPreset = false;
+        for (int preset : PRESETS) {
+            isPreset |= (preset | 0xFF000000) == current;
+        }
+
+        LinearLayout grid = new LinearLayout(context);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        int pad = Math.round(20 * density);
+        grid.setPadding(pad, Math.round(16 * density), pad, Math.round(4 * density));
+
+        androidx.appcompat.app.AlertDialog[] dialog = {null};
+        int count = PRESETS.length + 1;
+        LinearLayout row = null;
+        for (int i = 0; i < count; i++) {
+            if (i % COLUMNS == 0) {
+                row = new LinearLayout(context);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                rowParams.bottomMargin = Math.round(12 * density);
+                grid.addView(row, rowParams);
+            }
+            boolean custom = i == PRESETS.length;
+            int color = custom ? current : PRESETS[i];
+            boolean selected = custom ? !isPreset : (color | 0xFF000000) == current;
+            View circle = circle(context, color, custom, selected, density);
+            circle.setContentDescription(custom
+                    ? context.getString(R.string.mobile_appearance_accent_custom) : hex(color));
+            circle.setOnClickListener(v -> {
+                if (dialog[0] != null) {
+                    dialog[0].dismiss();
+                }
+                if (custom) {
+                    showCustom(context, onChanged);
+                } else {
+                    UiPrefs.setAccent(context, color);
+                    onChanged.run();
+                }
+            });
+            android.widget.FrameLayout cell = new android.widget.FrameLayout(context);
+            int size = Math.round(48 * density);
+            android.widget.FrameLayout.LayoutParams circleParams =
+                    new android.widget.FrameLayout.LayoutParams(size, size, Gravity.CENTER);
+            cell.addView(circle, circleParams);
+            row.addView(cell, new LinearLayout.LayoutParams(0, Math.round(56 * density), 1f));
+        }
+        // The last row filled out with empty cells, so its circles line up with the ones above.
+        int rest = (COLUMNS - count % COLUMNS) % COLUMNS;
+        for (int i = 0; i < rest && row != null; i++) {
+            row.addView(new View(context), new LinearLayout.LayoutParams(0, 1, 1f));
+        }
+
+        dialog[0] = com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.mobile_appearance_accent)
+                .setView(grid)
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
+    }
+
+    /**
+     * One circle of the picker: the colour, a check on the chosen one (dark or light against it),
+     * and for the custom circle a rainbow ring around the dropper - in the chosen colour once a
+     * custom colour is the accent.
+     */
+    private static View circle(Context context, int color, boolean custom, boolean selected, float density) {
+        android.widget.ImageView view = new android.widget.ImageView(context);
+        view.setScaleType(android.widget.ImageView.ScaleType.CENTER);
+        GradientDrawable fill = new GradientDrawable();
+        fill.setShape(GradientDrawable.OVAL);
+        int ink;
+        if (custom) {
+            fill.setGradientType(GradientDrawable.SWEEP_GRADIENT);
+            fill.setColors(new int[] {0xFFFF0033, 0xFFFFC400, 0xFF00C853, 0xFF00B8D4, 0xFF2979FF,
+                    0xFFD500F9, 0xFFFF0033});
+            GradientDrawable inner = new GradientDrawable();
+            inner.setShape(GradientDrawable.OVAL);
+            inner.setColor(selected ? color : 0xFF2A2A2A);
+            int ring = Math.round(4 * density);
+            view.setBackground(new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[] {
+                    fill, new android.graphics.drawable.InsetDrawable(inner, ring)}));
+            ink = selected && isLight(color) ? 0xFF0F0F0F : 0xFFFFFFFF;
+            view.setImageResource(R.drawable.ic_color_dropper);
+        } else {
+            fill.setColor(color);
+            view.setBackground(fill);
+            ink = isLight(color) ? 0xFF0F0F0F : 0xFFFFFFFF;
+            if (selected) {
+                view.setImageResource(R.drawable.ic_mobile_check);
+            }
+        }
+        view.setImageTintList(android.content.res.ColorStateList.valueOf(ink));
+        GradientDrawable mask = new GradientDrawable();
+        mask.setShape(GradientDrawable.OVAL);
+        mask.setColor(0xFFFFFFFF);
+        view.setForeground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(0x40FFFFFF), null, mask));
+        return view;
+    }
+
+    private static boolean isLight(int color) {
+        double r = Color.red(color) / 255.0;
+        double g = Color.green(color) / 255.0;
+        double b = Color.blue(color) / 255.0;
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6;
+    }
+
+    /** The custom picker: wheel, brightness and code. */
+    private static void showCustom(Context context, Runnable onChanged) {
         float density = context.getResources().getDisplayMetrics().density;
         int pad = Math.round(20 * density);
 
@@ -166,7 +294,7 @@ final class AccentDialog {
             }
         });
 
-        new MaterialAlertDialogBuilder(context)
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.mobile_appearance_accent)
                 .setView(column)
                 .setPositiveButton(R.string.mobile_appearance_apply, (dialog, which) -> {
@@ -178,7 +306,7 @@ final class AccentDialog {
                     onChanged.run();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                .show();
+                .show());
     }
 
     /** "#RRGGBB" for a colour. */

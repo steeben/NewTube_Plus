@@ -3414,14 +3414,14 @@ public class MobilePlaybackActivity extends MobileActivity
     }
 
     private void confirmSwitchDirectCastForSubtitles() {
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(
+        com.newtube.mobile.ui.common.FrostedDialog.frost(new com.google.android.material.dialog.MaterialAlertDialogBuilder(
                 this, R.style.MobileAlertDialog)
                 .setTitle(R.string.mobile_cast_switch_subtitles_title)
                 .setMessage(R.string.mobile_cast_switch_subtitles_message)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.mobile_cast_switch_subtitles_positive,
                         (dialog, which) -> switchDirectCastToTvApp())
-                .show();
+                .show());
     }
 
     private void switchDirectCastToTvApp() {
@@ -3964,6 +3964,7 @@ public class MobilePlaybackActivity extends MobileActivity
                 behavior.setSkipCollapsed(true);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
             }
+            com.newtube.mobile.ui.common.FrostedDialog.applySheet(dialog, sheetView);
             if (immersive && window != null) {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             }
@@ -5610,6 +5611,7 @@ public class MobilePlaybackActivity extends MobileActivity
             card.setLayoutParams(new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, Math.round(barHeight)));
             MiniPlayerViews chrome = new MiniPlayerViews(card);
+            chrome.setHasNext(hasQueueNext());
             chrome.applyStyle(style, false);
             FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) card.getLayoutParams();
             params.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
@@ -8236,6 +8238,35 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mWatchSubscribe != null) {
             updateButtonVisual(R.id.action_subscribe, getButtonState(R.id.action_subscribe));
         }
+        // The Comments / Live chat / playlist cards, glass like the pills.
+        View[] cards = {findViewById(R.id.mobile_watch_comments_entry), findViewById(R.id.mobile_watch_chat_entry),
+                findViewById(R.id.mobile_watch_queue_card)};
+        for (View card : cards) {
+            if (card == null) {
+                continue;
+            }
+            int l = card.getPaddingLeft();
+            int t = card.getPaddingTop();
+            int r = card.getPaddingRight();
+            int b = card.getPaddingBottom();
+            if (glass) {
+                card.setBackground(com.newtube.mobile.ui.common.GlassStyle.card(this));
+            } else {
+                card.setBackgroundResource(R.drawable.bg_watch_card);
+            }
+            card.setPadding(l, t, r, b);
+        }
+        // The comments panel: frosted over the watch page it slides up on.
+        View commentsSheet = findViewById(R.id.comments_sheet);
+        if (commentsSheet != null) {
+            int page = getResources().getColor(R.color.mobile_color_background);
+            if (glass && mWatchScroll != null) {
+                commentsSheet.setBackground(new com.newtube.mobile.ui.common.BackdropBlurDrawable(
+                        mWatchScroll, commentsSheet, page, (page & 0x00FFFFFF) | 0xC7000000));
+            } else {
+                commentsSheet.setBackgroundColor(page);
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------------
@@ -8639,6 +8670,31 @@ public class MobilePlaybackActivity extends MobileActivity
         mQueueAdapter.submitList(new ArrayList<>(mQueueVideos));
         mQueueCard.setVisibility(View.VISIBLE);
         applyQueueExpanded();
+    }
+
+    /**
+     * NEWTUBE(mini-next): a playlist is playing (its queue card is up) and this video is not its
+     * last - the mini player then offers Next.
+     */
+    boolean hasQueueNext() {
+        if (mQueueCard == null || mQueueCard.getVisibility() != View.VISIBLE || mQueueVideos.isEmpty()) {
+            return false;
+        }
+        Video video = getVideo();
+        PlaylistInfo info = video != null ? video.playlistInfo : null;
+        if (info != null && info.getSize() > 0 && info.getCurrentIndex() >= 0
+                && video.getPlaylistId() != null && Helpers.equals(info.getPlaylistId(), video.getPlaylistId())) {
+            return info.getCurrentIndex() < info.getSize() - 1;
+        }
+        int index = indexOfQueueVideo(video != null ? video.videoId : null);
+        return index < mQueueVideos.size() - 1; // -1 (not among the rows in hand): the list goes on
+    }
+
+    /** NEWTUBE(mini-next): the mini player's Next - the same as the player's own. */
+    void playNextFromMini() {
+        if (mPresenter != null) {
+            mPresenter.onNextClicked();
+        }
     }
 
     /** Position of {@code videoId} among the queue rows in hand, or -1. */
