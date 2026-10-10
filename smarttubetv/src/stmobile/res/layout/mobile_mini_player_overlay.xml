@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Floating live-video card used when an in-app player is minimized over a detail screen. -->
+<!-- Live-video mini player used when an in-app player is minimized over Home, Search or a
+     channel. Home includes it with its own constraints; the overlay hosts include it as is.
+     NEWTUBE(mini-style): one view for every style (MiniPlayerStyle). These attributes are the
+     floating card's; MobileMiniPlayerController.applyStyle re-lays the card and its children out
+     for the bars (full width, title/channel, buttons on the right) and back. -->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -23,8 +27,19 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- NEWTUBE(mini-style): the bar's page-coloured surface (Bar style only). A view rather
+             than the card's colour so it can fade in with the bar's text and buttons. -->
+        <View
+            android:id="@+id/mobile_mini_backdrop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/mobile_color_surface"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+
         <!-- NEWTUBE(issue #9): an AspectRatioFrameLayout (FIT), given the video's shape by
-             MiniPlayerBridge.fitToVideo: other shapes are letterboxed, not stretched. -->
+             MiniPlayerBridge.fitToVideo: other shapes are letterboxed, not stretched. The
+             video-background bar switches it to ZOOM: the video fills the bar, cropped. -->
         <androidx.media3.ui.AspectRatioFrameLayout
             android:id="@+id/mobile_mini_player_frame"
             android:layout_width="match_parent"
@@ -41,6 +56,48 @@
 
         </androidx.media3.ui.AspectRatioFrameLayout>
 
+        <!-- NEWTUBE(mini-style): dims the video behind the video-background bar's title and buttons. -->
+        <View
+            android:id="@+id/mobile_mini_dim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/mobile_mini_dim"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+
+        <!-- NEWTUBE(mini-style): the bars' title (and, on the plain bar, the channel). -->
+        <LinearLayout
+            android:id="@+id/mobile_mini_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:importantForAccessibility="no"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/mobile_mini_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/mobile_color_on_surface"
+                android:textSize="14sp"
+                tools:text="Onimusha: Way of the Sword - 12 Things You Probably Missed" />
+
+            <TextView
+                android:id="@+id/mobile_mini_channel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/mobile_color_on_surface_secondary"
+                android:textSize="12sp"
+                tools:text="tateyou" />
+
+        </LinearLayout>
+
         <ImageButton
             android:id="@+id/mobile_mini_play_pause"
             android:layout_width="40dp"
@@ -51,6 +108,7 @@
             android:padding="9dp"
             android:src="@drawable/ic_player_pause" />
 
+        <!-- 48dp touch target, wholly inside the card (a child outside its parent gets no touches), around the same 40dp circle (was 28dp, then 40dp - NEWTUBE(touch)). -->
         <ImageButton
             android:id="@+id/mobile_mini_close"
             android:layout_width="48dp"

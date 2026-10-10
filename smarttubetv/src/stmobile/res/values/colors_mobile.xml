@@ -70,4 +70,8 @@
     <color name="mobile_player_on_video">#FFFFFF</color>
     <color name="mobile_player_pill">#26FFFFFF</color>
     <color name="mobile_player_cast_active">#4FC3F7</color>
+    <!-- NEWTUBE(mini-style): the video-background bar - the dim over the whole video, and the
+         darker scrim behind its title that grows with the title's length. -->
+    <color name="mobile_mini_dim">#40000000</color>
+    <color name="mobile_mini_title_scrim">#8C000000</color>
 </resources>

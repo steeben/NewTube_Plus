@@ -31,6 +31,7 @@ import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.liskovsoft.youtubeapi.service.internal.MediaServiceData;
 import com.newtube.mobile.player.SabrSourcePreference;
+import com.newtube.mobile.ui.playback.MiniPlayerStyle;
 import com.newtube.mobile.ui.playback.PlayerGesturePrefs;
 import com.newtube.mobile.ui.common.MobileSnackbar;
 
@@ -159,6 +160,18 @@ final class PlayerPages {
                 context.getString(R.string.mobile_settings_gesture_seek_summary),
                 () -> PlayerGesturePrefs.isSeekSwipeOn(context),
                 on -> PlayerGesturePrefs.setSeekSwipeOn(context, on)));
+
+        // NEWTUBE(mini-style): how a minimized video docks (MiniPlayerStyle); applies to the next
+        // minimize, and to a mini player already docked when its screen comes back.
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_mini_player)));
+        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_mini_style))
+                .option(context.getString(R.string.mobile_settings_mini_style_card),
+                        context.getString(R.string.mobile_settings_mini_style_card_desc), MiniPlayerStyle.CARD)
+                .option(context.getString(R.string.mobile_settings_mini_style_bar),
+                        context.getString(R.string.mobile_settings_mini_style_bar_desc), MiniPlayerStyle.BAR)
+                .option(context.getString(R.string.mobile_settings_mini_style_bar_video),
+                        context.getString(R.string.mobile_settings_mini_style_bar_video_desc), MiniPlayerStyle.BAR_VIDEO)
+                .bind(() -> MiniPlayerStyle.get(context), style -> MiniPlayerStyle.set(context, style)));
 
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_watch_page)));
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_hide_related),

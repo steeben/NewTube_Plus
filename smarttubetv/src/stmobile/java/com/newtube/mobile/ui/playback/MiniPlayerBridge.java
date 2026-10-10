@@ -78,6 +78,7 @@ public final class MiniPlayerBridge {
     private static Bitmap sHandoffStill;
     private static Bitmap sMiniEntryStill;
     private static Rect sMiniBounds;
+    private static boolean sMiniBoundsCrop;
 
     private MiniPlayerBridge() {
     }
@@ -203,6 +204,7 @@ public final class MiniPlayerBridge {
         sHandoffStill = null;
         sMiniEntryStill = null;
         sMiniBounds = null;
+        sMiniBoundsCrop = false;
     }
 
     /**
@@ -235,13 +237,28 @@ public final class MiniPlayerBridge {
 
     /** Exact on-screen mini rectangle, used to reverse the morph without a geometry jump. */
     public static void setMiniBounds(@Nullable Rect bounds) {
+        setMiniBounds(bounds, false);
+    }
+
+    /**
+     * NEWTUBE(mini-style): {@code crop} - the video fills these bounds' width and is cut to their
+     * height (the video-background bar, see MiniPlayerStyle.Target#crop) rather than fitted.
+     */
+    public static void setMiniBounds(@Nullable Rect bounds, boolean crop) {
         sMiniBounds = bounds != null ? new Rect(bounds) : null;
+        sMiniBoundsCrop = bounds != null && crop;
+    }
+
+    /** NEWTUBE(mini-style): see {@link #setMiniBounds(Rect, boolean)}; read before the take. */
+    static boolean isMiniBoundsCropped() {
+        return sMiniBounds != null && sMiniBoundsCrop;
     }
 
     @Nullable
     static Rect takeMiniBounds() {
         Rect bounds = sMiniBounds;
         sMiniBounds = null;
+        sMiniBoundsCrop = false;
         return bounds;
     }
 

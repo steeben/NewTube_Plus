@@ -1453,6 +1453,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // it the whole time, so no surface change, no codec re-init, no frozen frames. The card
         // captured its last frame for us; it covers the 1-2 frames until the texture paints.
         boolean fromMini = MiniPlayerBridge.isActive();
+        boolean miniCrop = fromMini && MiniPlayerBridge.isMiniBoundsCropped(); // NEWTUBE(mini-style)
         Rect miniBounds = fromMini ? MiniPlayerBridge.takeMiniBounds() : null;
         if (fromMini) {
             Bitmap handoff = MiniPlayerBridge.takeHandoffStill();
@@ -1489,7 +1490,11 @@ public class MobilePlaybackActivity extends MobileActivity
             mContainer.post(() -> {
                 mMorphStartPending = false;
                 if (miniBounds != null) {
-                    computeMorphTarget(miniBounds);
+                    // NEWTUBE(mini-style): from the style's own slot: a square-cornered bar
+                    // thumbnail, or the whole video-background bar (cropped).
+                    int miniStyle = MiniPlayerStyle.get(this);
+                    computeMorphTarget(miniBounds, miniCrop, MiniPlayerStyle.isBar(miniStyle)
+                            ? 0f : MiniPlayerStyle.CARD_CORNER_DP);
                 } else {
                     computeMorphTarget();
                 }
@@ -5230,38 +5235,58 @@ public class MobilePlaybackActivity extends MobileActivity
      * a 12dp shadow and swap in one frame for the rounded card on landing (and start square over a
      * rounded thumbnail on open).
      */
-    private static final float MORPH_CORNER_DP = 12f;
+    private static final float MORPH_CORNER_DP = MiniPlayerStyle.CARD_CORNER_DP;
     private static final float MORPH_ELEVATION_DP = 8f;
     /** Corner radius of the video box in its OWN coordinates: the morph scales it with the box. */
     private float mMorphCornerLocalPx;
+    /** NEWTUBE(mini-style): the on-screen corner radius the current morph ends at (card 12, bars 0). */
+    private float mMorphCornerDp = MORPH_CORNER_DP;
+    /**
+     * NEWTUBE(mini-style): for the video-background bar, the band of the video box (in its own
+     * coordinates) cut off at the top and at the bottom when the morph has landed: the box keeps
+     * its 16:9 shape at the bar's width and only the bar-high middle stays visible. 0 otherwise.
+     */
+    private float mMorphCropLocalPx;
+    /** The settled morph fraction the outline is drawn at (see applyMorph). */
+    private float mMorphOutlineFraction;
     @Nullable
     private android.view.ViewOutlineProvider mVideoAreaOutline;
     private final android.view.ViewOutlineProvider mMorphOutline = new android.view.ViewOutlineProvider() {
         @Override
         public void getOutline(View view, android.graphics.Outline outline) {
-            outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), mMorphCornerLocalPx);
+            int height = view.getHeight();
+            int crop = Math.round(Math.min(height / 2f - 1f,
+                    Math.max(0f, mMorphCropLocalPx * mMorphOutlineFraction)));
+            crop = Math.max(0, crop);
+            outline.setRoundRect(0, crop, view.getWidth(), height - crop, mMorphCornerLocalPx);
         }
     };
 
-    /** Compute the video transform (pivot 0,0) that maps the video area onto the mini card. */
+    /** Compute the video transform (pivot 0,0) that maps the video area onto the mini player. */
     private void computeMorphTarget() {
         float density = getResources().getDisplayMetrics().density;
-        float cardW = MINI_CARD_WIDTH_DP * density;
-        float margin = 12 * density;
-        // Card bottom offset comes from the DESTINATION host: Browse's card floats above its
-        // 56dp bottom-nav row, Search/Channel overlay cards sit flush at the content bottom.
-        // Both containers already exclude the gesture inset in portrait, so no inset term here.
+        // The bottom offset comes from the DESTINATION host: Browse's mini player sits above its
+        // 56dp bottom-nav row, Search/Channel overlay ones at the content bottom. Both
+        // containers already exclude the gesture inset in portrait, so no inset term here.
         MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
         float bottomNav = host != null ? host.getMiniCardBottomOffsetPx() : 56 * density;
+        MiniPlayerStyle.Target target = MiniPlayerStyle.target(MiniPlayerStyle.get(this),
+                mContainer.getWidth(), mContainer.getHeight(), bottomNav, density);
 
         Rect video = new Rect();
         video.set(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
         mContainer.offsetDescendantRectToMyCoords(mVideoArea, video);
 
-        float scale = video.width() > 0 ? cardW / video.width() : 0.44f;
-        float cardH = video.height() * scale; // 16:9 video -> ~the card's 102dp
-        float targetX = mContainer.getWidth() - margin - cardW;
-        float targetY = mContainer.getHeight() - bottomNav - margin - cardH;
+        mMorphCornerDp = target.cornerDp;
+        if (target.crop) {
+            applyCropTarget(video, target.rect);
+            return;
+        }
+        mMorphCropLocalPx = 0f;
+        float scale = video.width() > 0 ? target.rect.width() / video.width() : 0.44f;
+        float landedHeight = video.height() * scale; // 16:9 video -> the 16:9 slot's height
+        float targetX = target.rect.left;
+        float targetY = target.rect.bottom - landedHeight;
 
         mMorphScaleX = scale;
         mMorphScaleY = scale;
@@ -5271,8 +5296,32 @@ public class MobilePlaybackActivity extends MobileActivity
         mMorphTy = targetY - video.top;
     }
 
+    /**
+     * NEWTUBE(mini-style): land the video box on {@code target} (container coordinates) at the
+     * target's width, keeping its shape, and cut the overflow above and below it with the outline
+     * (mMorphOutline) - the video-background bar. A plain scale to the bar would squash the video.
+     */
+    private void applyCropTarget(Rect video, android.graphics.RectF target) {
+        float scale = video.width() > 0 ? target.width() / video.width() : 1f;
+        float bandLocal = scale > 0f ? target.height() / scale : video.height();
+        float cropLocal = Math.max(0f, (video.height() - bandLocal) / 2f);
+        mMorphScaleX = scale;
+        mMorphScaleY = scale;
+        mMorphCropLocalPx = cropLocal;
+        mMorphTx = target.left - video.left;
+        mMorphTy = target.top - cropLocal * scale - video.top;
+    }
+
     /** Map the watch-page video box onto an arbitrary tapped thumbnail in screen coordinates. */
     private void computeMorphTarget(Rect sourceBounds) {
+        computeMorphTarget(sourceBounds, false, MORPH_CORNER_DP);
+    }
+
+    /**
+     * NEWTUBE(mini-style): as {@link #computeMorphTarget(Rect)}; {@code crop} - the bounds are the
+     * video-background bar (see applyCropTarget), {@code cornerDp} - the corner it ends at.
+     */
+    private void computeMorphTarget(Rect sourceBounds, boolean crop, float cornerDp) {
         Rect video = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
         mContainer.offsetDescendantRectToMyCoords(mVideoArea, video);
 
@@ -5281,6 +5330,13 @@ public class MobilePlaybackActivity extends MobileActivity
         float sourceLeft = sourceBounds.left - containerLocation[0];
         float sourceTop = sourceBounds.top - containerLocation[1];
 
+        mMorphCornerDp = cornerDp;
+        if (crop) {
+            applyCropTarget(video, new android.graphics.RectF(sourceLeft, sourceTop,
+                    sourceLeft + sourceBounds.width(), sourceTop + sourceBounds.height()));
+            return;
+        }
+        mMorphCropLocalPx = 0f;
         mMorphScaleX = video.width() > 0
                 ? (float) sourceBounds.width() / video.width() : 1f;
         mMorphScaleY = video.height() > 0
@@ -5393,7 +5449,8 @@ public class MobilePlaybackActivity extends MobileActivity
             restoreVideoAreaOutline();
             return;
         }
-        mMorphCornerLocalPx = scale > 0f ? MORPH_CORNER_DP * density * f / scale : 0f;
+        mMorphCornerLocalPx = scale > 0f ? mMorphCornerDp * density * f / scale : 0f;
+        mMorphOutlineFraction = f;
         if (mVideoArea.getOutlineProvider() != mMorphOutline) {
             mVideoAreaOutline = mVideoArea.getOutlineProvider();
             mVideoArea.setOutlineProvider(mMorphOutline);
@@ -5410,6 +5467,7 @@ public class MobilePlaybackActivity extends MobileActivity
             mVideoAreaOutline = null;
         }
         mMorphCornerLocalPx = 0f;
+        mMorphOutlineFraction = 0f;
     }
 
     private void resetMorph() {
@@ -5428,6 +5486,8 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         mMorphFraction = 0f;
         mMorphOverOwnBackdrop = false;
+        mMorphCropLocalPx = 0f; // NEWTUBE(mini-style)
+        mMorphCornerDp = MORPH_CORNER_DP;
         mVideoArea.setScaleX(1f);
         mVideoArea.setScaleY(1f);
         mVideoArea.setTranslationX(0f);
@@ -5751,10 +5811,12 @@ public class MobilePlaybackActivity extends MobileActivity
             if (captureFullSizeStill) {
                 frame = mVideoTexture.getBitmap();
             } else {
+                // NEWTUBE(mini-style): at the size the chosen mini player shows the video.
                 float density = getResources().getDisplayMetrics().density;
-                int width = Math.max(1, Math.round(MINI_CARD_WIDTH_DP * density));
-                int height = Math.max(1, Math.round(MINI_CARD_HEIGHT_DP * density));
-                frame = mVideoTexture.getBitmap(width, height);
+                int[] size = MiniPlayerStyle.videoSizePx(MiniPlayerStyle.get(this),
+                        mContainer != null && mContainer.getWidth() > 0 ? mContainer.getWidth()
+                                : getResources().getDisplayMetrics().widthPixels, density);
+                frame = mVideoTexture.getBitmap(size[0], size[1]);
             }
             if (frame != null) {
                 showHandoffStill(frame);
@@ -5773,8 +5835,10 @@ public class MobilePlaybackActivity extends MobileActivity
         // The card shows this player's live frames at card size: cap NEW chunks to that window.
         // Card px use the app density on purpose - it is the density the card is laid out with.
         float cardDensity = getResources().getDisplayMetrics().density;
-        mExoPlayerController.setSmallWindowViewport("mini", Math.round(MINI_CARD_WIDTH_DP * cardDensity),
-                Math.round(MINI_CARD_HEIGHT_DP * cardDensity));
+        int[] miniSize = MiniPlayerStyle.videoSizePx(MiniPlayerStyle.get(this), // NEWTUBE(mini-style)
+                mContainer != null && mContainer.getWidth() > 0 ? mContainer.getWidth()
+                        : getResources().getDisplayMetrics().widthPixels, cardDensity);
+        mExoPlayerController.setSmallWindowViewport("mini", miniSize[0], miniSize[1]);
         // A deep-linked open arms ViewManager's player-only mode ("watch, then back to the
         // launcher"). Minimizing into an in-app host means the user is now USING the app, so
         // drop the flag - a stale one makes startParentView "exit to Home" on the next back

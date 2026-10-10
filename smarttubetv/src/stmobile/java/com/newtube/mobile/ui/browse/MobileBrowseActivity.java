@@ -176,28 +176,10 @@ public class MobileBrowseActivity extends MobileActivity
     /** Process-wide cast session singleton; Browse only reads state + opens the picker. */
     private CastSessionManager mCastSessionManager;
 
-    // Floating in-app mini-player (YouTube-style video-only card over the grid's bottom-right
-    // corner; renders the playback activity's live player after a swipe-down minimize - see
-    // MiniPlayerBridge).
-    private View mMiniPlayerBar;
-    private FrameLayout mMiniPlayerFrame;
-    private ImageView mMiniFreeze;
-    private TextureView mMiniTexture;
-    private ImageButton mMiniPlayPause;
-    private ProgressBar mMiniProgress;
-    /** 500ms UI ticker while the bar is visible: progress line, play/pause icon, liveness check. */
-    private final Runnable mMiniPlayerTick = this::onMiniPlayerTick;
-    private static final long MINI_TICK_MS = 500;
-    /** NEWTUBE(motion): the longest the expanding player waits for this card to fold. */
-    private static final long MINI_FOLD_WAIT_MS = 50;
-    /** NEWTUBE(motion): the card was pre-drawn for a minimize; its buttons fade in once it is ours. */
-    private boolean mMiniButtonsFadePending;
-    private final MiniPlayerBridge.CardFold mMiniCardFold = onFolded -> {
-        foldMiniCard();
-        if (onFolded != null) {
-            FrameGate.afterNextFrame(mMiniPlayerBar.getRootView(), MINI_FOLD_WAIT_MS, onFolded);
-        }
-    };
+    // In-app mini-player (card or bar - see MiniPlayerStyle): renders the playback activity's
+    // live player after a minimize - see MiniPlayerBridge and MobileMiniPlayerController, which
+    // Home now shares with Search and the channel screens.
+    private com.newtube.mobile.ui.playback.MobileMiniPlayerController mMiniPlayer;
 
     private final List<BrowseSection> mSections = new ArrayList<>();
     private final List<Video> mCurrentVideos = new ArrayList<>();
@@ -299,14 +281,10 @@ public class MobileBrowseActivity extends MobileActivity
         mCastButton = findViewById(R.id.mobile_cast_button);
         mTopBar = new BrowseTopBar(this, () -> getOnBackPressedDispatcher().onBackPressed());
 
-        mMiniPlayerBar = findViewById(R.id.mobile_mini_player);
-        mMiniPlayerFrame = findViewById(R.id.mobile_mini_player_frame);
-        mMiniFreeze = findViewById(R.id.mobile_mini_freeze);
-        mMiniPlayPause = findViewById(R.id.mobile_mini_play_pause);
-        mMiniProgress = findViewById(R.id.mobile_mini_progress);
-        setupMiniPlayerBar();
+        mMiniPlayer = new com.newtube.mobile.ui.playback.MobileMiniPlayerController(this);
         // NEWTUBE(mini-inset): the last card can scroll clear of the docked mini-player.
-        com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(mMiniPlayerBar, mContentGrid);
+        com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(
+                findViewById(R.id.mobile_mini_player), mContentGrid);
     }
 
     private void setupSwipeRefresh() {
@@ -365,142 +343,8 @@ public class MobileBrowseActivity extends MobileActivity
     private int mSkeletonShows;
 
     // ---------------------------------------------------------------------------------
-    // In-app mini-player bar
+    // In-app mini-player (MobileMiniPlayerController)
     // ---------------------------------------------------------------------------------
-
-    private void setupMiniPlayerBar() {
-        // Tap the video (anywhere but the overlay buttons) = expand back to the watch screen.
-        // The card keeps rendering until our onPause detaches it (hideMiniPlayer there) - the
-        // player's onResume then re-parents the session texture back. Detaching HERE would blank
-        // the card for the whole activity-switch latency.
-        View.OnClickListener expand = v -> {
-            if (!mMiniClosing && MiniPlayerBridge.isActive()) { // not while a closed card leaves
-                MiniPlayerBridge.expand(this);
-            }
-        };
-        mMiniPlayerBar.setOnClickListener(expand);
-        mMiniPlayerFrame.setOnClickListener(expand);
-
-        mMiniPlayPause.setOnClickListener(v -> {
-            ExoPlayer player = MiniPlayerBridge.getPlayer();
-            if (player != null) {
-                player.setPlayWhenReady(!player.getPlayWhenReady());
-                updateMiniPlayPauseIcon(player);
-            }
-        });
-
-        findViewById(R.id.mobile_mini_close).setOnClickListener(v -> closeMiniPlayer());
-        // NEWTUBE(motion): or swipe the card away sideways.
-        mMiniSwipe = com.newtube.mobile.ui.playback.MiniCardSwipe.attach(mMiniPlayerBar,
-                new com.newtube.mobile.ui.playback.MiniCardSwipe.Callback() {
-                    @Override
-                    public boolean canSwipe() {
-                        return !mMiniClosing && MiniPlayerBridge.isActive();
-                    }
-
-                    @Override
-                    public void onSwipedAway(float toTranslationX, long durationMs) {
-                        closeMiniPlayer(toTranslationX, durationMs);
-                    }
-                }, mMiniPlayerFrame, mMiniPlayerBar);
-    }
-
-    /**
-     * NEWTUBE(motion): X - the sound stops at once and the card, frozen on its last frame, shrinks
-     * and fades away instead of vanishing in one frame. The session itself closes when the card is
-     * gone: finishing the hidden player blocks this main thread for ~60 ms (Pixel 9), which ate
-     * the whole animation when it ran first.
-     */
-    private boolean mMiniClosing;
-    private float mMiniVolumeBeforeClose = 1f;
-    @androidx.annotation.Nullable
-    private com.newtube.mobile.ui.playback.MiniCardSwipe mMiniSwipe;
-
-    private void closeMiniPlayer() {
-        closeMiniPlayer(null, 0);
-    }
-
-    /** {@code flyToX}: swiped away - the card keeps going off that side instead of shrinking. */
-    private void closeMiniPlayer(@androidx.annotation.Nullable Float flyToX, long flyMs) {
-        if (mMiniClosing) {
-            return;
-        }
-        mMiniClosing = true;
-        if (MiniPlayerBridge.isActive()) {
-            mMiniVolumeBeforeClose = MiniPlayerBridge.getVolume();
-            MiniPlayerBridge.setVolume(0f); // released with the session right after
-        }
-        MiniPlayerBridge.setClosing(this::abortMiniClose);
-        MiniPlayerBridge.clearPendingCardFold(mMiniCardFold);
-        detachMiniTexture();
-        stopMiniSwipe();
-        mMiniPlayerBar.animate().cancel();
-        android.view.ViewPropertyAnimator exit = flyToX != null
-                ? mMiniPlayerBar.animate().translationX(flyToX).alpha(0f).setDuration(flyMs)
-                        .setInterpolator(new android.view.animation.LinearInterpolator())
-                : mMiniPlayerBar.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f)
-                        .setDuration(Motion.EXIT_MS).setInterpolator(Motion.EMPHASIZED_ACCELERATE);
-        exit.withLayer().withEndAction(() -> {
-                    if (mMiniClosing) {
-                        finishMiniClose();
-                    } else {
-                        foldMiniCard(); // aborted: the player took the session back; only the card goes
-                    }
-                }).start();
-    }
-
-    /** The end of closeMiniPlayer; also run at once by anything that would re-show the card. */
-    private void finishMiniClose() {
-        if (!mMiniClosing) {
-            return;
-        }
-        mMiniClosing = false;
-        MiniPlayerBridge.setClosing(null);
-        foldMiniCard();
-        MiniPlayerBridge.close();
-    }
-
-    /** The session was handed a new video while the card left: it lives on; the card still goes. */
-    private void abortMiniClose() {
-        if (!mMiniClosing) {
-            return;
-        }
-        mMiniClosing = false;
-        MiniPlayerBridge.setVolume(mMiniVolumeBeforeClose);
-    }
-
-    /** Show the card and adopt the live session texture if a mini session is active. */
-    private void syncMiniPlayer() {
-        finishMiniClose(); // a card closing when this runs is closed, not brought back
-        ExoPlayer player = MiniPlayerBridge.getPlayer();
-        if (player == null) {
-            hideMiniPlayer();
-            return;
-        }
-
-        // Keep the exact endpoint frame visible while the newly-created TextureView adopts the
-        // session SurfaceTexture. Without this, releasing a fully-minimized drag briefly reveals
-        // the card's black background/next decoder frame and reads as a small refresh.
-        Bitmap entryStill = MiniPlayerBridge.takeMiniEntryStill();
-        if (entryStill != null) {
-            mMiniFreeze.setImageBitmap(entryStill);
-            mMiniFreeze.setVisibility(View.VISIBLE);
-        }
-
-        MiniPlayerBridge.fitToVideo(mMiniPlayerFrame); // NEWTUBE(issue #9): letterbox, never stretch
-        attachMiniTexture();
-        stopMiniSwipe();
-        mMiniPlayerBar.animate().cancel(); // a closing card (closeMiniPlayer) comes back whole
-        mMiniPlayerBar.setAlpha(1f);
-        mMiniPlayerBar.setScaleX(1f);
-        mMiniPlayerBar.setScaleY(1f);
-        mMiniPlayerBar.setTranslationX(0f);
-        mMiniPlayerBar.setVisibility(View.VISIBLE);
-        updateMiniPlayPauseIcon(player);
-
-        Utils.removeCallbacks(mMiniPlayerTick);
-        Utils.postDelayed(mMiniPlayerTick, MINI_TICK_MS);
-    }
 
     @Override
     public Class<?> getMiniHostViewClass() {
@@ -522,217 +366,7 @@ public class MobileBrowseActivity extends MobileActivity
         if (isFinishing() || isDestroyed()) {
             return false;
         }
-        syncMiniPlayer();
-        if (mMiniPlayerBar.getVisibility() != View.VISIBLE) {
-            return false;
-        }
-        // NEWTUBE(motion): the landing video is a bare picture; the card's buttons fade in once
-        // this screen is in front (onResume) rather than appearing with the card in one frame.
-        setMiniButtonsAlpha(0f);
-        mMiniButtonsFadePending = true;
-
-        // A pair of frame callbacks only proves that time passed; it does not prove this paused
-        // window submitted a buffer. Gate the reorder on an actual draw containing the card, then
-        // wait one compositor frame before removing the playback window above it. The fallback
-        // avoids stranding the player at the endpoint if an OEM suppresses draws on paused windows.
-        ViewTreeObserver observer = mMiniPlayerBar.getViewTreeObserver();
-        class DrawGate implements ViewTreeObserver.OnDrawListener, Runnable {
-            private boolean mDelivered;
-
-            @Override
-            public void onDraw() {
-                mMiniPlayerBar.post(this);
-            }
-
-            @Override
-            public void run() {
-                if (mDelivered) {
-                    return;
-                }
-                mDelivered = true;
-                if (observer.isAlive()) {
-                    observer.removeOnDrawListener(this);
-                }
-                mMiniPlayerBar.postOnAnimation(onDrawn);
-            }
-        }
-        DrawGate gate = new DrawGate();
-        observer.addOnDrawListener(gate);
-        mMiniPlayerBar.postDelayed(gate, 100);
-        mMiniPlayerBar.invalidate();
-        return true;
-    }
-
-    /**
-     * Put a TextureView in the card and swap the player's session-long SurfaceTexture into it
-     * (see MobilePlaybackActivity's persistent-surface docs). The playback activity detached its
-     * own TextureView before launching us, so the texture has no other GL consumer by now. The
-     * codec keeps decoding into it throughout - the card shows the LIVE stream with no surface
-     * change on the player, hence no codec re-init and no playback freeze.
-     */
-    private void attachMiniTexture() {
-        if (mMiniTexture == null) {
-            // A FRESH TextureView per attach: a re-used one retains its previous SurfaceTexture
-            // (the destroyed callback below returns false), which would silently be a stale,
-            // already-released texture if a new playback session started since. hideMiniPlayer
-            // nulls the field, so every show adopts the CURRENT session texture cleanly.
-            final TextureView textureView = new TextureView(this);
-            textureView.setOpaque(false); // NEWTUBE(texture-opaque): see MobilePlaybackActivity
-            textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-                @Override
-                public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
-                    SurfaceTexture session = MiniPlayerBridge.getSessionTexture();
-                    if (BuildConfig.DEBUG) {
-                        android.util.Log.d(com.liskovsoft.smartyoutubetv2.common.misc.NetPath.TAG,
-                                "mini tex available t=" + android.os.SystemClock.uptimeMillis()
-                                        + " session=" + (session != null)
-                                        + " cb=" + width + "x" + height
-                                        + " view=" + textureView.getWidth() + "x" + textureView.getHeight());
-                    }
-                    if (session != null && texture != session) {
-                        textureView.setSurfaceTexture(session);
-                        texture.release(); // the view-created texture is never used
-                    }
-                }
-
-                @Override
-                public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
-                    if (BuildConfig.DEBUG) {
-                        android.util.Log.d(com.liskovsoft.smartyoutubetv2.common.misc.NetPath.TAG,
-                                "mini tex sizeChanged t=" + android.os.SystemClock.uptimeMillis()
-                                        + " cb=" + width + "x" + height
-                                        + " view=" + textureView.getWidth() + "x" + textureView.getHeight());
-                    }
-                }
-
-                @Override
-                public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
-                    // Never release the session texture - the playback activity owns it. Only a
-                    // view-created texture that was never swapped out may die here.
-                    return texture != MiniPlayerBridge.getSessionTexture();
-                }
-
-                @Override
-                public void onSurfaceTextureUpdated(SurfaceTexture texture) {
-                    // First live frame in the card: lift the freeze frame.
-                    if (mMiniFreeze != null && mMiniFreeze.getVisibility() == View.VISIBLE) {
-                        if (BuildConfig.DEBUG) {
-                            android.util.Log.d(com.liskovsoft.smartyoutubetv2.common.misc.NetPath.TAG,
-                                    "mini tex first update t=" + android.os.SystemClock.uptimeMillis());
-                        }
-                        mMiniFreeze.setVisibility(View.GONE);
-                        mMiniFreeze.setImageDrawable(null);
-                    }
-                }
-            });
-            mMiniTexture = textureView;
-        }
-        if (mMiniTexture.getParent() == null) {
-            mMiniPlayerFrame.addView(mMiniTexture, 0, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        }
-    }
-
-    /**
-     * Freeze the current frame, detach the card's TextureView (freeing the session texture for
-     * the expanding player - see the listener above) and fold the bar + ticker. Safe to call
-     * repeatedly / when never shown.
-     */
-    private void hideMiniPlayer() {
-        finishMiniClose();
-        MiniPlayerBridge.clearPendingCardFold(mMiniCardFold);
-        detachMiniTexture();
-        foldMiniCard();
-    }
-
-    /** Freeze the card's last frame and give the session texture back (the card stays as it is). */
-    private void detachMiniTexture() {
-        Utils.removeCallbacks(mMiniPlayerTick);
-        if (mMiniTexture != null && mMiniTexture.getParent() != null) {
-            if (mMiniTexture.isAvailable() && MiniPlayerBridge.isActive()) {
-                Bitmap still = mMiniTexture.getBitmap();
-                if (still != null) {
-                    // Cover the card while detached AND hand the frame to the expanding player,
-                    // which shows it over its own video box until the texture paints there.
-                    mMiniFreeze.setImageBitmap(still);
-                    mMiniFreeze.setVisibility(View.VISIBLE);
-                    MiniPlayerBridge.setHandoffStill(still);
-                }
-            }
-            // No throwaway-texture swap here: TextureView#setSurfaceTexture releases the
-            // texture the view currently holds, which would destroy the session texture
-            // (see MobilePlaybackActivity#detachVideoTexture).
-            mMiniPlayerFrame.removeView(mMiniTexture);
-            mMiniTexture = null; // next show builds a fresh view (see attachMiniTexture)
-        }
-    }
-
-    /** NEWTUBE(haptics): see MiniCardSwipe#stop - before this host moves the card itself. */
-    private void stopMiniSwipe() {
-        if (mMiniSwipe != null) {
-            mMiniSwipe.stop();
-        }
-    }
-
-    private void foldMiniCard() {
-        if (mMiniPlayerBar == null) {
-            return;
-        }
-        stopMiniSwipe();
-        mMiniPlayerBar.animate().cancel();
-        mMiniPlayerBar.setVisibility(View.GONE);
-        mMiniPlayerBar.setAlpha(1f);
-        mMiniPlayerBar.setScaleX(1f);
-        mMiniPlayerBar.setScaleY(1f);
-        mMiniPlayerBar.setTranslationX(0f);
-        mMiniButtonsFadePending = false;
-        setMiniButtonsAlpha(1f);
-    }
-
-    private void setMiniButtonsAlpha(float alpha) {
-        View close = findViewById(R.id.mobile_mini_close);
-        for (View view : new View[] {mMiniPlayPause, close, mMiniProgress}) {
-            if (view != null) {
-                view.animate().cancel();
-                view.setAlpha(alpha);
-            }
-        }
-    }
-
-    private void fadeInMiniButtons() {
-        View close = findViewById(R.id.mobile_mini_close);
-        for (View view : new View[] {mMiniPlayPause, close, mMiniProgress}) {
-            if (view != null) {
-                view.animate().alpha(1f).setDuration(Motion.FADE_IN_MS)
-                        .setInterpolator(Motion.STANDARD).start();
-            }
-        }
-    }
-
-    private void onMiniPlayerTick() {
-        if (mMiniPlayerBar.getVisibility() != View.VISIBLE) {
-            return;
-        }
-        ExoPlayer player = MiniPlayerBridge.getPlayer();
-        if (player == null) {
-            // The hidden playback activity died (system kill / finished elsewhere): fold the bar.
-            hideMiniPlayer();
-            return;
-        }
-        long duration = player.getDuration();
-        if (duration > 0) {
-            mMiniProgress.setProgress((int) (player.getCurrentPosition() * 1000 / duration));
-        }
-        updateMiniPlayPauseIcon(player);
-        MiniPlayerBridge.fitToVideo(mMiniPlayerFrame); // an autoplayed next video may have another shape
-        Utils.postDelayed(mMiniPlayerTick, MINI_TICK_MS);
-    }
-
-    private void updateMiniPlayPauseIcon(ExoPlayer player) {
-        boolean playing = player.getPlayWhenReady()
-                && player.getPlaybackState() != Player.STATE_ENDED
-                && player.getPlaybackState() != Player.STATE_IDLE;
-        mMiniPlayPause.setImageResource(playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
+        return mMiniPlayer != null && mMiniPlayer.prepareForHandoff(onDrawn);
     }
 
     private void setupContentGrid() {
@@ -1756,15 +1390,8 @@ public class MobileBrowseActivity extends MobileActivity
         // Last-resumed host wins: while this screen is (or is about to be) the one under the
         // player, minimize docks its card here.
         MiniPlayerBridge.registerMiniHost(this);
-        MiniPlayerBridge.clearPendingCardFold(mMiniCardFold);
-        syncMiniPlayer();
-        if (mMiniButtonsFadePending) {
-            mMiniButtonsFadePending = false;
-            if (mMiniPlayerBar.getVisibility() == View.VISIBLE) {
-                fadeInMiniButtons();
-            } else {
-                setMiniButtonsAlpha(1f);
-            }
+        if (mMiniPlayer != null) {
+            mMiniPlayer.sync(false); // also fades in the buttons of a card pre-drawn for a minimize
         }
         // Home may have been paused while the player crossed landscape/PiP configurations. Those
         // callbacks can arrive while DisplayMetrics still describe the player window, so always
@@ -1842,12 +1469,8 @@ public class MobileBrowseActivity extends MobileActivity
         // Browse must never hold a stale TextureView on the live player. Audio is unaffected.
         // NEWTUBE(motion): a docked card stays up, frozen on that last frame, until the player
         // covers it (see MiniPlayerBridge.setPendingCardFold) - hiding it here was a blink.
-        finishMiniClose();
-        detachMiniTexture();
-        if (mMiniPlayerBar.getVisibility() == View.VISIBLE && MiniPlayerBridge.isActive()) {
-            MiniPlayerBridge.setPendingCardFold(mMiniCardFold);
-        } else {
-            hideMiniPlayer();
+        if (mMiniPlayer != null) {
+            mMiniPlayer.onHostPause();
         }
 
         // Tap-feedback spinner (see onVideoClicked): the destination screen is opening (or the
@@ -1859,8 +1482,8 @@ public class MobileBrowseActivity extends MobileActivity
     protected void onStop() {
         super.onStop();
         // Covered: a card still waiting for the player to fold it can go now.
-        if (mMiniTexture == null) {
-            hideMiniPlayer();
+        if (mMiniPlayer != null) {
+            mMiniPlayer.onHostStop();
         }
 
         // Snapshot the feeds to disk so the NEXT cold start paints cards instantly. onStop fires

@@ -126,6 +126,14 @@
     <string name="mobile_settings_gesture_levels_summary">Arriba y abajo a la izquierda o a la derecha del vídeo a pantalla completa</string>
     <string name="mobile_settings_gesture_seek">Deslizar para avanzar o retroceder</string>
     <string name="mobile_settings_gesture_seek_summary">De lado sobre el vídeo</string>
+    <string name="mobile_settings_mini_player">Minirreproductor</string>
+    <string name="mobile_settings_mini_style">Estilo del minirreproductor</string>
+    <string name="mobile_settings_mini_style_card">Tarjeta flotante</string>
+    <string name="mobile_settings_mini_style_card_desc">Un vídeo pequeño en la esquina</string>
+    <string name="mobile_settings_mini_style_bar">Barra</string>
+    <string name="mobile_settings_mini_style_bar_desc">A lo ancho de la parte inferior, con el título y el canal</string>
+    <string name="mobile_settings_mini_style_bar_video">Barra con el vídeo de fondo</string>
+    <string name="mobile_settings_mini_style_bar_video_desc">A lo ancho de la parte inferior, con el vídeo detrás del título</string>
     <string name="subscribed_to_channel">Suscripción añadida</string>
     <string name="unsubscribed_from_channel">Suscripción cancelada</string>
     <string name="mobile_player_settings">Ajustes</string>

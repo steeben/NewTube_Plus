@@ -254,91 +254,22 @@
 
     </ScrollView>
 
-    <!-- YouTube-style FLOATING mini-player: just the live video (no bar), a rounded card
-         hovering over the grid's bottom-right corner above the bottom nav. GONE by default;
-         it floats OVER content (like YouTube), so the grid keeps its bottom-nav constraint.
-         The video is NOT a PlayerView: the card re-parents the playback activity's
-         session-long SurfaceTexture into a code-managed TextureView inside the frame below
-         (see MobileBrowseActivity#attachMiniTexture + MiniPlayerBridge.getSessionTexture) -
-         the codec's surface never changes, so the hand-off never freezes playback. The
-         freeze ImageView shows the last captured frame during attach/detach beats.
-         Tap video = expand; overlaid play/pause + X; 2dp progress. -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/mobile_mini_player"
-        android:contentDescription="@string/mobile_mini_expand"
+    <!-- YouTube-style mini-player (mobile_mini_player_overlay.xml, shared with Search and the
+         channel screens): GONE by default; it floats OVER content (like YouTube), so the grid keeps
+         its bottom-nav constraint. The video is NOT a PlayerView: the card re-parents the playback
+         activity's session-long SurfaceTexture into a code-managed TextureView (see
+         MobileMiniPlayerController + MiniPlayerBridge.getSessionTexture) - the codec's surface
+         never changes, so the hand-off never freezes playback. NEWTUBE(mini-style): these are the
+         floating card's constraints; the controller widens it to a full-width bar for the bar
+         styles. -->
+    <include
+        layout="@layout/mobile_mini_player_overlay"
         android:layout_width="180dp"
         android:layout_height="102dp"
         android:layout_marginEnd="12dp"
         android:layout_marginBottom="12dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        app:cardBackgroundColor="@android:color/black"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="8dp"
         app:layout_constraintBottom_toTopOf="@id/mobile_bottom_nav"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:visibility="visible">
-
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <!-- NEWTUBE(issue #9): an AspectRatioFrameLayout (FIT), given the video's shape by
-                 MiniPlayerBridge.fitToVideo: other shapes are letterboxed, not stretched. -->
-            <androidx.media3.ui.AspectRatioFrameLayout
-                android:id="@+id/mobile_mini_player_frame"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_gravity="center">
-
-                <ImageView
-                    android:id="@+id/mobile_mini_freeze"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:importantForAccessibility="no"
-                    android:scaleType="fitXY"
-                    android:visibility="gone" />
-
-            </androidx.media3.ui.AspectRatioFrameLayout>
-
-            <ImageButton
-                android:id="@+id/mobile_mini_play_pause"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_mini_scrim_circle"
-                android:contentDescription="@string/mobile_mini_play_pause"
-                android:padding="9dp"
-                android:src="@drawable/ic_player_pause" />
-
-            <!-- 48dp touch target, wholly inside the card (a child outside its parent gets no touches), around the same 40dp circle (was 28dp, then 40dp - NEWTUBE(touch)). -->
-            <ImageButton
-                android:id="@+id/mobile_mini_close"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="top|end"
-                android:layout_margin="0dp"
-                android:background="@drawable/bg_mini_scrim_circle_touch"
-                android:contentDescription="@string/mobile_mini_close"
-                android:padding="15dp"
-                android:src="@drawable/ic_sheet_close"
-                android:tint="@color/mobile_player_on_video" />
-
-            <ProgressBar
-                android:id="@+id/mobile_mini_progress"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:layout_gravity="bottom"
-                android:max="1000"
-                android:progressBackgroundTint="@color/mobile_color_progress_track"
-                android:progressTint="@color/mobile_color_progress"
-                tools:progress="400" />
-
-        </FrameLayout>
-
-    </com.google.android.material.card.MaterialCardView>
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Matched against the real YouTube app on a Pixel 9 (2026-07): their icon/label row
          measures ~51dp with 24dp icons and ~10sp labels, content centered, gesture inset

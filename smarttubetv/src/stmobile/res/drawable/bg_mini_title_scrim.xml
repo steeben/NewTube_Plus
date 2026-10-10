@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEWTUBE(mini-style): the dark rounded scrim behind the video-background bar's title. The view
+     wraps the title, so the scrim is as long as the title (up to the bar's room for it). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/mobile_mini_title_scrim" />
+    <corners android:radius="14dp" />
+</shape>
