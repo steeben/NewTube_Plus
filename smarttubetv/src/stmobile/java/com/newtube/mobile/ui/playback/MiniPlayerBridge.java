@@ -55,18 +55,6 @@ public final class MiniPlayerBridge {
          * THIS host's card instead of always assuming Home's geometry.
          */
         int getMiniCardBottomOffsetPx();
-
-        /**
-         * NEWTUBE(mini-style): a bar minimize has begun over this host: draw the bar (title,
-         * buttons, no video yet) under the player now, for the shrinking video to uncover rather
-         * than fade in. {@code progress} is 0-1000.
-         */
-        default void previewMiniPlayer(@Nullable Video video, int progress, boolean playing) {
-        }
-
-        /** NEWTUBE(mini-style): the minimize was cancelled - take a {@link #previewMiniPlayer} away. */
-        default void endMiniPlayerPreview() {
-        }
     }
 
     /**
@@ -123,22 +111,6 @@ public final class MiniPlayerBridge {
      * navigation has a different mini-player host and must not let this host claim the shared
      * SurfaceTexture.
      */
-    /** NEWTUBE(mini-style): see {@link MiniHost#previewMiniPlayer}. */
-    static void previewHost(@Nullable Video video, int progress, boolean playing) {
-        MiniHost host = sMiniHost.get();
-        if (host != null) {
-            host.previewMiniPlayer(video, progress, playing);
-        }
-    }
-
-    /** NEWTUBE(mini-style): see {@link MiniHost#endMiniPlayerPreview}. */
-    static void endHostPreview() {
-        MiniHost host = sMiniHost.get();
-        if (host != null) {
-            host.endMiniPlayerPreview();
-        }
-    }
-
     static boolean prepareMiniHostForHandoff(Runnable onDrawn) {
         MiniHost host = sMiniHost.get();
         return host != null && host.prepareMiniPlayerForHandoff(onDrawn);

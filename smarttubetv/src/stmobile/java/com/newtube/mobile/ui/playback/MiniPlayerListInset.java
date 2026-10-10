@@ -4,7 +4,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 
-import androidx.recyclerview.widget.RecyclerView;
 
 /**
  * NEWTUBE(mini-inset): while the floating mini-player is docked, the list under it can scroll its
@@ -21,12 +20,13 @@ public final class MiniPlayerListInset implements ViewTreeObserver.OnGlobalLayou
     private static final int GAP_DP = 12;
 
     private final View mCard;
-    private final RecyclerView mList;
+    /** A RecyclerView, or (NEWTUBE(mini-style)) Home's You panel, a ScrollView. */
+    private final ViewGroup mList;
     private final int mBasePaddingBottom;
     private final int mGapPx;
     private int mAppliedExtra;
 
-    private MiniPlayerListInset(View card, RecyclerView list) {
+    private MiniPlayerListInset(View card, ViewGroup list) {
         mCard = card;
         mList = list;
         mBasePaddingBottom = list.getPaddingBottom();
@@ -34,7 +34,7 @@ public final class MiniPlayerListInset implements ViewTreeObserver.OnGlobalLayou
     }
 
     /** Keep {@code list}'s bottom padding clear of {@code card} whenever the card is shown. */
-    public static void attach(View card, RecyclerView list) {
+    public static void attach(View card, ViewGroup list) {
         if (card == null || list == null) {
             return;
         }

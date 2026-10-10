@@ -56,6 +56,9 @@ final class MiniPlayerGestures implements View.OnTouchListener {
         /** Swiped up: expand from where the mini player is now. */
         void onExpand();
 
+        /** The mini player's lift changed ({@code translationY} < 0 while it is pulled up). */
+        void onLift(float translationY);
+
         /** The card reached the other corner (its translation is the whole travel): dock it there. */
         void onDockedOtherSide();
     }
@@ -255,9 +258,13 @@ final class MiniPlayerGestures implements View.OnTouchListener {
             case MODE_CLOSE_DOWN:
                 mMagnetY.move(Math.max(0f, dy));
                 break;
-            case MODE_EXPAND:
-                mView.setTranslationY(Math.min(0f, dy) * EXPAND_PULL);
+            case MODE_EXPAND: {
+                // A bar follows the finger (the page fills in under it); the card only leans.
+                float lift = Math.min(0f, dy) * (mCallback.isCard() ? EXPAND_PULL : 1f);
+                mView.setTranslationY(lift);
+                mCallback.onLift(lift);
                 break;
+            }
             case MODE_MOVE: {
                 float travel = mCallback.cornerTravelPx();
                 float sign = mCallback.isDockedLeft() ? 1f : -1f;
@@ -281,8 +288,7 @@ final class MiniPlayerGestures implements View.OnTouchListener {
                 releaseClose(false, mMagnetY.isDetached(), Math.max(0f, dy), velocityY);
                 break;
             case MODE_EXPAND: {
-                boolean go = (-dy * EXPAND_PULL >= mExpandPx * EXPAND_PULL && velocityY <= mFlingVelocity)
-                        || velocityY < -mFlingVelocity;
+                boolean go = (-dy >= mExpandPx && velocityY <= mFlingVelocity) || velocityY < -mFlingVelocity;
                 if (go && mCallback.canDrag()) {
                     Haptics.threshold(mView, true);
                     mCallback.onExpand();
@@ -377,7 +383,10 @@ final class MiniPlayerGestures implements View.OnTouchListener {
         SpringAnimation spring = new SpringAnimation(mView, DynamicAnimation.TRANSLATION_Y, to);
         spring.getSpring().setStiffness(SNAP_BACK_STIFFNESS).setDampingRatio(SNAP_BACK_DAMPING);
         spring.setStartVelocity(velocity);
-        spring.addUpdateListener((animation, value, v) -> applyCloseProgress(closeFractionY(Math.max(0f, value))));
+        spring.addUpdateListener((animation, value, v) -> {
+            applyCloseProgress(closeFractionY(Math.max(0f, value)));
+            mCallback.onLift(value);
+        });
         spring.addEndListener((animation, canceled, value, v) -> {
             if (!canceled) {
                 applyCloseProgress(0f);

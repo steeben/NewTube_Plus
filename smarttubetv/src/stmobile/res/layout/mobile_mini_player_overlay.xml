@@ -27,13 +27,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- NEWTUBE(mini-style): the bar's page-coloured surface (Bar style only). A view rather
-             than the card's colour so it can fade in with the bar's text and buttons. -->
+        <!-- NEWTUBE(mini-style): the bar's surface (Bar style only), the page colour like the
+             bottom navigation bar under it. A view rather than the card's colour so it can fade in
+             with the bar's text and buttons. -->
         <View
             android:id="@+id/mobile_mini_backdrop"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/mobile_color_surface"
+            android:background="@color/mobile_color_background"
             android:importantForAccessibility="no"
             android:visibility="gone" />
 
