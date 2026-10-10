@@ -78,4 +78,6 @@
          the wash that makes the play/pause and close icons nearly-white glass. -->
     <color name="mobile_mini_frost_tint">#59000000</color>
     <color name="mobile_mini_button_frost_tint">#C7FFFFFF</color>
+    <!-- The video bar's play/pause answer to a tap: a soft light ring that grows and fades. -->
+    <color name="mobile_mini_play_flash">#59FFFFFF</color>
 </resources>

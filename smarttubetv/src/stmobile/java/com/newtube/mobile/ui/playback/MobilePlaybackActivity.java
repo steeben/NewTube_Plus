@@ -1504,6 +1504,7 @@ public class MobilePlaybackActivity extends MobileActivity
                                 : 56 * getResources().getDisplayMetrics().density;
                         barSlide = setupBarSlide(miniBounds.top - containerLocation[1],
                                 miniBounds.height(), miniBounds.width(), mContainer.getHeight() - bottomNav);
+                        mBarExpanding = barSlide;
                     }
                     if (!barSlide) {
                         // From the style's own slot: the card, or a bar's (cropped) video.
@@ -5348,6 +5349,12 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mBarNavHeight;
     /** The bar lands with rounded top corners (the video-background bar, see MiniPlayerStyle). */
     private boolean mBarRoundedTop;
+    /** The slide runs from the bar up (an expand), not down onto it: the navigation's curve flips. */
+    private boolean mBarExpanding;
+    /** The navigation stays put for this share of the slide's start, either way. */
+    private static final float NAV_DELAY = 0.15f;
+    /** Its ease: slow at first, quick at the end. */
+    private static final float NAV_EASE = 2.5f;
     /**
      * NEWTUBE(mini-style): a host bar pulled up hands its finger to this player: the slide runs
      * backwards under it, then settles open (or, let go early, back into the bar).
@@ -5473,7 +5480,16 @@ public class MobilePlaybackActivity extends MobileActivity
 
         // Home's bottom navigation slides back up as the video comes down onto it (and away under
         // the page as it goes up): the page is cut at the navigation's moving top.
-        float reveal = Math.max(0f, Math.min(1f, (down - 0.6f) / 0.4f));
+        float reveal;
+        if (mBarExpanding) {
+            // Going up: it starts to go once the page is 15% of the way, slowly, then quickly.
+            float away = Math.max(0f, Math.min(1f, ((1f - NAV_DELAY) - settled) / (1f - NAV_DELAY)));
+            reveal = 1f - (float) Math.pow(away, NAV_EASE);
+        } else {
+            // Coming down: the same, from 15% of the slide down to the landing.
+            float back = Math.max(0f, Math.min(1f, (settled - NAV_DELAY) / (1f - NAV_DELAY)));
+            reveal = (float) Math.pow(back, NAV_EASE);
+        }
         MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
         if (host != null && mBarNavHeight > 0f) {
             host.setBottomBarReveal(reveal);
@@ -5597,6 +5613,7 @@ public class MobilePlaybackActivity extends MobileActivity
         if (MiniPlayerStyle.isBar(style) && host != null
                 && setupBarSlide(target.rect.top, target.rect.height(), target.rect.width(),
                         target.rect.bottom)) {
+            mBarExpanding = false;
             return; // the bars slide down instead (applyBarSlide)
         }
 
