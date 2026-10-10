@@ -34,6 +34,10 @@ public final class UiPrefs {
     public static final int HEADER_NONE = 0;
     public static final int HEADER_DEFAULT = 1;
     public static final int HEADER_CUSTOM = 2;
+    /** NEWTUBE(ambient): the player's ambient mode (AmbientMode). */
+    public static final int AMBIENT_OFF = 0;
+    public static final int AMBIENT_ON = 1;
+    public static final int AMBIENT_NOT_FULLSCREEN = 2;
     /** NEWTUBE(accent): the accent until one is chosen - the seek bar's red (mobile_color_progress). */
     public static final int DEFAULT_ACCENT = 0xFFFF0033;
 
@@ -44,6 +48,8 @@ public final class UiPrefs {
     private static final String KEY_HEADER = "header";
     private static final String KEY_HEADER_TEXT = "header_text";
     private static final String KEY_ACCENT = "accent";
+    private static final String KEY_AMBIENT = "ambient";
+    private static final String KEY_FROSTED = "frosted_glass";
     private static final String CUSTOM_LOGO_FILE = "brand_logo.png";
     private static final String KEY_FULL_WIDTH_THUMBS = "full_width_thumbnails";
     private static final String KEY_HIDE_CARD_MENU = "hide_card_menu";
@@ -166,6 +172,26 @@ public final class UiPrefs {
 
     public static void setDownloadsInBottomBar(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_DOWNLOADS_TAB, on).apply();
+        notifyChanged();
+    }
+
+    /** NEWTUBE(frosted): glass bars on Home and glass buttons on the watch page. */
+    public static boolean isFrostedGlass(Context context) {
+        return prefs(context).getBoolean(KEY_FROSTED, false);
+    }
+
+    public static void setFrostedGlass(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_FROSTED, on).apply();
+        notifyChanged();
+    }
+
+    public static int getAmbient(Context context) {
+        int mode = prefs(context).getInt(KEY_AMBIENT, AMBIENT_OFF);
+        return mode == AMBIENT_ON || mode == AMBIENT_NOT_FULLSCREEN ? mode : AMBIENT_OFF;
+    }
+
+    public static void setAmbient(Context context, int mode) {
+        prefs(context).edit().putInt(KEY_AMBIENT, mode).apply();
         notifyChanged();
     }
 

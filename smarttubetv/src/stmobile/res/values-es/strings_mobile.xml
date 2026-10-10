@@ -432,6 +432,12 @@
     <string name="mobile_appearance_accent_note">Barras de progreso, la pestaña seleccionada y los interruptores</string>
     <string name="mobile_appearance_apply">Aplicar</string>
     <string name="mobile_appearance_default">Predeterminado</string>
+    <string name="mobile_appearance_ambient">Modo ambiente</string>
+    <string name="mobile_appearance_ambient_off">Desactivado</string>
+    <string name="mobile_appearance_ambient_on">Activado</string>
+    <string name="mobile_appearance_ambient_not_fullscreen">Activado, salvo en pantalla completa</string>
+    <string name="mobile_appearance_frosted">Cristal esmerilado</string>
+    <string name="mobile_appearance_frosted_summary">Las barras superior e inferior, y los botones de la página del vídeo</string>
     <string name="mobile_appearance_branding">Marca</string>
     <string name="mobile_appearance_logo">Logotipo</string>
     <string name="mobile_appearance_logo_none">Ninguno</string>

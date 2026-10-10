@@ -104,6 +104,18 @@ final class AppPages {
                         : AccentDialog.hex(UiPrefs.getAccent(context)),
                 page -> AccentDialog.show(page.requireContext(), page::rebuild)));
 
+        // NEWTUBE(frosted): glass bars on Home, glass buttons on the watch page.
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_appearance_frosted),
+                context.getString(R.string.mobile_appearance_frosted_summary),
+                () -> UiPrefs.isFrostedGlass(context), on -> UiPrefs.setFrostedGlass(context, on)));
+
+        // NEWTUBE(ambient): the video's colours around the player.
+        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_appearance_ambient))
+                .option(context.getString(R.string.mobile_appearance_ambient_off), UiPrefs.AMBIENT_OFF)
+                .option(context.getString(R.string.mobile_appearance_ambient_on), UiPrefs.AMBIENT_ON)
+                .option(context.getString(R.string.mobile_appearance_ambient_not_fullscreen), UiPrefs.AMBIENT_NOT_FULLSCREEN)
+                .bind(() -> UiPrefs.getAmbient(context), mode -> UiPrefs.setAmbient(context, mode)));
+
         rows.add(SettingsRow.header(context.getString(R.string.mobile_appearance_branding)));
         rows.add(SettingsRow.action(0, context.getString(R.string.mobile_appearance_logo),
                 () -> context.getString(logoLabel(UiPrefs.getLogo(context))),

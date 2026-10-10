@@ -248,6 +248,10 @@ public class MobileBrowseActivity extends MobileActivity
         bindViews();
         setupContentGrid();
         setupBottomNav();
+        mFrostedApplied = com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this);
+        if (mFrostedApplied) {
+            applyFrostedBars();
+        }
         setupYouPanel();
         setupErrorAction();
         setupSearchButton();
@@ -883,6 +887,97 @@ public class MobileBrowseActivity extends MobileActivity
      */
     private void openSettings() {
         startActivity(com.newtube.mobile.ui.settings.MobileSettingsActivity.intent(this, null));
+    }
+
+    /** NEWTUBE(frosted): this screen was laid out with the feed under glass bars. */
+    private boolean mFrostedApplied;
+
+    /**
+     * NEWTUBE(frosted): Settings > Appearance > Frosted glass. The feed runs the whole height of the
+     * screen, under the top bar and the bottom navigation, which turn to glass over it
+     * (BackdropBlurDrawable); its first and last rows keep clear of them, and so does the
+     * pull-to-refresh spinner.
+     */
+    private void applyFrostedBars() {
+        androidx.constraintlayout.widget.ConstraintLayout root = findViewById(R.id.mobile_browse_root);
+        View title = findViewById(R.id.mobile_title_bar);
+        if (root == null || title == null || mContentSwipe == null || mContentGrid == null || mBottomNav == null) {
+            return;
+        }
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams swipe =
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) mContentSwipe.getLayoutParams();
+        swipe.topToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+        swipe.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        swipe.bottomToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+        swipe.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        mContentSwipe.setLayoutParams(swipe);
+
+        int titleHeight = getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height);
+        int page = getResources().getColor(R.color.mobile_color_background);
+        int tint = (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
+
+        // The top bar's glass: a view of its own behind the title, the cast and search buttons.
+        View glass = new View(this);
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams glassParams =
+                new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, titleHeight);
+        glassParams.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        glassParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        glassParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+        root.addView(glass, glassParams);
+        glass.setBackground(new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, glass, page, tint));
+        title.setBackground(null);
+        // Above the feed (declared before it), in the order they were.
+        glass.bringToFront();
+        for (int id : new int[] {R.id.mobile_title_back, R.id.mobile_title_bar, R.id.mobile_cast_button,
+                R.id.mobile_search_button}) {
+            View view = findViewById(id);
+            if (view != null) {
+                view.bringToFront();
+            }
+        }
+        // Whatever else is declared after the feed stays above it already (the You panel, the mini
+        // player, the bottom navigation).
+        mBottomNav.setBackground(new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, mBottomNav, page, tint));
+        mBottomNav.bringToFront();
+        View mini = findViewById(R.id.mobile_mini_player);
+        if (mini != null) {
+            mini.bringToFront();
+        }
+
+        mContentGrid.addItemDecoration(new androidx.recyclerview.widget.RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(@androidx.annotation.NonNull android.graphics.Rect outRect, @androidx.annotation.NonNull View view,
+                                       @androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView parent,
+                                       @androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView.State state) {
+                int position = parent.getChildAdapterPosition(view);
+                if (position == androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                    return;
+                }
+                int spans = mLayoutManager != null ? mLayoutManager.getSpanCount() : 1;
+                if (position < spans) {
+                    outRect.top += titleHeight;
+                }
+                if (position >= state.getItemCount() - spans) {
+                    outRect.bottom += mBottomNav.getHeight();
+                }
+            }
+        });
+        mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (b - t != ob - ot) {
+                mContentGrid.invalidateItemDecorations();
+            }
+        });
+        float density = getResources().getDisplayMetrics().density;
+        mContentSwipe.setProgressViewOffset(false, titleHeight - Math.round(40 * density),
+                titleHeight + Math.round(24 * density));
+        // The glass shows what is under it: draw it again as the feed moves.
+        mContentGrid.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView recyclerView, int dx, int dy) {
+                glass.invalidate();
+                mBottomNav.invalidate();
+            }
+        });
     }
 
     /** NEWTUBE(accent): the selected tab's icon in the user's accent; the rest, and the labels, as before. */
@@ -1803,6 +1898,11 @@ public class MobileBrowseActivity extends MobileActivity
         }
 
         updateAccountRow();
+        // NEWTUBE(frosted): the feed runs under the bars or it does not - a new layout either way.
+        if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) != mFrostedApplied) {
+            recreate();
+            return;
+        }
         // NEWTUBE(ui-options): Branding and the Playlists tab may have changed in Settings.
         mTopBar.applyBranding();
         applyNavAccent();
