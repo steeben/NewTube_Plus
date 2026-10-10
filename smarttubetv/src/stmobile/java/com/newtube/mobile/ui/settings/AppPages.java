@@ -394,6 +394,10 @@ final class AppPages {
 
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_tabs_bottom_bar)));
         addBottomBarToggles(context, rows, sections, bottomBar);
+        // NEWTUBE(nav-labels): also under Appearance.
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_appearance_nav_labels),
+                context.getString(R.string.mobile_appearance_nav_labels_summary),
+                () -> UiPrefs.isNavLabels(context), on -> UiPrefs.setNavLabels(context, on)));
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_tabs_you)));
         addSectionToggles(context, rows, sections, you, true);
         rows.add(SettingsRow.header(context.getString(R.string.mobile_you_explore)));

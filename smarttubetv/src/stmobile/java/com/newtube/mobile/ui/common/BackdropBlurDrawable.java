@@ -59,6 +59,21 @@ public final class BackdropBlurDrawable extends Drawable {
         mNode = Build.VERSION.SDK_INT >= 31 ? Api31.newNode() : null;
     }
 
+    /**
+     * NEWTUBE(tab-slide): a second view the glass shows over the first, while it is there (the
+     * page sliding in beside the one leaving); null for none.
+     */
+    public void setExtraSource(@Nullable View extra) {
+        if (mExtra != extra) {
+            mExtra = extra;
+            invalidateSelf();
+        }
+    }
+
+    @Nullable
+    private View mExtra;
+    private final int[] mExtraOffset = new int[2];
+
     /** What the glass shows (the feed, or the You panel over it). */
     public void setSource(View source) {
         if (mSource != source) {
@@ -129,9 +144,17 @@ public final class BackdropBlurDrawable extends Drawable {
                 && mSource.getWidth() > 0 && mSource.isShown()) {
             mHost.getLocationInWindow(mHostOffset);
             mSource.getLocationInWindow(mSourceOffset);
+            View extra = mExtra != null && mExtra.isShown() && mExtra.getWidth() > 0 ? mExtra : null;
+            float ex = 0f;
+            float ey = 0f;
+            if (extra != null) {
+                extra.getLocationInWindow(mExtraOffset);
+                ex = mExtraOffset[0] - mHostOffset[0] - bounds.left;
+                ey = mExtraOffset[1] - mHostOffset[1] - bounds.top;
+            }
             Api31.drawBlur(mNode, canvas, bounds, mSource, mPageColor,
                     mSourceOffset[0] - mHostOffset[0] - bounds.left,
-                    mSourceOffset[1] - mHostOffset[1] - bounds.top, mBlurPx, mAlpha);
+                    mSourceOffset[1] - mHostOffset[1] - bounds.top, extra, ex, ey, mBlurPx, mAlpha);
         }
         int tintAlpha = mTint.getAlpha();
         mTint.setAlpha(Math.round(tintAlpha * mAlpha / 255f));
@@ -147,7 +170,8 @@ public final class BackdropBlurDrawable extends Drawable {
         }
 
         static void drawBlur(Object nodeObject, Canvas canvas, Rect bounds, View source, int pageColor,
-                             float dx, float dy, float blurPx, int alpha) {
+                             float dx, float dy, @Nullable View extra, float ex, float ey,
+                             float blurPx, int alpha) {
             RenderNode node = (RenderNode) nodeObject;
             int width = bounds.width();
             int height = bounds.height();
@@ -155,8 +179,14 @@ public final class BackdropBlurDrawable extends Drawable {
             RecordingCanvas recording = node.beginRecording(width, height);
             try {
                 recording.drawColor(pageColor);
+                recording.save();
                 recording.translate(dx, dy);
                 source.draw(recording);
+                recording.restore();
+                if (extra != null) {
+                    recording.translate(ex, ey);
+                    extra.draw(recording);
+                }
             } finally {
                 node.endRecording();
             }

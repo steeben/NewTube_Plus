@@ -69,6 +69,8 @@
          YouTube's: controls and chips over the video, the mini player, the cast overlays. -->
     <color name="mobile_player_on_video">#FFFFFF</color>
     <color name="mobile_player_pill">#26FFFFFF</color>
+    <!-- NEWTUBE(frosted): the video under the controls - the dark glass's tint (#0F0F0F at 70%). -->
+    <color name="mobile_player_controls_dim">#B30F0F0F</color>
     <color name="mobile_player_cast_active">#4FC3F7</color>
     <!-- NEWTUBE(mini-style): the video-background bar - the dim over the whole video, and the
          darker scrim behind its title that grows with the title's length. -->

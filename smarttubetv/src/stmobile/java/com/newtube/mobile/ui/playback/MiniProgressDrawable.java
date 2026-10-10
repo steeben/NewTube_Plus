@@ -18,8 +18,8 @@ import com.newtube.mobile.ui.common.UiPrefs;
 
 /**
  * NEWTUBE(accent): the mini player's progress line, drawn like the player's seek bar
- * (PlayerTimeBar): the played part in the accent warming into a lighter shade over its last
- * stretch, and a soft glow at its tip. The line is the bottom {@code lineHeight} of the bounds;
+ * (PlayerTimeBar): the played part in the accent, lightening over its last stretch into white
+ * at the very tip, which seems to glow. The line is the bottom {@code lineHeight} of the bounds;
  * the room above it is for the glow. The ProgressBar's level (0-10000) is the position.
  */
 final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
@@ -48,10 +48,7 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
         mAccent = accent;
         int tail = accent == UiPrefs.DEFAULT_ACCENT ? PlayerTimeBar.PLAYED_TAIL_COLOR
                 : ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.3f);
-        mPlayed.setShader(new LinearGradient(0f, 0f, mTailPx, 0f, accent, tail, Shader.TileMode.CLAMP));
-        mGlow.setShader(new RadialGradient(0f, 0f, 1f,
-                new int[] {(tail & 0x00FFFFFF) | 0xB3000000, (accent & 0x00FFFFFF) | 0x4D000000, accent & 0x00FFFFFF},
-                new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
+        mPlayed.setShader(PlayerTimeBar.tipShader(accent, tail, mTailPx));
         invalidateSelf();
     }
 
@@ -78,11 +75,6 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
         mMatrix.setTranslate(x - mTailPx, 0f);
         mPlayed.getShader().setLocalMatrix(mMatrix);
         canvas.drawRect(b.left, top, x, bottom, mPlayed);
-        float cy = top + mLineHeight / 2f;
-        mMatrix.setScale(mGlowRadius, mGlowRadius);
-        mMatrix.postTranslate(x, cy);
-        mGlow.getShader().setLocalMatrix(mMatrix);
-        canvas.drawCircle(x, cy, mGlowRadius, mGlow);
     }
 
     @Override

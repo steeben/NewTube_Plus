@@ -171,7 +171,8 @@ final class AmbientMode {
 
     /** The page is fully open: the status bar's share of the glow fades in. */
     void showBand() {
-        mBandVisible = 1f;
+        mBandMorphing = false;
+        mBandMorphAlpha = 1f;
         animateBand(1f, BAND_FADE_MS);
     }
 
@@ -186,25 +187,30 @@ final class AmbientMode {
 
     /**
      * The page is leaving under a minimize: the status bar's band (its glow over the page colour)
-     * withdraws with it, from its bottom edge up - gone at the minimize's mid-point, and back if
-     * the minimize is called off. Drawn whole on its own, so the window backdrop under it can
-     * already be gone (the bar slide clears it at once to show the screen behind).
+     * fades with the gesture - steeply at first (a logarithmic curve), gone by
+     * {@code BAND_MORPH_SPAN} of the way - and comes back if the minimize is called off. Drawn as
+     * a strip of its own, so the window backdrop under it can already be gone (the bar slide
+     * clears it at once to show the screen behind).
      */
     void setBandMorph(float fraction) {
         float t = Math.max(0f, Math.min(1f, fraction / BAND_MORPH_SPAN));
-        float visible = 1f - t * t * (3f - 2f * t); // smoothstep
-        if (visible != mBandVisible) {
-            mBandVisible = visible;
+        float alpha = 1f - (float) (Math.log1p(BAND_MORPH_CURVE * t) / Math.log1p(BAND_MORPH_CURVE));
+        if (!mBandMorphing || alpha != mBandMorphAlpha) {
+            mBandMorphing = fraction > 0f;
+            mBandMorphAlpha = alpha;
             if (mWindowGlow != null) {
                 mWindowGlow.invalidateSelf();
             }
         }
     }
 
-    /** The share of the band's height drawn (1 = all; less while a minimize withdraws it). */
-    private float mBandVisible = 1f;
+    /** A minimize is fading the band (drawn on its own, at {@link #mBandMorphAlpha}). */
+    private boolean mBandMorphing;
+    private float mBandMorphAlpha = 1f;
 
-    private static final float BAND_MORPH_SPAN = 0.5f;
+    private static final float BAND_MORPH_SPAN = 0.15f;
+    /** How steep the start of the fade is (log(1 + k t)): most of it is gone in the first few %. */
+    private static final float BAND_MORPH_CURVE = 24f;
 
     private void animateBand(float to, long durationMs) {
         if (mBandAnimator != null) {
@@ -341,14 +347,17 @@ final class AmbientMode {
             mFillPaint.setAlpha(mAlpha);
             canvas.drawRect(bounds, mFillPaint);
             int band = statusBand();
-            float shown = band * mBandVisible;
-            if (band <= 0 || shown < 0.5f) {
+            if (band <= 0) {
                 return;
             }
-            // While a minimize withdraws it the band is its own opaque strip (page colour and
-            // glow), whatever became of the backdrop around it.
-            boolean withdrawing = mBandVisible < 1f;
-            int alpha = withdrawing ? Math.round(255 * mBandAlpha) : mAlpha;
+            float shown = band;
+            // While a minimize fades it the band is its own opaque strip (page colour and glow),
+            // whatever became of the backdrop around it.
+            boolean withdrawing = mBandMorphing;
+            if (withdrawing && mBandMorphAlpha <= 0.004f) {
+                return;
+            }
+            int alpha = withdrawing ? Math.round(255 * mBandMorphAlpha) : mAlpha;
             canvas.save();
             canvas.clipRect(bounds.left, bounds.top, bounds.right, bounds.top + shown);
             if (withdrawing) {

@@ -181,9 +181,9 @@ public final class UiPrefs {
         notifyChanged();
     }
 
-    /** NEWTUBE(nav-labels): the bottom bar's tab names (on by default). */
+    /** NEWTUBE(nav-labels): the bottom bar's tab names (hidden by default). */
     public static boolean isNavLabels(Context context) {
-        return prefs(context).getBoolean(KEY_NAV_LABELS, true);
+        return prefs(context).getBoolean(KEY_NAV_LABELS, false);
     }
 
     public static void setNavLabels(Context context, boolean on) {

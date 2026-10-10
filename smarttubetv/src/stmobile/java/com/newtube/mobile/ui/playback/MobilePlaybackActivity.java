@@ -2203,6 +2203,7 @@ public class MobilePlaybackActivity extends MobileActivity
                 || mControlsRoot.getPaddingRight() != right || mControlsRoot.getPaddingBottom() != bottom) {
             mControlsRoot.setPadding(left, top, right, bottom);
         }
+        bleedScrim(findViewById(R.id.mobile_player_dim), left, top, right, bottom); // NEWTUBE(frosted)
         bleedScrim(mTopScrim, left, top, right, 0);
         bleedScrim(mBottomScrim, left, 0, right, bottom);
         applySeekBarLayout(left, top, right, bottom);

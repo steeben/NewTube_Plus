@@ -85,28 +85,33 @@ public class PlayerTimeBar extends View implements TimeBar {
                 : androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.3f);
         mPlayedColor = accent;
         mPlayedPaint.setColor(accent);
-        // The trail: the accent along the bar, warming into the tip's lighter shade over its last
-        // stretch, so the tip blends into the rest.
-        mPlayedPaint.setShader(new LinearGradient(0f, 0f, mTailPx, 0f, accent, tail, Shader.TileMode.CLAMP));
-        // The glow: a unit circle's radial fade, placed and sized per frame (mGlowMatrix).
-        mGlowPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
-                new int[] {(tail & 0x00FFFFFF) | 0x99000000, (accent & 0x00FFFFFF) | 0x40000000, accent & 0x00FFFFFF},
-                new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
-        // The scrubber: no solid dot, a larger and brighter glow of the same kind.
-        // The centre burns white, through a near-white of the accent, into its glow.
-        int hot = androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.7f);
+        // The trail: the accent along the bar, lightening over its last stretch into white at the
+        // very tip - the tip seems to glow.
+        mPlayedPaint.setShader(tipShader(accent, tail, mTailPx));
+        // The scrubber: a disc in a light shade of the accent with a short, soft edge (not a
+        // blur), a little glow around it.
+        int light = androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.45f) | 0xFF000000;
         mScrubberPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
-                new int[] {0xFFFFFFFF, 0xFFFFFFFF, hot | 0xFF000000, (tail & 0x00FFFFFF) | 0xE6000000,
-                        (accent & 0x00FFFFFF) | 0x8C000000, (accent & 0x00FFFFFF) | 0x33000000, accent & 0x00FFFFFF},
-                new float[] {0f, 0.14f, 0.24f, 0.36f, 0.5f, 0.72f, 1f}, Shader.TileMode.CLAMP));
+                new int[] {light, light, (light & 0x00FFFFFF) | 0xE6000000, (accent & 0x00FFFFFF) | 0x59000000,
+                        accent & 0x00FFFFFF},
+                new float[] {0f, 0.52f, 0.62f, 0.8f, 1f}, Shader.TileMode.CLAMP));
+    }
+
+    /**
+     * NEWTUBE(accent): the played part's colours over {@code tailPx} ending at x = tailPx: the
+     * accent, its lighter shade, then white at the tip. Also the mini player's (MiniProgressDrawable).
+     */
+    static LinearGradient tipShader(int accent, int tail, float tailPx) {
+        int light = androidx.core.graphics.ColorUtils.blendARGB(tail, 0xFFFFFFFF, 0.55f);
+        return new LinearGradient(0f, 0f, tailPx, 0f,
+                new int[] {accent, tail, light, 0xFFFFFFFF},
+                new float[] {0f, 0.55f, 0.85f, 1f}, Shader.TileMode.CLAMP);
     }
 
     /** NEWTUBE(accent): the scrubber's glow, this many times the old dot's radius. */
-    private static final float SCRUBBER_GLOW_SCALE = 2.6f;
+    private static final float SCRUBBER_GLOW_SCALE = 1.7f;
     private final Paint mScrubberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private static final float GLOW_DP = 9f;
-    private final Paint mGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final android.graphics.Matrix mGlowMatrix = new android.graphics.Matrix();
 
     @Override
@@ -515,17 +520,6 @@ public class PlayerTimeBar extends View implements TimeBar {
             if (segmentLeft < playedRight) {
                 canvas.drawRect(segmentLeft, top, playedRight, bottom, mPlayedPaint);
             }
-        }
-
-        // NEWTUBE(accent): a soft glow on the played part's tip, in its own colour.
-        if (hasDuration && playedX > left) {
-            float glow = dp(GLOW_DP) * (1f + 0.4f * mDrag);
-            float cy = (top + bottom) / 2f;
-            mGlowMatrix.setScale(glow, glow);
-            mGlowMatrix.postTranslate(playedX, cy);
-            mGlowPaint.getShader().setLocalMatrix(mGlowMatrix);
-            mGlowPaint.setAlpha(Math.max(Math.round(255 * 0.6f), restAlpha));
-            canvas.drawCircle(playedX, cy, glow, mGlowPaint);
         }
 
         // SponsorBlock ranges, over the track and cut by the same chapter gaps.

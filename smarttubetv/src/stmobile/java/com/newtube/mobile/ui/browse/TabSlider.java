@@ -55,6 +55,12 @@ final class TabSlider {
 
         /** The page colour, under a picture's empty parts. */
         int pageColor();
+
+        /**
+         * The page moved (a slide frame): what is behind the glass bars changed. {@code incoming}:
+         * the picture sliding in beside the page, or null once there is none.
+         */
+        void onSlideFrame(@Nullable View incoming);
     }
 
     private static final long SLIDE_MS = 280;
@@ -119,6 +125,7 @@ final class TabSlider {
                 for (View view : mHost.pageViews()) {
                     view.setTranslationX(dx * 0.15f);
                 }
+                mHost.onSlideFrame(null);
                 return;
             }
         }
@@ -129,7 +136,8 @@ final class TabSlider {
     void release(float velocityX) {
         if (mGhost == null) {
             for (View view : mHost.pageViews()) {
-                view.animate().translationX(0f).setDuration(200).setInterpolator(mEase).start();
+                view.animate().translationX(0f).setDuration(200).setInterpolator(mEase)
+                        .setUpdateListener(a -> mHost.onSlideFrame(null)).start();
             }
             return;
         }
@@ -211,6 +219,7 @@ final class TabSlider {
             Rect area = mHost.pageRect();
             mGhost.setX(area.left + mDirection * (1f - progress) * width);
         }
+        mHost.onSlideFrame(mGhost);
     }
 
     private void animate(float to, long durationMs) {
@@ -288,6 +297,7 @@ final class TabSlider {
             view.animate().cancel();
             view.setTranslationX(0f);
         }
+        mHost.onSlideFrame(null);
     }
 
     // ---------------------------------------------------------------------------------

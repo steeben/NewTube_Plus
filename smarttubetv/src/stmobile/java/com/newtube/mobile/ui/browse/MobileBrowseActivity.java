@@ -672,6 +672,18 @@ public class MobileBrowseActivity extends MobileActivity
             public int pageColor() {
                 return getColorInt(R.color.mobile_color_background);
             }
+
+            @Override
+            public void onSlideFrame(View incoming) {
+                // The glass bars keep showing what is under them as the pages move.
+                for (com.newtube.mobile.ui.common.BackdropBlurDrawable glass : new com.newtube.mobile.ui.common.BackdropBlurDrawable[] {
+                        mTopGlassDrawable, mNavGlassDrawable, mMiniGlassDrawable}) {
+                    if (glass != null) {
+                        glass.setExtraSource(incoming);
+                    }
+                }
+                invalidateGlass();
+            }
         });
     }
 
