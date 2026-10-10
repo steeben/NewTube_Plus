@@ -1,0 +1,52 @@
+name: Fork debug build
+
+# Builds an unsigned-key debug APK and uploads it as a workflow artifact, so you can
+# sideload and test a branch without an Android SDK on your own machine.
+#
+# Run it from the Actions tab (Run workflow), or let it fire on a push to a branch.
+# With no keystore.properties, the debug build uses the `.debug` application ID, so it
+# installs alongside a release NewTube instead of clashing with it.
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build the debug APKs
+        run: ./gradlew --no-daemon --stacktrace :smarttubetv:assembleStmobileDebug
+
+      - name: List what was built
+        run: ls -l smarttubetv/build/outputs/renamed_apks/stmobileDebug/
+
+      - name: Upload the APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: NewTube-debug-${{ github.sha }}
+          path: smarttubetv/build/outputs/renamed_apks/stmobileDebug/*.apk
+          if-no-files-found: error
+          retention-days: 14
