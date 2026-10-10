@@ -16,6 +16,9 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 final class BrowseTopBar {
     private static final float WORDMARK_SP = 22f;
     private static final float SUBSCREEN_TITLE_SP = 20f;
+    /** NEWTUBE(branding): League Gothic is condensed - the same visual weight takes a larger size. */
+    private static final float WORDMARK_FONT_SP = 28f;
+    private static final float LOGO_DP = 28f;
 
     private final TextView mTitle;
     private final View mBack;
@@ -36,35 +39,107 @@ final class BrowseTopBar {
      * text if the section came without one - the arrow is what matters).
      */
     void show(boolean subScreen, CharSequence title) {
+        mSubScreen = subScreen;
         mBack.setVisibility(subScreen ? View.VISIBLE : View.GONE);
-        mTitle.setText(subScreen && title != null && title.length() > 0
-                ? title : mTitle.getContext().getString(R.string.app_name));
+        mTitle.setText(subScreen && title != null && title.length() > 0 ? title : wordmark());
         mTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, subScreen ? SUBSCREEN_TITLE_SP : WORDMARK_SP);
         mTitle.setPaddingRelative(subScreen ? mBesideBackInset : mWordmarkInset,
                 mTitle.getPaddingTop(), mTitle.getPaddingEnd(), mTitle.getPaddingBottom());
-        mSubScreen = subScreen;
         applyBranding();
     }
 
     private boolean mSubScreen;
+    @androidx.annotation.Nullable
+    private android.graphics.Typeface mWordmarkFont;
+    private android.graphics.Typeface mTitleFont;
+    @androidx.annotation.Nullable
+    private android.graphics.drawable.Drawable mCustomLogo;
+    private long mCustomLogoStamp;
+
+    /** NEWTUBE(branding): Appearance > Header text - none, NewTube, or the user's own. */
+    private CharSequence wordmark() {
+        android.content.Context context = mTitle.getContext();
+        switch (com.newtube.mobile.ui.common.UiPrefs.getHeader(context)) {
+            case com.newtube.mobile.ui.common.UiPrefs.HEADER_NONE:
+                return "";
+            case com.newtube.mobile.ui.common.UiPrefs.HEADER_CUSTOM: {
+                String text = com.newtube.mobile.ui.common.UiPrefs.getHeaderText(context);
+                return text != null && !text.trim().isEmpty() ? text.trim() : context.getString(R.string.app_name);
+            }
+            default:
+                return context.getString(R.string.app_name);
+        }
+    }
 
     /**
-     * NEWTUBE(branding): Settings > General > Branding - the wordmark alone, or the NewTube icon
-     * before it. Only on a tab's wordmark: a sub-screen's title sits beside its back arrow.
+     * NEWTUBE(branding): Settings > Appearance > Logo and Header text, on a tab's wordmark (a
+     * sub-screen's title sits beside its back arrow and keeps the plain font): the logo before the
+     * text - none, NewTube's, or the user's picture - and the text in League Gothic.
      */
     void applyBranding() {
         android.content.Context context = mTitle.getContext();
-        boolean icon = !mSubScreen
-                && com.newtube.mobile.ui.common.UiPrefs.getBranding(context) == com.newtube.mobile.ui.common.UiPrefs.BRANDING_ICON;
+        float density = context.getResources().getDisplayMetrics().density;
+        if (mTitleFont == null) {
+            mTitleFont = mTitle.getTypeface();
+        }
+        if (!mSubScreen) {
+            mTitle.setText(wordmark());
+            if (mWordmarkFont == null) {
+                try {
+                    mWordmarkFont = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.league_gothic);
+                } catch (RuntimeException e) {
+                    mWordmarkFont = mTitleFont; // a font that will not load is no reason to fail
+                }
+            }
+            mTitle.setTypeface(mWordmarkFont);
+            mTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, WORDMARK_FONT_SP);
+            mTitle.setLetterSpacing(0.02f);
+        } else {
+            mTitle.setTypeface(mTitleFont);
+            mTitle.setLetterSpacing(0f);
+        }
         android.graphics.drawable.Drawable mark = null;
-        if (icon) {
-            mark = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_newtube_brand);
-            if (mark != null) {
-                int size = Math.round(28 * context.getResources().getDisplayMetrics().density);
-                mark.setBounds(0, 0, size, size);
+        if (!mSubScreen) {
+            switch (com.newtube.mobile.ui.common.UiPrefs.getLogo(context)) {
+                case com.newtube.mobile.ui.common.UiPrefs.LOGO_NEWTUBE:
+                    mark = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_newtube_brand);
+                    break;
+                case com.newtube.mobile.ui.common.UiPrefs.LOGO_CUSTOM:
+                    mark = customLogo(context);
+                    break;
+                default:
+                    break;
             }
         }
+        int size = Math.round(LOGO_DP * density);
+        if (mark != null) {
+            mark.setBounds(0, 0, size, size);
+        }
         mTitle.setCompoundDrawablesRelative(mark, null, null, null);
-        mTitle.setCompoundDrawablePadding(Math.round(8 * context.getResources().getDisplayMetrics().density));
+        CharSequence text = mTitle.getText();
+        mTitle.setCompoundDrawablePadding(text != null && text.length() > 0 ? Math.round(8 * density) : 0);
+    }
+
+    /** The user's picture, read again only when it changed. Rounded like the NewTube icon. */
+    @androidx.annotation.Nullable
+    private android.graphics.drawable.Drawable customLogo(android.content.Context context) {
+        java.io.File file = com.newtube.mobile.ui.common.UiPrefs.customLogoFile(context);
+        long stamp = file.isFile() ? file.lastModified() : 0;
+        if (stamp == 0) {
+            return null;
+        }
+        if (mCustomLogo == null || stamp != mCustomLogoStamp) {
+            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath());
+            if (bitmap == null) {
+                return null;
+            }
+            androidx.core.graphics.drawable.RoundedBitmapDrawable rounded =
+                    androidx.core.graphics.drawable.RoundedBitmapDrawableFactory.create(context.getResources(), bitmap);
+            rounded.setCornerRadius(bitmap.getWidth() * 26f / 108f); // the NewTube icon's corners
+            mCustomLogo = rounded;
+            mCustomLogoStamp = stamp;
+        }
+        return mCustomLogo.getConstantState() != null
+                ? mCustomLogo.getConstantState().newDrawable(context.getResources()).mutate() : mCustomLogo;
     }
 }

@@ -226,6 +226,9 @@ public class RelatedVideoAdapter extends ListAdapter<Video, RelatedVideoAdapter.
             int progress = video.percentWatched > 0 && video.percentWatched < 1 ? 1 : Math.round(video.percentWatched);
 
             if (progress > 0 && progress <= 100) {
+                // NEWTUBE(accent): the watched bar in the user's accent.
+                mWatchProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(
+                        com.newtube.mobile.ui.common.UiPrefs.getAccent(mWatchProgress.getContext())));
                 mWatchProgress.setProgress(progress);
                 mWatchProgress.setVisibility(View.VISIBLE);
             } else {

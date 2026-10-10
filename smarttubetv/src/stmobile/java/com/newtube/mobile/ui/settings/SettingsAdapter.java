@@ -158,6 +158,7 @@ final class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 if (toggle.isChecked() != on) {
                     toggle.setChecked(on);
                 }
+                tintSwitch(toggle); // NEWTUBE(accent)
                 itemView.setContentDescription(row.title + (text != null ? ", " + text : ""));
             } else {
                 itemView.setContentDescription(null);
@@ -185,5 +186,17 @@ final class SettingsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             info.setCheckable(true);
             info.setChecked(toggle != null && toggle.isChecked());
         }
+    }
+
+    /** NEWTUBE(accent): a switch that is on wears the accent (thumb, and its track a lighter shade). */
+    static void tintSwitch(SwitchMaterial toggle) {
+        android.content.Context context = toggle.getContext();
+        int accent = com.newtube.mobile.ui.common.UiPrefs.getAccent(context);
+        boolean light = com.newtube.mobile.ui.common.ThemeMode.isLight(context);
+        int[][] states = {new int[] {android.R.attr.state_checked}, new int[] {}};
+        toggle.setThumbTintList(new android.content.res.ColorStateList(states,
+                new int[] {accent, light ? 0xFFFAFAFA : 0xFFB9B9B9}));
+        toggle.setTrackTintList(new android.content.res.ColorStateList(states,
+                new int[] {(accent & 0x00FFFFFF) | 0x80000000, light ? 0x42000000 : 0x4DFFFFFF}));
     }
 }

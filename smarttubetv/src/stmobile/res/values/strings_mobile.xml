@@ -457,16 +457,35 @@
     <string name="mobile_theme_system_oled_desc">Follows the system, with true black when dark</string>
     <string name="mobile_theme_oled">OLED</string>
     <string name="mobile_theme_oled_desc">Dark, with true black instead of dark grey</string>
-    <!-- NEWTUBE(branding) and NEWTUBE(ui-options): Settings > General (UiPrefs). -->
-    <string name="mobile_settings_branding">Branding</string>
-    <string name="mobile_settings_branding_none">No icon</string>
-    <string name="mobile_settings_branding_icon">NewTube icon</string>
+    <!-- NEWTUBE(ui-options): Settings > General (UiPrefs). -->
     <string name="mobile_settings_video_cards">Video cards</string>
     <string name="mobile_settings_full_width_thumbs">Full-width thumbnails</string>
     <string name="mobile_settings_full_width_thumbs_summary">Edge to edge when the feed is one column wide</string>
     <string name="mobile_settings_rounded_thumbs">Rounded thumbnail corners</string>
     <string name="mobile_settings_card_menu">More button under cards</string>
     <string name="mobile_settings_card_menu_summary">Off: press and hold a card for its menu</string>
+    <!-- NEWTUBE(appearance): Settings > Appearance. -->
+    <string name="mobile_appearance">Appearance</string>
+    <string name="mobile_appearance_summary">%1$s theme</string>
+    <string name="mobile_appearance_summary_accent">%1$s theme, custom accent</string>
+    <string name="mobile_appearance_accent">Accent</string>
+    <string name="mobile_appearance_accent_default_summary">Red (default)</string>
+    <string name="mobile_appearance_accent_brightness">Brightness</string>
+    <string name="mobile_appearance_accent_code_hint">#FF0033</string>
+    <string name="mobile_appearance_accent_note">Progress bars, the selected tab and switches</string>
+    <string name="mobile_appearance_apply">Apply</string>
+    <string name="mobile_appearance_default">Default</string>
+    <string name="mobile_appearance_branding">Branding</string>
+    <string name="mobile_appearance_logo">Logo</string>
+    <string name="mobile_appearance_logo_none">None</string>
+    <string name="mobile_appearance_logo_newtube">NewTube</string>
+    <string name="mobile_appearance_logo_custom">Custom…</string>
+    <string name="mobile_appearance_logo_failed">That picture could not be used</string>
+    <string name="mobile_appearance_header">Header text</string>
+    <string name="mobile_appearance_header_none">None</string>
+    <string name="mobile_appearance_header_default">Default (NewTube)</string>
+    <string name="mobile_appearance_header_custom">Custom…</string>
+    <string name="mobile_appearance_header_hint">Header text</string>
     <!-- NEWTUBE(nav-playlists): Settings > Tabs and feeds > Tabs, the bottom bar's limit. -->
     <string name="mobile_settings_tabs_bottom_bar_full">The bottom bar is full. Turn a tab off first.</string>
     <string name="mobile_settings_tabs_bottom_bar_note">Up to 5 tabs, You included.</string>

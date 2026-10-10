@@ -300,7 +300,8 @@ public class MobileBrowseActivity extends MobileActivity
         mSearchButton = findViewById(R.id.mobile_search_button);
         mCastButton = findViewById(R.id.mobile_cast_button);
         mTopBar = new BrowseTopBar(this, () -> getOnBackPressedDispatcher().onBackPressed());
-        mPlaylistsTab = com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this);
+        mTabChoices = (com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this) ? 1 : 0)
+                | (com.newtube.mobile.ui.common.UiPrefs.isDownloadsInBottomBar(this) ? 2 : 0);
 
         mMiniPlayerBar = findViewById(R.id.mobile_mini_player);
         mMiniPlayerFrame = findViewById(R.id.mobile_mini_player_frame);
@@ -340,6 +341,8 @@ public class MobileBrowseActivity extends MobileActivity
             mSkeletonShows++;
             mFeedSkeleton.animate().cancel();
             mFeedSkeleton.setAlpha(1f);
+            com.newtube.mobile.ui.common.FeedSkeletonStyle.apply(mFeedSkeleton, // NEWTUBE(ui-options)
+                    mLayoutManager == null || mLayoutManager.getSpanCount() == 1);
             mFeedSkeleton.setVisibility(View.VISIBLE);
             return;
         }
@@ -882,7 +885,20 @@ public class MobileBrowseActivity extends MobileActivity
         startActivity(com.newtube.mobile.ui.settings.MobileSettingsActivity.intent(this, null));
     }
 
+    /** NEWTUBE(accent): the selected tab's icon in the user's accent; the rest, and the labels, as before. */
+    private void applyNavAccent() {
+        if (mBottomNav == null) {
+            return;
+        }
+        int normal = getResources().getColor(R.color.mobile_color_on_surface);
+        int accent = com.newtube.mobile.ui.common.UiPrefs.getAccent(this);
+        mBottomNav.setItemIconTintList(new android.content.res.ColorStateList(
+                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {accent == com.newtube.mobile.ui.common.UiPrefs.DEFAULT_ACCENT ? normal : accent, normal}));
+    }
+
     private void setupBottomNav() {
+        applyNavAccent();
         mBottomNav.setOnItemSelectedListener(item -> {
             if (!mSuppressNavCallback) {
                 onNavItemChosen(item.getItemId());
@@ -985,6 +1001,23 @@ public class MobileBrowseActivity extends MobileActivity
      * Personal-content section ids (the user's own stuff). These lead the You list, official-app
      * style; every other non-nav section is a discovery feed and goes under the "Explore" label.
      */
+    private static int personalRank(int sectionId) {
+        switch (sectionId) {
+            case MediaGroup.TYPE_USER_PLAYLISTS:
+                return 0;
+            case MediaGroup.TYPE_MY_VIDEOS:
+                return 1;
+            case VideoDownloads.SECTION_ID:
+                return 2;
+            case MediaGroup.TYPE_CHANNEL_UPLOADS:
+                return 3;
+            case MediaGroup.TYPE_PLAYBACK_QUEUE:
+                return 4;
+            default:
+                return 5;
+        }
+    }
+
     private static boolean isPersonalSection(int sectionId) {
         switch (sectionId) {
             case MediaGroup.TYPE_USER_PLAYLISTS:
@@ -992,6 +1025,7 @@ public class MobileBrowseActivity extends MobileActivity
             case MediaGroup.TYPE_CHANNEL_UPLOADS:
             case MediaGroup.TYPE_PLAYBACK_QUEUE:
             case MediaGroup.TYPE_NOTIFICATIONS:
+            case VideoDownloads.SECTION_ID: // NEWTUBE(you-downloads)
                 return true;
             default:
                 return false;
@@ -1035,6 +1069,8 @@ public class MobileBrowseActivity extends MobileActivity
             (isPersonalSection(section.getId()) ? personal : explore).add(section);
         }
 
+        // NEWTUBE(you-downloads): the user's own rows in a fixed order - Downloads under My videos.
+        java.util.Collections.sort(personal, (a, b) -> Integer.compare(personalRank(a.getId()), personalRank(b.getId())));
         for (BrowseSection section : personal) {
             addYouSectionRow(section);
         }
@@ -1474,8 +1510,8 @@ public class MobileBrowseActivity extends MobileActivity
 
     private final android.os.Handler mNavHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private boolean mNavRebuildPosted;
-    /** NEWTUBE(nav-playlists): the Playlists-tab choice the bar was last built for. */
-    private boolean mPlaylistsTab;
+    /** NEWTUBE(nav-playlists): the Playlists/Downloads tab choices the bar was last built for. */
+    private int mTabChoices;
     private final Runnable mNavRebuild = () -> {
         mNavRebuildPosted = false;
         if (isDestroyed()) {
@@ -1720,6 +1756,11 @@ public class MobileBrowseActivity extends MobileActivity
             if (PREFERRED_SECTION_IDS[i] == MediaGroup.TYPE_USER_PLAYLISTS && !playlists) {
                 continue;
             }
+            // NEWTUBE(you-downloads): off the bar, Downloads is a row of the You tab.
+            if (PREFERRED_SECTION_IDS[i] == VideoDownloads.SECTION_ID
+                    && !com.newtube.mobile.ui.common.UiPrefs.isDownloadsInBottomBar(this)) {
+                continue;
+            }
             BrowseSection match = findPreferredSection(
                     enabledSections, chosen, PREFERRED_SECTION_IDS[i], PREFERRED_SECTION_TITLE_RES[i]);
 
@@ -1764,9 +1805,12 @@ public class MobileBrowseActivity extends MobileActivity
         updateAccountRow();
         // NEWTUBE(ui-options): Branding and the Playlists tab may have changed in Settings.
         mTopBar.applyBranding();
-        boolean playlistsTab = com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this);
-        if (playlistsTab != mPlaylistsTab) {
-            mPlaylistsTab = playlistsTab;
+        applyNavAccent();
+        // (a bit per tab whose place is a choice: Playlists, Downloads)
+        int tabs = (com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this) ? 1 : 0)
+                | (com.newtube.mobile.ui.common.UiPrefs.isDownloadsInBottomBar(this) ? 2 : 0);
+        if (tabs != mTabChoices) {
+            mTabChoices = tabs;
             rebuildNavigation();
         }
         getWindow().getDecorView().postDelayed(mUpdateCheckIfDue, UPDATE_CHECK_DELAY_MS);

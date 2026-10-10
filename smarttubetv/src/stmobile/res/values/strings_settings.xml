@@ -31,6 +31,7 @@
     <string name="mobile_settings_general">General</string>
     <string name="mobile_settings_general_summary">Theme, language, start screen</string>
     <string name="mobile_settings_general_summary_value">%1$s theme, language, start screen</string>
+    <string name="mobile_settings_general_summary_moved">Language, start screen, interface size</string>
     <string name="mobile_settings_theme_system_short">System</string>
     <string name="mobile_settings_theme_light_short">Light</string>
     <string name="mobile_settings_theme_dark_short">Dark</string>

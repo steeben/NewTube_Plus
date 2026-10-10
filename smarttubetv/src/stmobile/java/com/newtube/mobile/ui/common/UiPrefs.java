@@ -13,7 +13,9 @@ import java.util.List;
  * stores (ThemeMode, PlayerGesturePrefs).
  *
  * <ul>
- *   <li>Branding - the top bar's wordmark alone, or with the NewTube icon before it.</li>
+ *   <li>Branding - the top bar's logo (none, NewTube's, or a picture of the user's) and header
+ *   text (none, NewTube, or the user's own).</li>
+ *   <li>Accent - the colour of progress bars, the selected tab and switches.</li>
  *   <li>Full-width thumbnails - in a one-column feed the video cards run edge to edge.</li>
  *   <li>Card menu - the ⋮ under each card; its menu is still a long press away when hidden.</li>
  *   <li>Rounded thumbnails - the cards' 12dp corners, or square ones.</li>
@@ -24,15 +26,30 @@ import java.util.List;
  * screen already open (Home under Settings) is up to date when the user comes back to it.</p>
  */
 public final class UiPrefs {
-    public static final int BRANDING_NONE = 0;
-    public static final int BRANDING_ICON = 1;
+    /** NEWTUBE(branding): the logo before the top bar's header text. */
+    public static final int LOGO_NONE = 0;
+    public static final int LOGO_NEWTUBE = 1;
+    public static final int LOGO_CUSTOM = 2;
+    /** NEWTUBE(branding): the top bar's header text (in League Gothic). */
+    public static final int HEADER_NONE = 0;
+    public static final int HEADER_DEFAULT = 1;
+    public static final int HEADER_CUSTOM = 2;
+    /** NEWTUBE(accent): the accent until one is chosen - the seek bar's red (mobile_color_progress). */
+    public static final int DEFAULT_ACCENT = 0xFFFF0033;
 
     private static final String PREFS_NAME = "newtube_ui";
+    /** The first Branding setting (wordmark with or without the icon), read once for the Logo. */
     private static final String KEY_BRANDING = "branding";
+    private static final String KEY_LOGO = "logo";
+    private static final String KEY_HEADER = "header";
+    private static final String KEY_HEADER_TEXT = "header_text";
+    private static final String KEY_ACCENT = "accent";
+    private static final String CUSTOM_LOGO_FILE = "brand_logo.png";
     private static final String KEY_FULL_WIDTH_THUMBS = "full_width_thumbnails";
     private static final String KEY_HIDE_CARD_MENU = "hide_card_menu";
     private static final String KEY_ROUNDED_THUMBS = "rounded_thumbnails";
     private static final String KEY_PLAYLISTS_TAB = "playlists_in_bottom_bar";
+    private static final String KEY_DOWNLOADS_TAB = "downloads_in_bottom_bar";
 
     /** Something drawn from these changed: redraw. Main thread. */
     public interface Listener {
@@ -48,12 +65,61 @@ public final class UiPrefs {
         return context.getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public static int getBranding(Context context) {
-        return prefs(context).getInt(KEY_BRANDING, BRANDING_NONE) == BRANDING_ICON ? BRANDING_ICON : BRANDING_NONE;
+    public static int getLogo(Context context) {
+        SharedPreferences prefs = prefs(context);
+        int fallback = prefs.getInt(KEY_BRANDING, 0) == 1 ? LOGO_NEWTUBE : LOGO_NONE;
+        int logo = prefs.getInt(KEY_LOGO, fallback);
+        if (logo == LOGO_CUSTOM && !customLogoFile(context).isFile()) {
+            return LOGO_NONE; // the picked picture is gone
+        }
+        return logo == LOGO_NEWTUBE || logo == LOGO_CUSTOM ? logo : LOGO_NONE;
     }
 
-    public static void setBranding(Context context, int branding) {
-        prefs(context).edit().putInt(KEY_BRANDING, branding).apply();
+    public static void setLogo(Context context, int logo) {
+        prefs(context).edit().putInt(KEY_LOGO, logo).apply();
+        notifyChanged();
+    }
+
+    /** Where the picture picked for the Custom logo is kept (a square PNG, see BrandLogoPickActivity). */
+    public static java.io.File customLogoFile(Context context) {
+        return new java.io.File(context.getApplicationContext().getFilesDir(), CUSTOM_LOGO_FILE);
+    }
+
+    public static int getHeader(Context context) {
+        int header = prefs(context).getInt(KEY_HEADER, HEADER_DEFAULT);
+        return header == HEADER_NONE || header == HEADER_CUSTOM ? header : HEADER_DEFAULT;
+    }
+
+    public static void setHeader(Context context, int header) {
+        prefs(context).edit().putInt(KEY_HEADER, header).apply();
+        notifyChanged();
+    }
+
+    public static String getHeaderText(Context context) {
+        return prefs(context).getString(KEY_HEADER_TEXT, "");
+    }
+
+    public static void setHeaderText(Context context, String text) {
+        prefs(context).edit().putString(KEY_HEADER_TEXT, text).apply();
+        notifyChanged();
+    }
+
+    private static volatile int sAccent;
+    private static volatile boolean sAccentRead;
+
+    /** NEWTUBE(accent): the user's accent colour (opaque), or {@link #DEFAULT_ACCENT}. Cached. */
+    public static int getAccent(Context context) {
+        if (!sAccentRead) {
+            sAccent = 0xFF000000 | prefs(context).getInt(KEY_ACCENT, DEFAULT_ACCENT);
+            sAccentRead = true;
+        }
+        return sAccent;
+    }
+
+    public static void setAccent(Context context, int color) {
+        sAccent = 0xFF000000 | color;
+        sAccentRead = true;
+        prefs(context).edit().putInt(KEY_ACCENT, sAccent).apply();
         notifyChanged();
     }
 
@@ -90,6 +156,16 @@ public final class UiPrefs {
 
     public static void setPlaylistsInBottomBar(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_PLAYLISTS_TAB, on).apply();
+        notifyChanged();
+    }
+
+    /** Downloads is a bottom-bar tab (the default) rather than a row of the You tab. */
+    public static boolean isDownloadsInBottomBar(Context context) {
+        return prefs(context).getBoolean(KEY_DOWNLOADS_TAB, true);
+    }
+
+    public static void setDownloadsInBottomBar(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_DOWNLOADS_TAB, on).apply();
         notifyChanged();
     }
 

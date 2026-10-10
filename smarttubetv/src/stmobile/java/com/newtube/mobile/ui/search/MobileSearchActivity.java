@@ -802,6 +802,8 @@ public class MobileSearchActivity extends MobileActivity
             mSkeletonShows++;
             mSkeleton.animate().cancel();
             mSkeleton.setAlpha(1f);
+            com.newtube.mobile.ui.common.FeedSkeletonStyle.apply(mSkeleton, // NEWTUBE(ui-options)
+                    mLayoutManager == null || mLayoutManager.getSpanCount() == 1);
             mSkeleton.setVisibility(View.VISIBLE);
             return;
         }

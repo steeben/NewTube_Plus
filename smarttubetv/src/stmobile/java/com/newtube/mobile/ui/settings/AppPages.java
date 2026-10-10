@@ -54,22 +54,6 @@ final class AppPages {
         MainUIData mainUIData = MainUIData.instance(context);
         SearchData searchData = SearchData.instance(context);
 
-        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_theme))
-                .option(context.getString(R.string.mobile_theme_system), ThemeMode.SYSTEM)
-                .option(context.getString(R.string.mobile_theme_light), ThemeMode.LIGHT)
-                .option(context.getString(R.string.mobile_theme_dark), ThemeMode.DARK)
-                .option(context.getString(R.string.mobile_theme_system_oled),
-                        context.getString(R.string.mobile_theme_system_oled_desc), ThemeMode.SYSTEM_OLED)
-                .option(context.getString(R.string.mobile_theme_oled),
-                        context.getString(R.string.mobile_theme_oled_desc), ThemeMode.OLED)
-                .bind(ThemeMode::get, mode -> ThemeMode.set(context, mode)));
-
-        // NEWTUBE(branding): the top bar's wordmark, with or without the NewTube icon.
-        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_branding))
-                .option(context.getString(R.string.mobile_settings_branding_none), UiPrefs.BRANDING_NONE)
-                .option(context.getString(R.string.mobile_settings_branding_icon), UiPrefs.BRANDING_ICON)
-                .bind(() -> UiPrefs.getBranding(context), branding -> UiPrefs.setBranding(context, branding)));
-
         LanguageSettingsPresenter language = LanguageSettingsPresenter.instance(context);
         rows.add(SettingsRow.fromRadio(language.createLanguageCategory(),
                 context.getString(R.string.mobile_settings_language)).needsRestart());
@@ -100,6 +84,152 @@ final class AppPages {
                 () -> !UiPrefs.isCardMenuHidden(context), on -> UiPrefs.setCardMenuHidden(context, !on)));
 
         return new SettingsPages.Page(context.getString(R.string.mobile_settings_general), rows);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // NEWTUBE(appearance): Appearance
+    // ---------------------------------------------------------------------------------------------
+
+    static SettingsPages.Page appearance(Context context) {
+        List<SettingsRow> rows = new ArrayList<>();
+        MainUIData mainUIData = MainUIData.instance(context);
+
+        rows.add(themeRow(context));
+        rows.add(interfaceSize(context, mainUIData)); // also in General, where it always was
+
+        // Accent: the colour of progress bars, the selected tab and switches.
+        rows.add(SettingsRow.action(0, context.getString(R.string.mobile_appearance_accent),
+                () -> UiPrefs.getAccent(context) == UiPrefs.DEFAULT_ACCENT
+                        ? context.getString(R.string.mobile_appearance_accent_default_summary)
+                        : AccentDialog.hex(UiPrefs.getAccent(context)),
+                page -> AccentDialog.show(page.requireContext(), page::rebuild)));
+
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_appearance_branding)));
+        rows.add(SettingsRow.action(0, context.getString(R.string.mobile_appearance_logo),
+                () -> context.getString(logoLabel(UiPrefs.getLogo(context))),
+                page -> showLogoDialog(page)));
+        rows.add(SettingsRow.action(0, context.getString(R.string.mobile_appearance_header),
+                () -> headerSummary(context),
+                page -> showHeaderDialog(page)));
+
+        return new SettingsPages.Page(context.getString(R.string.mobile_appearance), rows);
+    }
+
+    /** NEWTUBE(oled): System default / Light / Dark / System default (OLED) / OLED. */
+    private static SettingsRow themeRow(Context context) {
+        return SettingsRow.<Integer>choice(context.getString(R.string.mobile_theme))
+                .option(context.getString(R.string.mobile_theme_system), ThemeMode.SYSTEM)
+                .option(context.getString(R.string.mobile_theme_light), ThemeMode.LIGHT)
+                .option(context.getString(R.string.mobile_theme_dark), ThemeMode.DARK)
+                .option(context.getString(R.string.mobile_theme_system_oled),
+                        context.getString(R.string.mobile_theme_system_oled_desc), ThemeMode.SYSTEM_OLED)
+                .option(context.getString(R.string.mobile_theme_oled),
+                        context.getString(R.string.mobile_theme_oled_desc), ThemeMode.OLED)
+                .bind(ThemeMode::get, mode -> ThemeMode.set(context, mode));
+    }
+
+    private static int logoLabel(int logo) {
+        return logo == UiPrefs.LOGO_NEWTUBE ? R.string.mobile_appearance_logo_newtube
+                : logo == UiPrefs.LOGO_CUSTOM ? R.string.mobile_appearance_logo_custom
+                : R.string.mobile_appearance_logo_none;
+    }
+
+    /** None / NewTube / Custom… (a picture from the phone, BrandLogoPickActivity). */
+    private static void showLogoDialog(SettingsPageFragment page) {
+        Context context = page.requireContext();
+        int[] logos = {UiPrefs.LOGO_NONE, UiPrefs.LOGO_NEWTUBE, UiPrefs.LOGO_CUSTOM};
+        CharSequence[] labels = new CharSequence[logos.length];
+        int checked = 0;
+        for (int i = 0; i < logos.length; i++) {
+            labels[i] = context.getString(logoLabel(logos[i]));
+            if (logos[i] == UiPrefs.getLogo(context)) {
+                checked = i;
+            }
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.mobile_appearance_logo)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (logos[which] == UiPrefs.LOGO_CUSTOM) {
+                        // A new picture each time Custom is picked; the logo changes once it is saved.
+                        context.startActivity(new android.content.Intent(context, BrandLogoPickActivity.class));
+                    } else {
+                        UiPrefs.setLogo(context, logos[which]);
+                        page.rebuild();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private static CharSequence headerSummary(Context context) {
+        switch (UiPrefs.getHeader(context)) {
+            case UiPrefs.HEADER_NONE:
+                return context.getString(R.string.mobile_appearance_header_none);
+            case UiPrefs.HEADER_CUSTOM: {
+                String text = UiPrefs.getHeaderText(context);
+                return text != null && !text.trim().isEmpty() ? text.trim()
+                        : context.getString(R.string.mobile_appearance_header_default);
+            }
+            default:
+                return context.getString(R.string.mobile_appearance_header_default);
+        }
+    }
+
+    /** None / Default (NewTube) / Custom… (the user's own text). */
+    private static void showHeaderDialog(SettingsPageFragment page) {
+        Context context = page.requireContext();
+        CharSequence[] labels = {
+                context.getString(R.string.mobile_appearance_header_none),
+                context.getString(R.string.mobile_appearance_header_default),
+                context.getString(R.string.mobile_appearance_header_custom)};
+        int[] headers = {UiPrefs.HEADER_NONE, UiPrefs.HEADER_DEFAULT, UiPrefs.HEADER_CUSTOM};
+        int checked = 1;
+        for (int i = 0; i < headers.length; i++) {
+            if (headers[i] == UiPrefs.getHeader(context)) {
+                checked = i;
+            }
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.mobile_appearance_header)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (headers[which] == UiPrefs.HEADER_CUSTOM) {
+                        showHeaderTextDialog(page);
+                    } else {
+                        UiPrefs.setHeader(context, headers[which]);
+                        page.rebuild();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private static void showHeaderTextDialog(SettingsPageFragment page) {
+        Context context = page.requireContext();
+        float density = context.getResources().getDisplayMetrics().density;
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(context);
+        int pad = Math.round(20 * density);
+        frame.setPadding(pad, Math.round(8 * density), pad, 0);
+        android.widget.EditText input = new android.widget.EditText(context);
+        input.setSingleLine(true);
+        input.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(24)});
+        input.setHint(R.string.mobile_appearance_header_hint);
+        input.setText(UiPrefs.getHeaderText(context));
+        input.setSelection(input.length());
+        frame.addView(input);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.mobile_appearance_header_custom)
+                .setView(frame)
+                .setPositiveButton(R.string.mobile_appearance_apply, (dialog, which) -> {
+                    String text = input.getText().toString().trim();
+                    UiPrefs.setHeaderText(context, text);
+                    UiPrefs.setHeader(context, text.isEmpty() ? UiPrefs.HEADER_DEFAULT : UiPrefs.HEADER_CUSTOM);
+                    page.rebuild();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+        input.requestFocus();
     }
 
     /** The tab NewTube opens on: the enabled sections, then pinned channels and playlists. */
@@ -272,6 +402,8 @@ final class AppPages {
         SidebarService sidebar = SidebarService.instance(context);
         java.util.function.IntPredicate isOn = sectionId -> sectionId == MediaGroup.TYPE_USER_PLAYLISTS
                 ? UiPrefs.isPlaylistsInBottomBar(context) && sidebar.isSectionPinned(sectionId)
+                : sectionId == VideoDownloads.SECTION_ID
+                ? UiPrefs.isDownloadsInBottomBar(context) && sidebar.isSectionPinned(sectionId)
                 : sidebar.isSectionPinned(sectionId);
         int[] all = Arrays.copyOf(order, order.length + 1);
         all[order.length] = MediaGroup.TYPE_USER_PLAYLISTS;
@@ -302,9 +434,14 @@ final class AppPages {
                             MobileSnackbar.show(context, R.string.mobile_settings_tabs_bottom_bar_full);
                             return;
                         }
-                        if (sectionId == MediaGroup.TYPE_USER_PLAYLISTS) {
-                            UiPrefs.setPlaylistsInBottomBar(context, on);
-                            if (on && !sidebar.isSectionPinned(sectionId)) {
+                        if (sectionId == MediaGroup.TYPE_USER_PLAYLISTS || sectionId == VideoDownloads.SECTION_ID) {
+                            // Off the bar, these two stay as rows of the You tab.
+                            if (sectionId == MediaGroup.TYPE_USER_PLAYLISTS) {
+                                UiPrefs.setPlaylistsInBottomBar(context, on);
+                            } else {
+                                UiPrefs.setDownloadsInBottomBar(context, on);
+                            }
+                            if (!sidebar.isSectionPinned(sectionId)) {
                                 BrowsePresenter.instance(context).enableSection(sectionId, true);
                             }
                         } else {
