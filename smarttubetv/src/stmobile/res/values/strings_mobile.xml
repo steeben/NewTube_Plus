@@ -486,6 +486,12 @@
     <string name="mobile_appearance_accent_note">Progress bars, the selected tab and switches</string>
     <string name="mobile_appearance_apply">Apply</string>
     <string name="mobile_appearance_default">Default</string>
+    <string name="mobile_appearance_ambient">Ambient mode</string>
+    <string name="mobile_appearance_ambient_off">Off</string>
+    <string name="mobile_appearance_ambient_on">On</string>
+    <string name="mobile_appearance_ambient_not_fullscreen">On, except in full screen</string>
+    <string name="mobile_appearance_frosted">Frosted glass</string>
+    <string name="mobile_appearance_frosted_summary">The top bar and bottom bar, and the watch page\'s buttons</string>
     <string name="mobile_appearance_branding">Branding</string>
     <string name="mobile_appearance_logo">Logo</string>
     <string name="mobile_appearance_logo_none">None</string>

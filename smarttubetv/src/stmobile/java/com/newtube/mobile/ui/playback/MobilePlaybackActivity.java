@@ -179,6 +179,9 @@ public class MobilePlaybackActivity extends MobileActivity
 
     private PlayerContainerLayout mContainer;
     private PinchZoomLayout mVideoArea;
+    /** NEWTUBE(ambient): the video's colours around the player (Settings > Appearance). */
+    @Nullable
+    private AmbientMode mAmbient;
     private TextView mZoomHintView;
     private DoubleTapPlayerViewImpl mPlayerView;
     private YouTubeOverlay mYouTubeOverlay;
@@ -716,6 +719,22 @@ public class MobilePlaybackActivity extends MobileActivity
         mWatchRoot = findViewById(R.id.mobile_watch_root);
         mWatchRoot.addOnLayoutChangeListener(mWatchRootLayoutListener);
         mWatchScroll = findViewById(R.id.mobile_watch_scroll);
+        mAmbient = new AmbientMode(this, new AmbientMode.Host() {
+            @Override
+            public TextureView videoTexture() {
+                return mVideoTexture;
+            }
+
+            @Override
+            public View videoArea() {
+                return mVideoArea;
+            }
+
+            @Override
+            public View watchScroll() {
+                return mWatchScroll;
+            }
+        });
         mWatchContent = findViewById(R.id.mobile_watch_content);
         mWatchTitle = findViewById(R.id.mobile_watch_title);
         mWatchMeta = findViewById(R.id.mobile_watch_meta);
@@ -739,6 +758,7 @@ public class MobilePlaybackActivity extends MobileActivity
         mWatchChannelName = findViewById(R.id.mobile_watch_channel_name);
         mWatchSubs = findViewById(R.id.mobile_watch_subs);
         mWatchSubscribe = findViewById(R.id.mobile_watch_subscribe);
+        applyGlassPills(); // NEWTUBE(frosted)
         mWatchRelatedLabel = findViewById(R.id.mobile_watch_related_label);
         mRelatedSkeleton = findViewById(R.id.mobile_watch_related_skeleton);
         mWatchRelated = findViewById(R.id.mobile_watch_related);
@@ -1560,6 +1580,7 @@ public class MobilePlaybackActivity extends MobileActivity
             mPlaybackService.ensureForeground();
         }
 
+        applyGlassPills(); // NEWTUBE(frosted): the setting may have changed meanwhile
         applySystemBarsForOrientation(getResources().getConfiguration().orientation);
         if (mMorphStartPending) {
             // NEWTUBE(motion): the morph's first step runs after the window's first frame(s), and
@@ -1579,6 +1600,9 @@ public class MobilePlaybackActivity extends MobileActivity
 
     @Override
     protected void onPause() {
+        if (mAmbient != null) {
+            mAmbient.stop(); // NEWTUBE(ambient): no sampling off screen
+        }
         if (mPresenter != null) {
             mPresenter.onViewPaused();
         }
@@ -1842,7 +1866,10 @@ public class MobilePlaybackActivity extends MobileActivity
     /** NEWTUBE(theme): the status bar is over the black video band in both themes. */
     @Override
     protected boolean isStatusBarOverDarkContent() {
-        return true;
+        // NEWTUBE(ambient): the light theme's ambient status bar is the page's (with a white
+        // vignette), so its icons go dark; otherwise the band is black.
+        return !(mAmbient != null && ThemeMode.isLight(this)
+                && mAmbient.isWanted(getResources().getConfiguration().orientation));
     }
 
     /**
@@ -1890,6 +1917,8 @@ public class MobilePlaybackActivity extends MobileActivity
             updateButtonVisual(id, getButtonState(id));
         }
         updateDownloadPill();
+        mGlassPills = false;
+        applyGlassPills(); // NEWTUBE(frosted): built again for the new side
         if (!mIsInPip) {
             applySystemBarsForOrientation(getResources().getConfiguration().orientation);
         }
@@ -2366,6 +2395,13 @@ public class MobilePlaybackActivity extends MobileActivity
                 window.setStatusBarContrastEnforced(false);
             }
             window.setStatusBarColor(Color.BLACK);
+        }
+
+        if (mAmbient != null) {
+            mAmbient.apply(orientation); // NEWTUBE(ambient): over the backgrounds just set
+            if (mMorphFraction <= 0f && mMorphAnimator == null) {
+                mAmbient.showBand();
+            }
         }
 
         if (mControlsRoot != null) {
@@ -5876,6 +5912,9 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mCommentsPanel != null) {
             mCommentsPanel.setMorphAlpha(1f);
         }
+        if (mAmbient != null && !isFinishing()) {
+            mAmbient.showBand(); // NEWTUBE(ambient): the page is open again
+        }
     }
 
     private void animateMorph(float to, long durationMs, @Nullable Runnable endAction) {
@@ -6025,6 +6064,9 @@ public class MobilePlaybackActivity extends MobileActivity
     /** Start a minimize morph: the drag's first move, a back gesture or Back itself. */
     private void beginMinimizeMorph() {
         computeMorphTarget(); // anchor the corner path once per morph
+        if (mAmbient != null) {
+            mAmbient.hideBand(); // NEWTUBE(ambient): the page is leaving
+        }
         // NEWTUBE(no-host-minimize): nothing of ours beneath - see the field doc.
         mMorphOverOwnBackdrop = MiniPlayerBridge.getMiniHost() == null;
         // A minimize means "dock it inside the app", never "PiP it". Disarm auto-enter for the whole
@@ -8104,8 +8146,16 @@ public class MobilePlaybackActivity extends MobileActivity
             if (mWatchSaveLabel != null) {
                 mWatchSaveLabel.setText(on ? R.string.mobile_watch_saved : R.string.mobile_watch_save);
             }
+        } else if (buttonId == R.id.action_subscribe && mWatchSubscribe != null
+                && com.newtube.mobile.ui.common.GlassStyle.isOn(this)) {
+            // NEWTUBE(frosted): the same states, as glass.
+            mWatchSubscribe.setText(on ? R.string.mobile_watch_subscribed : R.string.mobile_watch_subscribe);
+            com.newtube.mobile.ui.common.GlassStyle.applySubscribe(mWatchSubscribe, on,
+                    getColorInt(R.color.mobile_color_inverse_surface), getColorInt(R.color.mobile_color_on_inverse_surface),
+                    getColorInt(R.color.mobile_color_on_surface));
         } else if (buttonId == R.id.action_subscribe && mWatchSubscribe != null) {
             mWatchSubscribe.setText(on ? R.string.mobile_watch_subscribed : R.string.mobile_watch_subscribe);
+            mWatchSubscribe.setStrokeWidth(0);
             // NEWTUBE(theme): the main-action pill while not subscribed (white on the dark page,
             // near-black on the light one), the quiet grey once subscribed.
             mWatchSubscribe.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
@@ -8117,6 +8167,38 @@ public class MobilePlaybackActivity extends MobileActivity
 
     private int getColorInt(int colorRes) {
         return androidx.core.content.ContextCompat.getColor(this, colorRes);
+    }
+
+    /** NEWTUBE(frosted): the action row's pills are glass (or, the setting off again, as they were). */
+    private boolean mGlassPills;
+
+    private void applyGlassPills() {
+        boolean glass = com.newtube.mobile.ui.common.GlassStyle.isOn(this);
+        if (glass == mGlassPills) {
+            return;
+        }
+        mGlassPills = glass;
+        View like = findViewById(R.id.mobile_watch_like);
+        View[] pills = {like != null ? (View) like.getParent() : null, findViewById(R.id.mobile_watch_share),
+                findViewById(R.id.mobile_watch_download), findViewById(R.id.mobile_watch_save)};
+        for (View pill : pills) {
+            if (pill == null) {
+                continue;
+            }
+            if (glass) {
+                com.newtube.mobile.ui.common.GlassStyle.applyPill(pill);
+            } else {
+                int l = pill.getPaddingLeft();
+                int t = pill.getPaddingTop();
+                int r = pill.getPaddingRight();
+                int b = pill.getPaddingBottom();
+                pill.setBackgroundResource(R.drawable.mobile_watch_pill_bg_touch);
+                pill.setPadding(l, t, r, b);
+            }
+        }
+        if (mWatchSubscribe != null) {
+            updateButtonVisual(R.id.action_subscribe, getButtonState(R.id.action_subscribe));
+        }
     }
 
     // ---------------------------------------------------------------------------------
