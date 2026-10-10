@@ -548,6 +548,51 @@ public class MobileBrowseActivity extends MobileActivity
         startActivity(com.newtube.mobile.ui.settings.MobileSettingsActivity.intent(this, null));
     }
 
+    @Nullable
+    private View mTopGlass;
+    @Nullable
+    private com.newtube.mobile.ui.common.BackdropBlurDrawable mTopGlassDrawable;
+    @Nullable
+    private com.newtube.mobile.ui.common.BackdropBlurDrawable mNavGlassDrawable;
+    @Nullable
+    private View mMiniGlass;
+    @Nullable
+    private com.newtube.mobile.ui.common.BackdropBlurDrawable mMiniGlassDrawable;
+
+    /** NEWTUBE(frosted): the glass is drawn again (what is under it moved). */
+    private void invalidateGlass() {
+        if (mTopGlass != null) {
+            mTopGlass.invalidate();
+        }
+        if (mBottomNav != null) {
+            mBottomNav.invalidate();
+        }
+        if (mMiniGlass != null && mMiniGlass.isShown()) {
+            mMiniGlass.invalidate();
+        }
+    }
+
+    /** NEWTUBE(frosted): the bars show the You panel while it is up, else the feed. */
+    private void updateGlassSource() {
+        View source = mYouShowing && mYouPanel != null ? mYouPanel : mContentGrid;
+        if (mTopGlassDrawable != null) {
+            mTopGlassDrawable.setSource(source);
+        }
+        if (mNavGlassDrawable != null) {
+            mNavGlassDrawable.setSource(source);
+        }
+        if (mMiniGlassDrawable != null) {
+            mMiniGlassDrawable.setSource(source);
+            mMiniGlass.invalidate();
+        }
+        if (mTopGlass != null) {
+            mTopGlass.invalidate();
+        }
+        if (mBottomNav != null) {
+            mBottomNav.invalidate();
+        }
+    }
+
     /** NEWTUBE(frosted): this screen was laid out with the feed under glass bars. */
     private boolean mFrostedApplied;
     /** NEWTUBE(frosted): the status bar's height, which the glass top bar now reaches up under. */
@@ -581,16 +626,22 @@ public class MobileBrowseActivity extends MobileActivity
         final int titleHeight = getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height);
         int page = getResources().getColor(R.color.mobile_color_background);
         int tint = (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
+        float density = getResources().getDisplayMetrics().density;
+        // The top bar's glass ends in a soft edge (fading out over this), not a sharp line.
+        final int fade = Math.round(16 * density);
 
         // The top bar's glass: a view of its own behind the title, the cast and search buttons.
         View glass = new View(this);
         androidx.constraintlayout.widget.ConstraintLayout.LayoutParams glassParams =
-                new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, titleHeight);
+                new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, titleHeight + fade);
         glassParams.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
         glassParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
         glassParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
         root.addView(glass, glassParams);
-        glass.setBackground(new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, glass, page, tint));
+        mTopGlass = glass;
+        mTopGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, glass, page, tint);
+        mTopGlassDrawable.setFadeBottom(fade);
+        glass.setBackground(mTopGlassDrawable);
         title.setBackground(null);
         // Above the feed (declared before it), in the order they were.
         glass.bringToFront();
@@ -603,11 +654,20 @@ public class MobileBrowseActivity extends MobileActivity
         }
         // Whatever else is declared after the feed stays above it already (the You panel, the mini
         // player, the bottom navigation).
-        mBottomNav.setBackground(new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, mBottomNav, page, tint));
+        mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, mBottomNav, page, tint);
+        mBottomNav.setBackground(mNavGlassDrawable);
         mBottomNav.bringToFront();
         View mini = findViewById(R.id.mobile_mini_player);
         if (mini != null) {
             mini.bringToFront();
+            // The plain mini bar's surface: the same glass as the bottom navigation under it.
+            View miniBackdrop = mini.findViewById(R.id.mobile_mini_backdrop);
+            if (miniBackdrop != null) {
+                mMiniGlass = miniBackdrop;
+                mMiniGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(
+                        mContentGrid, miniBackdrop, page, tint);
+                miniBackdrop.setBackground(mMiniGlassDrawable);
+            }
         }
 
         mContentGrid.addItemDecoration(new androidx.recyclerview.widget.RecyclerView.ItemDecoration() {
@@ -621,7 +681,7 @@ public class MobileBrowseActivity extends MobileActivity
                 }
                 int spans = mLayoutManager != null ? mLayoutManager.getSpanCount() : 1;
                 if (position < spans) {
-                    outRect.top += titleHeight + mStatusInset;
+                    outRect.top += titleHeight + mStatusInset + fade;
                 }
                 if (position >= state.getItemCount() - spans) {
                     outRect.bottom += mBottomNav.getHeight();
@@ -631,20 +691,18 @@ public class MobileBrowseActivity extends MobileActivity
         // A tab change shows or hides what is under the glass (the You panel, an empty feed): the
         // glass is drawn again after any layout, not only on a scroll.
         root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
-            glass.invalidate();
-            mBottomNav.invalidate();
+            invalidateGlass();
         });
         mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (b - t != ob - ot) {
                 mContentGrid.invalidateItemDecorations();
             }
         });
-        float density = getResources().getDisplayMetrics().density;
         // The status bar is ours now (shouldInsetContentForStatusBar): the top bar's buttons and
         // title move down by its height, its glass reaches up under it, and so does everything else
         // that hung from the top.
-        View[] topRow = {findViewById(R.id.mobile_title_back), title, findViewById(R.id.mobile_cast_button),
-                findViewById(R.id.mobile_search_button)};
+        // (Only what hangs from the screen's top: cast and search hang from the title, and move with it.)
+        View[] topRow = {findViewById(R.id.mobile_title_back), title};
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             int top = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()
                     | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).top;
@@ -656,8 +714,11 @@ public class MobileBrowseActivity extends MobileActivity
                         item.requestLayout();
                     }
                 }
-                glassParams.height = titleHeight + top;
+                glassParams.height = titleHeight + top + fade;
                 glass.setLayoutParams(glassParams);
+                if (mYouPanel != null) {
+                    mYouPanel.setPadding(0, titleHeight + top, 0, mYouPanel.getPaddingBottom());
+                }
                 mContentSwipe.setProgressViewOffset(false, titleHeight + top - Math.round(40 * density),
                         titleHeight + top + Math.round(24 * density));
                 mContentGrid.invalidateItemDecorations();
@@ -666,12 +727,28 @@ public class MobileBrowseActivity extends MobileActivity
         });
         mContentSwipe.setProgressViewOffset(false, titleHeight - Math.round(40 * density),
                 titleHeight + Math.round(24 * density));
+        // The You panel runs under the glass too (the bars show it, not the feed it covers).
+        if (mYouPanel != null) {
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams you =
+                    (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) mYouPanel.getLayoutParams();
+            you.topToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+            you.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            you.bottomToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+            you.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            mYouPanel.setLayoutParams(you);
+            ((android.view.ViewGroup) mYouPanel).setClipToPadding(false);
+            mYouPanel.setPadding(0, titleHeight, 0, 0);
+            mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) ->
+                    mYouPanel.setPadding(0, mYouPanel.getPaddingTop(), 0, b - t));
+            mYouPanel.setOnScrollChangeListener((v, x, y, ox, oy) -> {
+                invalidateGlass();
+            });
+        }
         // The glass shows what is under it: draw it again as the feed moves.
         mContentGrid.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView recyclerView, int dx, int dy) {
-                glass.invalidate();
-                mBottomNav.invalidate();
+                invalidateGlass();
             }
         });
     }
@@ -781,6 +858,7 @@ public class MobileBrowseActivity extends MobileActivity
      * You sub-screen with a back arrow and its name.
      */
     private void onYouPanelToggled() {
+        updateGlassSource(); // NEWTUBE(frosted)
         int a11y = mYouShowing
                 ? View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS : View.IMPORTANT_FOR_ACCESSIBILITY_AUTO;
         mContentSwipe.setImportantForAccessibility(a11y);

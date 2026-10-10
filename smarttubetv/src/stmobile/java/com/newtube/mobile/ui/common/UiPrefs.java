@@ -54,6 +54,8 @@ public final class UiPrefs {
     private static final String KEY_FROSTED = "frosted_glass";
     private static final String KEY_NAV_LABELS = "nav_labels";
     private static final String KEY_DEFAULTS = "fresh_install_defaults";
+    private static final String KEY_HIDE_ERROR_TOASTS = "hide_error_toasts";
+    private static final String KEY_SEGMENT_TOASTS = "segment_skip_toasts";
     private static final String CUSTOM_LOGO_FILE = "brand_logo.png";
     private static final String KEY_FULL_WIDTH_THUMBS = "full_width_thumbnails";
     private static final String KEY_HIDE_CARD_MENU = "hide_card_menu";
@@ -211,6 +213,33 @@ public final class UiPrefs {
                     .putInt(KEY_LOGO, LOGO_PLAY);
         }
         editor.apply();
+    }
+
+    /** NEWTUBE(error-toasts): Settings > Advanced - failure messages are not shown. */
+    public static boolean isErrorToastsHidden(Context context) {
+        return prefs(context).getBoolean(KEY_HIDE_ERROR_TOASTS, false);
+    }
+
+    public static void setErrorToastsHidden(Context context, boolean hidden) {
+        prefs(context).edit().putBoolean(KEY_HIDE_ERROR_TOASTS, hidden).apply();
+        applyToastPrefs(context);
+    }
+
+    /** NEWTUBE(segment-toasts): Settings > SponsorBlock - a skipped segment is announced (on by default). */
+    public static boolean isSegmentToasts(Context context) {
+        return prefs(context).getBoolean(KEY_SEGMENT_TOASTS, true);
+    }
+
+    public static void setSegmentToasts(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_SEGMENT_TOASTS, on).apply();
+        applyToastPrefs(context);
+    }
+
+    /** The two toast switches, handed to the shared code that shows those toasts. App start + on change. */
+    public static void applyToastPrefs(Context context) {
+        com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.setEnabled(!isErrorToastsHidden(context));
+        com.liskovsoft.smartyoutubetv2.common.app.models.playback.controllers.SponsorBlockController
+                .setSkipToastsEnabled(isSegmentToasts(context));
     }
 
     /** NEWTUBE(frosted): glass bars on Home and glass buttons on the watch page. */

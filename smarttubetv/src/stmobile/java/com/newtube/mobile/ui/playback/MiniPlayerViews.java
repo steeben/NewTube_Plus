@@ -57,6 +57,7 @@ final class MiniPlayerViews {
 
     int style = -1;
     private boolean mHasNext;
+    private final MiniProgressDrawable mProgressDrawable;
     boolean cardLeft;
 
     @Nullable
@@ -125,6 +126,15 @@ final class MiniPlayerViews {
         ViewGroup buttons = (ViewGroup) playPause.getParent();
         buttons.addView(next, buttons.indexOfChild(playPause) + 1, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // NEWTUBE(accent): the progress line glows like the seek bar; taller, for the glow's room.
+        float density = card.getResources().getDisplayMetrics().density;
+        mProgressDrawable = new MiniProgressDrawable(density);
+        progress.setProgressTintList(null);
+        progress.setProgressBackgroundTintList(null);
+        progress.setProgressDrawable(mProgressDrawable);
+        ViewGroup.LayoutParams progressParams = progress.getLayoutParams();
+        progressParams.height = px(10, density);
+        progress.setLayoutParams(progressParams);
         mCardOutline = card.getOutlineProvider();
         mCardClips = card.getClipToOutline();
     }
@@ -233,7 +243,19 @@ final class MiniPlayerViews {
             text.setPadding(px(12, density), px(6, density), px(12, density), px(6, density));
             title.setTextColor(onVideo);
             channel.setVisibility(View.GONE);
+            // At most a third of the bar; a longer title scrolls slowly through instead of being cut.
+            title.setSingleLine(true);
+            title.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            title.setMarqueeRepeatLimit(-1);
+            title.setHorizontalFadingEdgeEnabled(true);
+            title.setFadingEdgeLength(px(12, density));
+            title.setSelected(true); // a marquee runs only on a selected (or focused) view
+            limitTitleWidth();
         } else {
+            title.setSelected(false);
+            title.setHorizontalFadingEdgeEnabled(false);
+            title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            title.setMaxWidth(Integer.MAX_VALUE);
             textParams.setMarginStart(thumbWidth + px(12, density));
             textParams.setMarginEnd(2 * buttonSize + nextSlot + px(4, density));
             text.setBackground(null);
@@ -295,7 +317,8 @@ final class MiniPlayerViews {
             playPause.setImageTintList(ColorStateList.valueOf(onSurface));
             close.setImageTintList(ColorStateList.valueOf(onSurface));
             next.setBackground(borderlessRipple(context));
-            setPadding(next, px(12, density));
+            // Next's glyph is 12/24 of its box, play/pause's 14/24: a larger box, the same height.
+            setPadding(next, px(10, density));
             next.setImageTintList(ColorStateList.valueOf(onSurface));
             next.setImageResource(R.drawable.ic_player_next);
         } else if (style == MiniPlayerStyle.BAR_VIDEO) {
@@ -319,7 +342,7 @@ final class MiniPlayerViews {
                         ContextCompat.getColor(context, R.color.mobile_mini_button_frost_tint));
             }
             next.setBackground(borderlessRipple(context));
-            setPadding(next, px(12, density));
+            setPadding(next, px(9, density)); // as tall as play/pause (see the plain bar)
             next.setImageTintList(null);
             next.setImageDrawable(mNextIcon);
         } else {
@@ -331,7 +354,7 @@ final class MiniPlayerViews {
             playPause.setImageTintList(null);
             close.setImageTintList(ColorStateList.valueOf(onVideo));
             next.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
-            setPadding(next, px(10, density));
+            setPadding(next, px(7, density)); // as tall as play/pause (see the plain bar)
             next.setImageTintList(ColorStateList.valueOf(onVideo));
             next.setImageResource(R.drawable.ic_player_next);
         }
@@ -362,9 +385,7 @@ final class MiniPlayerViews {
         }
         flash.setLayoutParams(flashParams);
 
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
-                style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track)));
-        progress.setProgressTintList(ColorStateList.valueOf(MiniPlayerStyle.accent(context)));
+        updateProgressColors();
 
         card.requestLayout();
     }
@@ -384,6 +405,36 @@ final class MiniPlayerViews {
         if (style >= 0) {
             applyStyle(style, cardLeft);
         }
+    }
+
+    private final View.OnLayoutChangeListener mTitleWidthLimit = (v, l, t, r, b, ol, ot, or, ob) -> {
+        if (r - l != or - ol) {
+            limitTitleWidth();
+        }
+    };
+
+    /** NEWTUBE(mini-style): the video bar's title takes no more than a third of the bar's width. */
+    private void limitTitleWidth() {
+        card.removeOnLayoutChangeListener(mTitleWidthLimit);
+        if (style != MiniPlayerStyle.BAR_VIDEO) {
+            return;
+        }
+        card.addOnLayoutChangeListener(mTitleWidthLimit);
+        int width = card.getWidth();
+        if (width <= 0) {
+            return; // the listener sets it once the bar is laid out
+        }
+        int max = Math.max(0, Math.round(width / 3f) - text.getPaddingLeft() - text.getPaddingRight());
+        if (title.getMaxWidth() != max) {
+            title.setMaxWidth(max);
+        }
+    }
+
+    /** The progress line in the accent (which may have changed) over this style's track. */
+    void updateProgressColors() {
+        Context context = card.getContext();
+        mProgressDrawable.setColors(MiniPlayerStyle.accent(context), ContextCompat.getColor(context,
+                style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track));
     }
 
     /** Show play/pause's state: the pause icon while it plays. */

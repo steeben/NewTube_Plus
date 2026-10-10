@@ -175,7 +175,20 @@ public final class MobileSnackbar {
     }
 
     public static void show(Context context, int textRes) {
+        if (!com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.isEnabled() && isErrorText(context, textRes)) {
+            return; // NEWTUBE(error-toasts): Settings > Advanced hides failure messages
+        }
         show(context, context.getString(textRes), null, null);
+    }
+
+    /** A failure message, by its name ("..._failed", "..._error"). */
+    private static boolean isErrorText(Context context, int textRes) {
+        try {
+            String name = context.getResources().getResourceEntryName(textRes);
+            return name.contains("fail") || name.contains("error");
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     public static void show(Context context, CharSequence text, @Nullable CharSequence action,

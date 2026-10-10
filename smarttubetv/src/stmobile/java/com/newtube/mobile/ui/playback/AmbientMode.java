@@ -183,6 +183,28 @@ final class AmbientMode {
         invalidateAll();
     }
 
+    /**
+     * The page is leaving under a minimize: the status bar's glow follows it out - gone by the
+     * time the page is {@code BAND_MORPH_SPAN} of the way to the mini player, and back if the
+     * minimize is called off.
+     */
+    void setBandMorph(float fraction) {
+        if (mBandAnimator != null) {
+            mBandAnimator.cancel();
+            mBandAnimator = null;
+        }
+        float t = Math.max(0f, Math.min(1f, fraction / BAND_MORPH_SPAN));
+        float alpha = 1f - t * t * (3f - 2f * t); // smoothstep
+        if (alpha != mBandAlpha) {
+            mBandAlpha = alpha;
+            if (mWindowGlow != null) {
+                mWindowGlow.invalidateSelf();
+            }
+        }
+    }
+
+    private static final float BAND_MORPH_SPAN = 0.45f;
+
     private void animateBand(float to, long durationMs) {
         if (mBandAnimator != null) {
             mBandAnimator.cancel();

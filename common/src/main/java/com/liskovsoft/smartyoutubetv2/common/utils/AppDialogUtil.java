@@ -1018,7 +1018,7 @@ public class AppDialogUtil {
             if (FILE_PICKER_REQUEST_CODE == requestCode && resultCode == Activity.RESULT_OK) {
                 String filePath = data.getStringExtra(FilePickerActivity.RESULT_FILE_PATH);
                 RxHelper.execute(mService.importGroupsObserve(new File(filePath)), result -> pinGroups(context, result),
-                        error -> MessageHelpers.showLongMessage(context, error.getMessage()));
+                        error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(context, error.getMessage()));
             }
         });
         return activity;
@@ -1140,7 +1140,7 @@ public class AppDialogUtil {
                                 MediaItem mediaItem = video.mediaItem != null ? video.mediaItem : SimpleMediaItem.from(video);
                                 RxHelper.execute(
                                         YouTubeMediaItemService.instance().createPlaylistObserve(newValue, mediaItem),
-                                        error -> MessageHelpers.showMessage(context, error.getLocalizedMessage()),
+                                        error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(context, error.getLocalizedMessage()),
                                         () -> MessageHelpers.showMessage(context, R.string.saved_to_playlists));
                                 return true;
                             });
@@ -1191,7 +1191,7 @@ public class AppDialogUtil {
         }
 
         // Handle error: Maximum playlist size exceeded (> 5000 items)
-        RxHelper.execute(editObserve, error -> MessageHelpers.showLongMessage(context, error.getMessage()));
+        RxHelper.execute(editObserve, error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(context, error.getMessage()));
     }
 
     public static void showPlaylistOrderDialog(Context context, Video video, Runnable onClose) {
@@ -1233,7 +1233,7 @@ public class AppDialogUtil {
                 if (optionItem.isSelected()) {
                     RxHelper.execute(
                             YouTubeMediaItemService.instance().setPlaylistOrderObserve(playlistId, pair[1]),
-                            (error) -> MessageHelpers.showMessage(context, R.string.owned_playlist_warning),
+                            (error) -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(context, R.string.owned_playlist_warning),
                             () -> {
                                 generalData.setPlaylistOrder(playlistId, pair[1]);
                                 ViewManager.instance(context).refreshCurrentView();

@@ -93,7 +93,7 @@ public class ChannelGroupMenuProvider extends ContextMenuProvider {
 
                         if (Helpers.startsWith(newValue, "http")) {
                             RxHelper.execute(mService.importGroupsObserve(Uri.parse(newValue)), this::pinGroups,
-                                    error -> MessageHelpers.showLongMessage(getContext(), error.getMessage()));
+                                    error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(getContext(), error.getMessage()));
                         } else {
                             ItemGroup group = mService.createChannelGroup(newValue, null,
                                     Collections.singletonList(mService.createChannel(item.getAuthor(), item.cardImageUrl, item.channelId)));

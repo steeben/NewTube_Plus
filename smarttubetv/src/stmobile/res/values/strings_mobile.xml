@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- NewTube branding: override SmartTube's app_name for the mobile flavor only -->
-    <string name="app_name" translatable="false">NewTube</string>
+    <string name="app_name" translatable="false">NewTube+</string>
     <string name="mobile_player_back">Back</string>
     <string name="mobile_player_minimize">Minimize</string>
     <string name="mobile_player_play">Play</string>
@@ -190,8 +190,8 @@
     <string name="mobile_signin_step1_title">Tap \u201cContinue with Google\u201d</string>
     <string name="mobile_signin_step1_caption">Google\'s sign-in page opens right here.</string>
     <string name="mobile_signin_step2_title">Choose your account and allow access</string>
-    <string name="mobile_signin_step2_caption">The page may mention a TV or another device \u2014 that\'s normal: NewTube signs in the same way a TV does, so your password never touches the app.</string>
-    <string name="mobile_signin_step3_title">Come back to NewTube</string>
+    <string name="mobile_signin_step2_caption">The page may mention a TV or another device \u2014 that\'s normal: NewTube+ signs in the same way a TV does, so your password never touches the app.</string>
+    <string name="mobile_signin_step3_title">Come back to NewTube+</string>
     <string name="mobile_signin_step3_caption">Sign-in finishes by itself \u2014 nothing else to do.</string>
     <string name="mobile_signin_code_label">Google will show this code \u2014 check it matches:</string>
     <string name="mobile_signin_copy_hint">Tap the code to copy it</string>
@@ -497,6 +497,11 @@
     <string name="mobile_appearance_logo_none">None</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>
     <string name="mobile_appearance_accent_custom">Custom color</string>
+    <string name="mobile_settings_segment_toasts">Skip notifications</string>
+    <string name="mobile_settings_segment_toasts_summary">Show a message when a segment is skipped (for segments set to \"Skip and say so\")</string>
+    <string name="mobile_settings_messages">Messages</string>
+    <string name="mobile_settings_hide_error_toasts">Hide error messages</string>
+    <string name="mobile_settings_hide_error_toasts_summary">Don\'t show pop-up messages when something fails</string>
     <string name="mobile_mini_next">Next video</string>
     <string name="mobile_appearance_logo_play">Play</string>
     <string name="mobile_appearance_bottom_bar">Bottom bar</string>
@@ -506,7 +511,7 @@
     <string name="mobile_appearance_logo_failed">That picture could not be used</string>
     <string name="mobile_appearance_header">Header text</string>
     <string name="mobile_appearance_header_none">None</string>
-    <string name="mobile_appearance_header_default">Default (NewTube)</string>
+    <string name="mobile_appearance_header_default">Default (NewTube+)</string>
     <string name="mobile_appearance_header_custom">Custom…</string>
     <string name="mobile_appearance_header_hint">Header text</string>
     <!-- NEWTUBE(nav-playlists): Settings > Tabs and feeds > Tabs, the bottom bar's limit. -->

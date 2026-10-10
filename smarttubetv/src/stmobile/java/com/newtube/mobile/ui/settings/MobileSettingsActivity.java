@@ -53,10 +53,10 @@ public class MobileSettingsActivity extends MobileActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mobile_settings);
 
-        // NEWTUBE(predictive-back): Back on a page is a predictive gesture - the page shrinks and
-        // leans toward the swipe as the finger moves, and only goes once it is released. On the
-        // top level the callback is off, so the system's own predictive back (to the screen
-        // under Settings, or home) plays instead of a plain finish().
+        // NEWTUBE(predictive-back): Back on a page is a predictive gesture - the page blurs and fades
+        // as the finger moves, revealing the page under it (which stays loaded beneath), and goes
+        // once it is released. On the top level the callback is off, so the system's own
+        // predictive back (to the screen under Settings, or home) plays instead of a plain finish().
         mPageBack = new OnBackPressedCallback(false) {
             @Override
             public void handleOnBackStarted(@NonNull BackEventCompat backEvent) {
@@ -65,7 +65,7 @@ public class MobileSettingsActivity extends MobileActivity {
 
             @Override
             public void handleOnBackProgressed(@NonNull BackEventCompat backEvent) {
-                peek(backEvent.getProgress(), backEvent.getSwipeEdge() == BackEventCompat.EDGE_LEFT);
+                peek(backEvent.getProgress());
             }
 
             @Override
@@ -79,7 +79,10 @@ public class MobileSettingsActivity extends MobileActivity {
             }
         };
         getOnBackPressedDispatcher().addCallback(this, mPageBack);
-        getSupportFragmentManager().addOnBackStackChangedListener(this::updatePageBack);
+        getSupportFragmentManager().addOnBackStackChangedListener(() -> {
+            updatePageBack();
+            syncPages(true);
+        });
 
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
@@ -139,14 +142,12 @@ public class MobileSettingsActivity extends MobileActivity {
         if (animate) {
             next.setEnterTransition(new MaterialSharedAxis(MaterialSharedAxis.X, true));
             next.setReturnTransition(new MaterialSharedAxis(MaterialSharedAxis.X, false));
-            if (current != null) {
-                current.setExitTransition(new MaterialSharedAxis(MaterialSharedAxis.X, true));
-                current.setReenterTransition(new MaterialSharedAxis(MaterialSharedAxis.X, false));
-            }
         }
+        // Added over the page it was opened from, not in place of it: that page stays loaded
+        // underneath (hidden), so Back can reveal it as the new one goes.
         fragments.beginTransaction()
                 .setReorderingAllowed(true)
-                .replace(R.id.settings_container, next)
+                .add(R.id.settings_container, next)
                 .addToBackStack(name)
                 .commit();
     }
@@ -154,7 +155,9 @@ public class MobileSettingsActivity extends MobileActivity {
     private OnBackPressedCallback mPageBack;
     @Nullable
     private View mPeekView;
-    private float mPeekRadius;
+    @Nullable
+    private View mPeekUnder;
+    private float mPeekProgress;
 
     private void updatePageBack() {
         if (mPageBack != null) {
@@ -166,73 +169,177 @@ public class MobileSettingsActivity extends MobileActivity {
     protected void onPostCreate(@Nullable Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
         updatePageBack(); // a recreated screen comes back with its pages
+        syncPages(false);
+    }
+
+    /** The pages in the container, bottom to top. */
+    private java.util.List<Fragment> pages() {
+        java.util.List<Fragment> pages = new java.util.ArrayList<>();
+        for (Fragment fragment : getSupportFragmentManager().getFragments()) {
+            if (fragment.getId() == R.id.settings_container && fragment.isAdded() && !fragment.isRemoving()) {
+                pages.add(fragment);
+            }
+        }
+        return pages;
+    }
+
+    /**
+     * Only the top page shows, takes touches and is read by TalkBack; those under it stay loaded
+     * but hidden. {@code popped}: a page just went, so the one now on top shows values that may
+     * have changed on it (a summary of the page that closed).
+     */
+    private void syncPages(boolean popped) {
+        java.util.List<Fragment> pages = pages();
+        for (int i = 0; i < pages.size(); i++) {
+            View view = pages.get(i).getView();
+            if (view == null) {
+                continue;
+            }
+            boolean top = i == pages.size() - 1;
+            if (top) {
+                view.animate().cancel();
+                view.setVisibility(View.VISIBLE);
+                view.setAlpha(1f);
+                clearBlur(view);
+                view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+            } else if (view != mPeekUnder) {
+                // Hidden once the page over it has covered it (its slide-in still shows this one).
+                view.postDelayed(() -> {
+                    if (pages().indexOf(fragmentOf(view)) < pages().size() - 1) {
+                        view.setVisibility(View.INVISIBLE);
+                    }
+                }, 400);
+                view.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            }
+            view.setClickable(true); // a page never passes a touch to the one under it
+        }
+        if (popped && !pages.isEmpty() && pages.get(pages.size() - 1) instanceof SettingsPageFragment
+                && getSupportFragmentManager().getBackStackEntryCount() < mLastDepth) {
+            ((SettingsPageFragment) pages.get(pages.size() - 1)).rebuild();
+        }
+        mLastDepth = getSupportFragmentManager().getBackStackEntryCount();
+    }
+
+    private int mLastDepth;
+
+    @Nullable
+    private Fragment fragmentOf(View view) {
+        for (Fragment fragment : pages()) {
+            if (fragment.getView() == view) {
+                return fragment;
+            }
+        }
+        return null;
     }
 
     private void peekStart() {
-        Fragment current = getSupportFragmentManager().findFragmentById(R.id.settings_container);
-        mPeekView = current != null ? current.getView() : null;
-        if (mPeekView == null) {
+        java.util.List<Fragment> pages = pages();
+        if (pages.size() < 2) {
+            mPeekView = null;
+            return;
+        }
+        mPeekView = pages.get(pages.size() - 1).getView();
+        mPeekUnder = pages.get(pages.size() - 2).getView();
+        if (mPeekView == null || mPeekUnder == null) {
+            mPeekView = null;
             return;
         }
         mPeekView.animate().cancel();
-        mPeekView.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), mPeekRadius);
-            }
-        });
-        mPeekView.setClipToOutline(true);
+        mPeekUnder.setVisibility(View.VISIBLE);
     }
 
-    /** Material's predictive back for a full page: down to 90%, leaning toward the swipe. */
-    private void peek(float progress, boolean fromLeft) {
+    /** The page blurs and fades with the swipe, the one under it showing through. */
+    private void peek(float progress) {
         if (mPeekView == null) {
             return;
         }
+        mPeekProgress = progress;
+        applyPeek(mPeekView, new DecelerateInterpolator().getInterpolation(progress));
+    }
+
+    private void applyPeek(View view, float eased) {
         float density = getResources().getDisplayMetrics().density;
-        float eased = new DecelerateInterpolator().getInterpolation(progress);
-        float scale = 1f - 0.1f * eased;
-        float shift = Math.max(0f, mPeekView.getWidth() / 20f - 8 * density) * eased;
-        mPeekView.setScaleX(scale);
-        mPeekView.setScaleY(scale);
-        mPeekView.setTranslationX(fromLeft ? shift : -shift);
-        mPeekRadius = 28 * density * eased;
-        mPeekView.invalidateOutline();
+        view.setAlpha(1f - 0.85f * eased);
+        float scale = 1f - 0.04f * eased;
+        view.setScaleX(scale);
+        view.setScaleY(scale);
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            float radius = 24 * density * eased;
+            view.setRenderEffect(radius < 0.5f ? null : android.graphics.RenderEffect.createBlurEffect(
+                    radius, radius, android.graphics.Shader.TileMode.CLAMP));
+        }
+    }
+
+    private static void clearBlur(View view) {
+        view.setScaleX(1f);
+        view.setScaleY(1f);
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            view.setRenderEffect(null);
+        }
     }
 
     private void peekCancel() {
         View view = mPeekView;
+        View under = mPeekUnder;
+        mPeekView = null;
+        mPeekUnder = null;
         if (view == null) {
             return;
         }
-        float startRadius = mPeekRadius;
-        view.animate().scaleX(1f).scaleY(1f).translationX(0f).setDuration(200)
-                .setUpdateListener(animation -> {
-                    mPeekRadius = startRadius * (1f - animation.getAnimatedFraction());
-                    view.invalidateOutline();
-                })
-                .withEndAction(() -> peekReset(view))
-                .start();
-        mPeekView = null;
-    }
-
-    private void peekReset(View view) {
-        view.animate().setUpdateListener(null);
-        view.setScaleX(1f);
-        view.setScaleY(1f);
-        view.setTranslationX(0f);
-        view.setClipToOutline(false);
-        view.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
-        mPeekRadius = 0f;
+        float from = new DecelerateInterpolator().getInterpolation(mPeekProgress);
+        android.animation.ValueAnimator back = android.animation.ValueAnimator.ofFloat(from, 0f);
+        back.setDuration(200);
+        back.addUpdateListener(animation -> applyPeek(view, (float) animation.getAnimatedValue()));
+        back.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                view.setAlpha(1f);
+                clearBlur(view);
+                if (under != null) {
+                    under.setVisibility(View.INVISIBLE);
+                }
+            }
+        });
+        back.start();
     }
 
     private void handleBack() {
-        mPeekView = null; // the page leaves as it is (shrunk), by its own return motion
         FragmentManager fragments = getSupportFragmentManager();
-        if (fragments.getBackStackEntryCount() > 0) {
-            fragments.popBackStack();
-        } else {
+        if (fragments.getBackStackEntryCount() == 0) {
             finish();
+            return;
         }
+        java.util.List<Fragment> pages = pages();
+        if (pages.size() >= 2 && pages.get(pages.size() - 2).getView() != null) {
+            pages.get(pages.size() - 2).getView().setVisibility(View.VISIBLE); // revealed as this one goes
+        }
+        View view = mPeekView;
+        mPeekView = null;
+        mPeekUnder = null;
+        if (view != null && !pages.isEmpty()) {
+            // A released gesture: the page finishes fading out from where the finger left it, and
+            // goes without its slide (the gesture was its exit).
+            Fragment top = pages.get(pages.size() - 1);
+            top.setReturnTransition(null);
+            float from = new DecelerateInterpolator().getInterpolation(mPeekProgress);
+            android.animation.ValueAnimator out = android.animation.ValueAnimator.ofFloat(from, 1f);
+            out.setDuration(Math.round(160 * (1f - from)) + 40);
+            out.addUpdateListener(animation -> {
+                float t = (float) animation.getAnimatedValue();
+                applyPeek(view, t);
+                view.setAlpha(Math.min(view.getAlpha(), 1f - t));
+            });
+            out.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator animation) {
+                    if (!fragments.isStateSaved()) {
+                        fragments.popBackStack();
+                    }
+                }
+            });
+            out.start();
+            return;
+        }
+        fragments.popBackStack();
     }
 }

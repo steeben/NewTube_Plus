@@ -269,6 +269,13 @@ public class SponsorBlockController extends BasePlayerController {
         closeTransparentDialog();
     }
 
+    /** NEWTUBE(segment-toasts): the phone's SponsorBlock > Skip notifications switch. */
+    private static volatile boolean sSkipToastsEnabled = true;
+
+    public static void setSkipToastsEnabled(boolean enabled) {
+        sSkipToastsEnabled = enabled;
+    }
+
     private void messageSkip(long skipPosMs, String category) {
         if (mLastSkipPosMs == skipPosMs) {
             return;
@@ -403,6 +410,8 @@ public class SponsorBlockController extends BasePlayerController {
 
         if (!isDurationIgnored) {
             if (type == SponsorBlockData.ACTION_SKIP_ONLY || getPlayer().isInPIPMode() || Utils.isScreenOff(getContext()) || isEmbedPlayer()) {
+                simpleSkip(skipPosMs);
+            } else if (type == SponsorBlockData.ACTION_SKIP_WITH_TOAST && !sSkipToastsEnabled) {
                 simpleSkip(skipPosMs);
             } else if (type == SponsorBlockData.ACTION_SKIP_WITH_TOAST) {
                 messageSkip(skipPosMs, skipMessage);

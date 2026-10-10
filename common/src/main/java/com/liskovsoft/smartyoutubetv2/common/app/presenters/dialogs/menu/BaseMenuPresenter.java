@@ -325,7 +325,7 @@ public abstract class BaseMenuPresenter extends BasePresenter<Void> {
         MediaItemService manager = YouTubeMediaItemService.instance();
         Observable<Void> action = manager.removePlaylistObserve(video.playlistId);
         RxHelper.execute(action,
-                (error) -> MessageHelpers.showMessage(getContext(), error.getLocalizedMessage()),
+                (error) -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), error.getLocalizedMessage()),
                 () -> {
                     if (getCallback() != null) {
                         getCallback().onItemAction(getVideo(), VideoMenuCallback.ACTION_REMOVE);
@@ -340,7 +340,7 @@ public abstract class BaseMenuPresenter extends BasePresenter<Void> {
         MediaItemService manager = YouTubeMediaItemService.instance();
         Observable<Void> action = video.mediaItem != null && video.mediaItem.getPlaylistId() != null ? manager.savePlaylistObserve(video.mediaItem) : manager.savePlaylistObserve(video.playlistId);
         RxHelper.execute(action,
-                (error) -> MessageHelpers.showMessage(getContext(), error.getLocalizedMessage()),
+                (error) -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), error.getLocalizedMessage()),
                 () -> MessageHelpers.showMessage(getContext(), getContext().getString(R.string.saved_to_playlists))
         );
     }
@@ -409,7 +409,7 @@ public abstract class BaseMenuPresenter extends BasePresenter<Void> {
                             manager.createPlaylistObserve(newValue, mediaItem);
                     RxHelper.execute(
                             action,
-                            (error) -> MessageHelpers.showMessage(getContext(), error.getLocalizedMessage()),
+                            (error) -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), error.getLocalizedMessage()),
                             () -> {
                                 if (!video.hasVideo()) { // Playlists section
                                     BrowsePresenter.instance(getContext()).refresh();
@@ -484,7 +484,7 @@ public abstract class BaseMenuPresenter extends BasePresenter<Void> {
                     Observable<Void> action = manager.renamePlaylistObserve(video.getPlaylistId(), newValue);
                     RxHelper.execute(
                             action,
-                            (error) -> MessageHelpers.showMessage(getContext(), R.string.owned_playlist_warning),
+                            (error) -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), R.string.owned_playlist_warning),
                             () -> {
                                 video.title = newValue;
                                 BrowsePresenter.instance(getContext()).syncItem(video);

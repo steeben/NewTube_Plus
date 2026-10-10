@@ -164,7 +164,7 @@ public class BackupAndRestoreHelper implements OnResult {
         unpackTempZip(
                 zipUri,
                 () -> BackupSettingsPresenter.instance(mContext).showLocalRestoreDialogApi30(),
-                error -> MessageHelpers.showLongMessage(mContext, "Failed to restore backup: " + error.getMessage())
+                error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(mContext, "Failed to restore backup: " + error.getMessage())
         );
     }
 

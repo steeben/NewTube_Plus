@@ -43,7 +43,7 @@ public final class FrostedDialog {
         boolean light = ThemeMode.isLight(dialog.getContext());
         boolean blur = Build.VERSION.SDK_INT >= 31 && window.getWindowManager().isCrossWindowBlurEnabled();
         int base = light ? 0xFFFFFF : 0x1C1C1C;
-        int alpha = blur ? (light ? 0xB3 : 0x99) : 0xF2;
+        int alpha = blur ? (light ? 0xDE : 0xD4) : 0xF5;
         int fill = (alpha << 24) | base;
 
         Drawable background = window.getDecorView().getBackground();
@@ -80,7 +80,7 @@ public final class FrostedDialog {
         boolean light = ThemeMode.isLight(dialog.getContext());
         boolean blur = window != null && Build.VERSION.SDK_INT >= 31
                 && window.getWindowManager().isCrossWindowBlurEnabled();
-        int fill = ((blur ? (light ? 0xB8 : 0xA6) : 0xF2) << 24) | (light ? 0xFFFFFF : 0x1C1C1C);
+        int fill = ((blur ? (light ? 0xDE : 0xD4) : 0xF5) << 24) | (light ? 0xFFFFFF : 0x1C1C1C);
         Runnable tint = () -> {
             Drawable background = sheet.getBackground();
             if (background instanceof MaterialShapeDrawable) {

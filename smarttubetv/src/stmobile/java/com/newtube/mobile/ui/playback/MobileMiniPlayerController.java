@@ -429,7 +429,7 @@ public final class MobileMiniPlayerController {
         updateText();
         mViews.setHasNext(MiniPlayerBridge.hasNext());
         // NEWTUBE(accent): the progress line in the accent, which may have changed since.
-        mProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(MiniPlayerStyle.accent(mActivity)));
+        mViews.updateProgressColors();
 
         mEntryAnimating = animateFromPlayer;
         mTextureHasFrame = false;
@@ -671,8 +671,10 @@ public final class MobileMiniPlayerController {
                     resetTransform();
                     mEntryAnimating = false;
                     hideFreezeWhenReady();
+                    // A gentle fade, not a pop, once the card has landed.
                     for (View view : chromeViews()) {
-                        view.animate().alpha(1f).setDuration(90).start();
+                        view.animate().alpha(1f).setDuration(260)
+                                .setInterpolator(Motion.STANDARD).start();
                     }
                     publishBounds();
                 })

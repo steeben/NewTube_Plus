@@ -130,7 +130,7 @@ public class AppUpdatePresenter extends BasePresenter<Void> implements AppUpdate
                 // NEWTUBE(update-check): the cause is a network or parser exception (a missing manifest
                 // read as JSON showed "Value Not of type java.lang.String..."), so it goes to the log.
                 Log.e(TAG, "Update check failed: %s", error);
-                MessageHelpers.showMessage(getContext(), R.string.update_check_failed);
+                com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), R.string.update_check_failed);
             }
         }
 

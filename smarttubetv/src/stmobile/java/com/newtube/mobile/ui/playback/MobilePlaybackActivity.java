@@ -1478,6 +1478,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // NEWTUBE(ambient): coming back from the mini player the page grows in first; the status
         // bar's glow waits for it (resetMorph fades it in) instead of showing under the morph.
         mAmbientWaitsForPage = fromMini || launch != null;
+        mAmbientBandFollowsMorph = false; // a finished minimize's; the expand does not drive it
         if (mAmbientWaitsForPage && mAmbient != null) {
             mAmbient.hideBand();
         }
@@ -5613,6 +5614,11 @@ public class MobilePlaybackActivity extends MobileActivity
             MiniPlayerViews chrome = new MiniPlayerViews(card);
             chrome.setHasNext(hasQueueNext());
             chrome.applyStyle(style, false);
+            if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this)) {
+                // The host's plain bar is glass: its tint, so the hand-over does not flash solid.
+                int page = getResources().getColor(R.color.mobile_color_background);
+                chrome.backdrop.setBackgroundColor((page & 0x00FFFFFF) | 0xB3000000);
+            }
             FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) card.getLayoutParams();
             params.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
             params.height = Math.round(barHeight);
@@ -5787,8 +5793,14 @@ public class MobilePlaybackActivity extends MobileActivity
         });
     }
 
+    /** NEWTUBE(ambient): a minimize is under way; the status bar's glow follows its fraction. */
+    private boolean mAmbientBandFollowsMorph;
+
     /** Apply the morph at fraction f (0 = fullscreen player, 1 = sitting on the mini card). */
     private void applyMorph(float f) {
+        if (mAmbientBandFollowsMorph && mAmbient != null) {
+            mAmbient.setBandMorph(f);
+        }
         if (mBarSlide) {
             applyBarSlide(f); // NEWTUBE(mini-style)
             return;
@@ -5950,6 +5962,7 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mCommentsPanel != null) {
             mCommentsPanel.setMorphAlpha(1f);
         }
+        mAmbientBandFollowsMorph = false;
         if (mAmbient != null && !isFinishing()) {
             mAmbientWaitsForPage = false;
             mAmbient.showBand(); // NEWTUBE(ambient): the page is open again
@@ -6104,7 +6117,9 @@ public class MobilePlaybackActivity extends MobileActivity
     private void beginMinimizeMorph() {
         computeMorphTarget(); // anchor the corner path once per morph
         if (mAmbient != null) {
-            mAmbient.hideBand(); // NEWTUBE(ambient): the page is leaving
+            // NEWTUBE(ambient): the page is leaving - the status bar's glow fades with the morph.
+            mAmbientBandFollowsMorph = true;
+            mAmbient.setBandMorph(0f);
         }
         // NEWTUBE(no-host-minimize): nothing of ours beneath - see the field doc.
         mMorphOverOwnBackdrop = MiniPlayerBridge.getMiniHost() == null;

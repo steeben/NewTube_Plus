@@ -499,6 +499,11 @@ final class PlayerPages {
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_segment_alt_server),
                 context.getString(R.string.mobile_settings_segment_alt_server_summary),
                 data::isAltServerEnabled, data::enableAltServer).enabledWhen(data::isSponsorBlockEnabled));
+        // NEWTUBE(segment-toasts): one switch over every "Skip and notify" segment's message.
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_segment_toasts),
+                context.getString(R.string.mobile_settings_segment_toasts_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isSegmentToasts(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setSegmentToasts(context, on)).enabledWhen(data::isSponsorBlockEnabled));
         rows.add(link(context, R.string.content_block_status, R.string.content_block_status_url));
         rows.add(link(context, R.string.about_sponsorblock, R.string.content_block_provider_url));
 
@@ -682,6 +687,13 @@ final class PlayerPages {
                     prefs.enableMultiProfiles(on);
                     BrowsePresenter.instance(context).updateSections();
                 }).needsRestart());
+
+        // NEWTUBE(error-toasts)
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_messages)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_hide_error_toasts),
+                context.getString(R.string.mobile_settings_hide_error_toasts_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isErrorToastsHidden(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setErrorToastsHidden(context, on)));
 
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_feeds)));
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_legacy_feeds),

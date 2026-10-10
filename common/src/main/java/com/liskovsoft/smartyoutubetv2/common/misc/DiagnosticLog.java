@@ -171,7 +171,7 @@ public final class DiagnosticLog {
                 report = writeReport(appContext);
             } catch (IOException | RuntimeException e) {
                 android.util.Log.w(TAG, "report failed: " + e);
-                main.post(() -> MessageHelpers.showMessage(appContext, R.string.diagnostic_log_failed));
+                main.post(() -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(appContext, R.string.diagnostic_log_failed));
                 return;
             }
             main.post(() -> {
@@ -187,7 +187,7 @@ public final class DiagnosticLog {
     private static void startShare(Context context, File report) {
         Uri uri = FileHelpers.getFileUri(context, report);
         if (uri == null) {
-            MessageHelpers.showMessage(context, R.string.diagnostic_log_failed);
+            com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(context, R.string.diagnostic_log_failed);
             return;
         }
         String subject = context.getString(R.string.diagnostic_log_subject,
@@ -205,7 +205,7 @@ public final class DiagnosticLog {
         try {
             context.startActivity(chooser);
         } catch (ActivityNotFoundException e) {
-            MessageHelpers.showMessage(context, R.string.diagnostic_log_failed);
+            com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(context, R.string.diagnostic_log_failed);
         }
     }
 

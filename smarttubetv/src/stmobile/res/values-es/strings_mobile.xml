@@ -31,8 +31,8 @@
     <string name="mobile_signin_step1_title">Toca “Continuar con Google”</string>
     <string name="mobile_signin_step1_caption">La página de Google se abre aquí mismo.</string>
     <string name="mobile_signin_step2_title">Elige tu cuenta y permite el acceso</string>
-    <string name="mobile_signin_step2_caption">La página puede mencionar una TV u otro dispositivo — es normal: NewTube inicia sesión igual que una TV, así tu contraseña nunca pasa por la app.</string>
-    <string name="mobile_signin_step3_title">Vuelve a NewTube</string>
+    <string name="mobile_signin_step2_caption">La página puede mencionar una TV u otro dispositivo — es normal: NewTube+ inicia sesión igual que una TV, así tu contraseña nunca pasa por la app.</string>
+    <string name="mobile_signin_step3_title">Vuelve a NewTube+</string>
     <string name="mobile_signin_step3_caption">La sesión se completa sola — no hay que hacer nada más.</string>
     <string name="mobile_signin_code_label">Google mostrará este código — comprueba que coincide:</string>
     <string name="mobile_signin_copy_hint">Toca el código para copiarlo</string>
@@ -453,6 +453,11 @@
     <string name="mobile_appearance_logo_none">Ninguno</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>
     <string name="mobile_appearance_accent_custom">Color personalizado</string>
+    <string name="mobile_settings_segment_toasts">Avisos de salto</string>
+    <string name="mobile_settings_segment_toasts_summary">Muestra un mensaje al saltar un segmento (en los segmentos con Saltar y avisar)</string>
+    <string name="mobile_settings_messages">Mensajes</string>
+    <string name="mobile_settings_hide_error_toasts">Ocultar mensajes de error</string>
+    <string name="mobile_settings_hide_error_toasts_summary">No muestra avisos emergentes cuando algo falla</string>
     <string name="mobile_mini_next">Siguiente vídeo</string>
     <string name="mobile_appearance_logo_play">Reproducir</string>
     <string name="mobile_appearance_bottom_bar">Barra inferior</string>
@@ -462,7 +467,7 @@
     <string name="mobile_appearance_logo_failed">No se ha podido usar esa imagen</string>
     <string name="mobile_appearance_header">Texto del encabezado</string>
     <string name="mobile_appearance_header_none">Ninguno</string>
-    <string name="mobile_appearance_header_default">Predeterminado (NewTube)</string>
+    <string name="mobile_appearance_header_default">Predeterminado (NewTube+)</string>
     <string name="mobile_appearance_header_custom">Personalizado…</string>
     <string name="mobile_appearance_header_hint">Texto del encabezado</string>
     <string name="mobile_settings_tabs_bottom_bar_full">La barra inferior está llena. Desactiva primero otra pestaña.</string>

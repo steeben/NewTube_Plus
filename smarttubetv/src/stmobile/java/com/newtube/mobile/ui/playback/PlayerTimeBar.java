@@ -92,7 +92,18 @@ public class PlayerTimeBar extends View implements TimeBar {
         mGlowPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
                 new int[] {(tail & 0x00FFFFFF) | 0x99000000, (accent & 0x00FFFFFF) | 0x40000000, accent & 0x00FFFFFF},
                 new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
+        // The scrubber: no solid dot, a larger and brighter glow of the same kind - a hot,
+        // nearly-white core in the accent's shade that fades out through the accent.
+        int core = androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.55f);
+        mScrubberPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
+                new int[] {core | 0xFF000000, (tail & 0x00FFFFFF) | 0xFF000000, (accent & 0x00FFFFFF) | 0xB3000000,
+                        (accent & 0x00FFFFFF) | 0x40000000, accent & 0x00FFFFFF},
+                new float[] {0f, 0.2f, 0.36f, 0.62f, 1f}, Shader.TileMode.CLAMP));
     }
+
+    /** NEWTUBE(accent): the scrubber's glow, this many times the old dot's radius. */
+    private static final float SCRUBBER_GLOW_SCALE = 2.6f;
+    private final Paint mScrubberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private static final float GLOW_DP = 9f;
     private final Paint mGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -543,8 +554,12 @@ public class PlayerTimeBar extends View implements TimeBar {
         if (radius > 0.5f && hasDuration) {
             float restRadius = dp(SCRUBBER_DP) / 2f;
             float cx = Math.max(left + restRadius, Math.min(right - restRadius, playedX));
-            mPaint.setColor(mPlayedColor);
-            canvas.drawCircle(cx, (top + bottom) / 2f, radius, mPaint);
+            float cy = (top + bottom) / 2f;
+            float glow = radius * SCRUBBER_GLOW_SCALE;
+            mGlowMatrix.setScale(glow, glow);
+            mGlowMatrix.postTranslate(cx, cy);
+            mScrubberPaint.getShader().setLocalMatrix(mGlowMatrix);
+            canvas.drawCircle(cx, cy, glow, mScrubberPaint);
         }
     }
 

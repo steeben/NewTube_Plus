@@ -212,6 +212,7 @@ public class MobileMainApplication extends MainApplication {
         // NEWTUBE(defaults): a new install's starting look (UiPrefs, MiniPlayerStyle).
         com.newtube.mobile.ui.common.UiPrefs.applyFreshInstallDefaults(this, existingInstall);
         com.newtube.mobile.ui.playback.MiniPlayerStyle.applyFreshInstallDefault(this, existingInstall);
+        com.newtube.mobile.ui.common.UiPrefs.applyToastPrefs(this); // NEWTUBE(error-toasts, segment-toasts)
         com.liskovsoft.smartyoutubetv2.common.app.presenters.settings.MainUISettingsPresenter.setPhoneTopRows(
                 (context, presenter) -> {
                     java.util.List<com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.OptionItem> options =

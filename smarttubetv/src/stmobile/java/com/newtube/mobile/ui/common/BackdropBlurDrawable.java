@@ -29,7 +29,11 @@ import androidx.annotation.Nullable;
 public final class BackdropBlurDrawable extends Drawable {
     private static final float BLUR_DP = 24f;
 
-    private final View mSource;
+    private View mSource;
+    /** NEWTUBE(frosted): the height of a soft bottom edge (the glass fading out), 0 for a sharp one. */
+    private int mFadeBottomPx;
+    @Nullable
+    private android.graphics.Paint mFadePaint;
     private final View mHost;
     private final Paint mTint = new Paint();
     private final int mPageColor;
@@ -53,12 +57,47 @@ public final class BackdropBlurDrawable extends Drawable {
         mNode = Build.VERSION.SDK_INT >= 31 ? Api31.newNode() : null;
     }
 
+    /** What the glass shows (the feed, or the You panel over it). */
+    public void setSource(View source) {
+        if (mSource != source) {
+            mSource = source;
+            invalidateSelf();
+        }
+    }
+
+    /** The glass fades out over its last {@code px} (the top bar's soft lower edge). */
+    public void setFadeBottom(int px) {
+        mFadeBottomPx = px;
+        mFadePaint = null;
+        invalidateSelf();
+    }
+
     @Override
     public void draw(@NonNull Canvas canvas) {
         Rect bounds = getBounds();
         if (bounds.isEmpty()) {
             return;
         }
+        if (mFadeBottomPx > 0 && bounds.height() > mFadeBottomPx) {
+            int save = canvas.saveLayer(bounds.left, bounds.top, bounds.right, bounds.bottom, null);
+            drawGlass(canvas, bounds);
+            if (mFadePaint == null) {
+                mFadePaint = new android.graphics.Paint();
+                mFadePaint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN));
+            }
+            float fadeTop = bounds.bottom - mFadeBottomPx;
+            // Eased (a few stops), so the edge melts away rather than ending in a visible ramp.
+            mFadePaint.setShader(new android.graphics.LinearGradient(0, fadeTop, 0, bounds.bottom,
+                    new int[] {0xFF000000, 0xC0000000, 0x60000000, 0x18000000, 0x00000000},
+                    new float[] {0f, 0.3f, 0.6f, 0.85f, 1f}, Shader.TileMode.CLAMP));
+            canvas.drawRect(bounds.left, fadeTop, bounds.right, bounds.bottom, mFadePaint);
+            canvas.restoreToCount(save);
+            return;
+        }
+        drawGlass(canvas, bounds);
+    }
+
+    private void drawGlass(Canvas canvas, Rect bounds) {
         if (Build.VERSION.SDK_INT >= 31 && mNode != null && canvas.isHardwareAccelerated()
                 && mSource.getWidth() > 0 && mSource.isShown()) {
             mHost.getLocationInWindow(mHostOffset);

@@ -1172,7 +1172,7 @@ public class PlayerUIController extends BasePlayerController {
         for (NotificationState item : getVideo().notificationStates) {
             items.add(UiOptionItem.from(item.getTitle(), optionItem -> {
                 if (optionItem.isSelected()) {
-                    MediaServiceManager.instance().setNotificationState(item, error -> MessageHelpers.showMessage(getContext(), error.getLocalizedMessage()));
+                    MediaServiceManager.instance().setNotificationState(item, error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), error.getLocalizedMessage()));
                     getVideo().isSubscribed = true;
                     getPlayer().setButtonState(R.id.action_subscribe, PlayerUI.BUTTON_ON);
                 }

@@ -3,7 +3,7 @@
      (com.newtube.mobile.ui.settings). Spanish in values-es. -->
 <resources>
     <!-- Shared -->
-    <string name="mobile_settings_restart_needed">Restart NewTube to apply this change</string>
+    <string name="mobile_settings_restart_needed">Restart NewTube+ to apply this change</string>
     <string name="mobile_settings_restart">Restart</string>
     <string name="mobile_settings_off">Off</string>
     <string name="mobile_settings_more">More</string>
@@ -130,9 +130,9 @@
     <string name="mobile_settings_watch_history_auto">Follow my YouTube setting</string>
     <string name="mobile_settings_watch_history_auto_desc">Saved if your YouTube account keeps history</string>
     <string name="mobile_settings_watch_history_on">Always save</string>
-    <string name="mobile_settings_watch_history_on_desc">Turns your YouTube watch history back on each time NewTube opens</string>
+    <string name="mobile_settings_watch_history_on_desc">Turns your YouTube watch history back on each time NewTube+ opens</string>
     <string name="mobile_settings_watch_history_off">Don\'t save</string>
-    <string name="mobile_settings_watch_history_off_desc">NewTube stops telling YouTube what you watch</string>
+    <string name="mobile_settings_watch_history_off_desc">NewTube+ stops telling YouTube what you watch</string>
     <string name="mobile_settings_clear_watch_history">Clear watch history</string>
     <string name="mobile_settings_clear_watch_history_summary">Deletes the videos you watched from your YouTube history</string>
     <string name="mobile_settings_clear_watch_history_confirm">Clear watch history?</string>
@@ -142,7 +142,7 @@
     <string name="mobile_settings_clear_search_history">Clear search history</string>
     <string name="mobile_settings_clear_search_history_summary">Deletes the searches saved on this phone</string>
     <string name="mobile_settings_clear_search_history_confirm">Clear search history?</string>
-    <string name="mobile_settings_clear_search_history_body">The searches NewTube saved on this phone are deleted. This can\'t be undone.</string>
+    <string name="mobile_settings_clear_search_history_body">The searches NewTube+ saved on this phone are deleted. This can\'t be undone.</string>
 
     <!-- Backup -->
     <string name="mobile_settings_backup_now">Back up now</string>
@@ -152,7 +152,7 @@
     <string name="mobile_settings_restore_summary">From a backup in %1$s</string>
     <string name="mobile_settings_auto_backup">Automatic backup</string>
     <string name="mobile_settings_auto_backup_off">Never</string>
-    <string name="mobile_settings_backup_note">A backup holds everything you set up in NewTube. What belongs to your YouTube account, like subscriptions and history, stays there.</string>
+    <string name="mobile_settings_backup_note">A backup holds everything you set up in NewTube+. What belongs to your YouTube account, like subscriptions and history, stays there.</string>
 
     <!-- Playback -->
     <string name="mobile_settings_video_ends">When a video ends</string>
@@ -171,7 +171,7 @@
     <string name="mobile_settings_remember_speed_video">For each video</string>
     <string name="mobile_settings_remember_speed_all">The same for every video</string>
     <string name="mobile_settings_remember_speed_none">Don\'t remember</string>
-    <string name="mobile_settings_remember_speed_none_desc">Back to 1x each time NewTube starts</string>
+    <string name="mobile_settings_remember_speed_none_desc">Back to 1x each time NewTube+ starts</string>
     <string name="mobile_settings_speed_list">Speeds under More speeds</string>
     <string name="mobile_settings_speed_list_basic">A short list</string>
     <string name="mobile_settings_speed_list_fine">Fine steps</string>
@@ -208,7 +208,7 @@
     <string name="mobile_settings_loudness">Even out loudness</string>
     <string name="mobile_settings_loudness_summary">Turns loud videos down to YouTube\'s normal level</string>
     <string name="mobile_settings_player_volume">Player volume</string>
-    <string name="mobile_settings_quality_data_saver_note">With Android\'s Data Saver on, NewTube buffers less on mobile data.</string>
+    <string name="mobile_settings_quality_data_saver_note">With Android\'s Data Saver on, NewTube+ buffers less on mobile data.</string>
 
     <!-- Captions -->
     <string name="mobile_settings_caption_style">Style</string>
@@ -244,7 +244,7 @@
     <string name="mobile_settings_dearrow_note">DeArrow receives the IDs of the videos you see in lists.</string>
 
     <!-- Advanced -->
-    <string name="mobile_settings_advanced_note">Most people never need these. They change how NewTube streams and connects.</string>
+    <string name="mobile_settings_advanced_note">Most people never need these. They change how NewTube+ streams and connects.</string>
     <string name="mobile_settings_streaming">Streaming</string>
     <string name="mobile_settings_video_format">Video format</string>
     <string name="mobile_settings_buffer">Buffer</string>
@@ -276,7 +276,7 @@
     <string name="mobile_settings_chapter_popup_summary">Shows each chapter\'s name as it starts. Tap it to go to the next one</string>
     <string name="mobile_settings_network">Network</string>
     <string name="mobile_settings_proxy">Web proxy</string>
-    <string name="mobile_settings_proxy_summary">Sends NewTube\'s traffic through an HTTP or SOCKS proxy</string>
+    <string name="mobile_settings_proxy_summary">Sends NewTube+\'s traffic through an HTTP or SOCKS proxy</string>
     <string name="mobile_settings_dns">Finding YouTube\'s servers</string>
     <string name="mobile_settings_dns_ipv4">IPv4 first</string>
     <string name="mobile_settings_dns_ipv4_desc">The default. Fixes networks with broken IPv6</string>

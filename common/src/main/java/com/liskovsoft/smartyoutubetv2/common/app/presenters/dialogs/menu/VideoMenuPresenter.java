@@ -1023,7 +1023,7 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
             Observable<Void> editObserve = mVideo.mediaItem != null ?
                     mMediaItemService.addToPlaylistObserve(playlistId, mVideo.mediaItem) : mMediaItemService.addToPlaylistObserve(playlistId, mVideo.videoId);
             // Handle error: Maximum playlist size exceeded (> 5000 items)
-            mAddToPlaylistAction = RxHelper.execute(editObserve, error -> MessageHelpers.showLongMessage(getContext(), error.getMessage()));
+            mAddToPlaylistAction = RxHelper.execute(editObserve, error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(getContext(), error.getMessage()));
             mDialogPresenter.closeDialog();
             MessageHelpers.showMessage(getContext(),
                     getContext().getString(R.string.added_to, playlistTitle));

@@ -178,7 +178,7 @@ public class CommentsController extends BasePlayerController {
         receiver.sync(myCommentItem);
 
         RxHelper.execute(
-                getCommentsService().toggleLikeObserve(commentItem.getNestedCommentsKey()), e -> MessageHelpers.showMessage(getContext(), e.getMessage()));
+                getCommentsService().toggleLikeObserve(commentItem.getNestedCommentsKey()), e -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showMessage(getContext(), e.getMessage()));
     }
 
     private static final class MyCommentItem implements CommentItem {
