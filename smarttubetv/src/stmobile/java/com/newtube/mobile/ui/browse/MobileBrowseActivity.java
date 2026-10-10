@@ -289,8 +289,13 @@ public class MobileBrowseActivity extends MobileActivity
         com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(
                 findViewById(R.id.mobile_mini_player), mContentGrid);
         // NEWTUBE(mini-style): and the You panel's last row (Settings) clear of a docked bar.
-        com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(
-                findViewById(R.id.mobile_mini_player), findViewById(R.id.mobile_you_panel));
+        // The padding goes on the panel's column, not the ScrollView: the column itself ends with
+        // room for the bar, so Settings is never left under it, however short the list.
+        android.view.ViewGroup youPanel = findViewById(R.id.mobile_you_panel);
+        if (youPanel != null && youPanel.getChildAt(0) instanceof android.view.ViewGroup) {
+            com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(
+                    findViewById(R.id.mobile_mini_player), (android.view.ViewGroup) youPanel.getChildAt(0));
+        }
     }
 
     private void setupSwipeRefresh() {

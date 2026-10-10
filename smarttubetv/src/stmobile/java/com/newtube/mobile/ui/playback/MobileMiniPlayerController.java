@@ -119,7 +119,12 @@ public final class MobileMiniPlayerController {
         mBar.setOnClickListener(tap);
         mFrame.setOnClickListener(tap);
 
-        mPlayPause.setOnClickListener(v -> togglePlayback(false));
+        mPlayPause.setOnClickListener(v -> {
+            togglePlayback(false);
+            if (mStyle == MiniPlayerStyle.BAR_VIDEO) {
+                pulsePlayButton();
+            }
+        });
         mClose.setOnClickListener(v -> close());
 
         mGestures = MiniPlayerGestures.attach(mBar, new MiniPlayerGestures.Callback() {
@@ -733,6 +738,24 @@ public final class MobileMiniPlayerController {
                 mDim.animate().alpha(dim).setDuration(Motion.FADE_IN_MS).start();
             }
         }
+    }
+
+    /** NEWTUBE(mini-style): the video bar's play/pause answers a tap with a soft flash; its icon stays. */
+    private void pulsePlayButton() {
+        mFlash.animate().cancel();
+        mFlash.setVisibility(View.VISIBLE);
+        mFlash.setAlpha(0.9f);
+        mFlash.setScaleX(0.6f);
+        mFlash.setScaleY(0.6f);
+        mFlash.animate().scaleX(1.35f).scaleY(1.35f).alpha(0f).setStartDelay(0).setDuration(360)
+                .setInterpolator(new DecelerateInterpolator())
+                .withEndAction(() -> mFlash.setVisibility(View.GONE))
+                .start();
+        mPlayPause.animate().cancel();
+        mPlayPause.setScaleX(0.88f);
+        mPlayPause.setScaleY(0.88f);
+        mPlayPause.animate().scaleX(1f).scaleY(1f).setDuration(220)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(2.5f)).start();
     }
 
     /** NEWTUBE(mini-style): the gesture card's answer to a tap - the new state, briefly. */

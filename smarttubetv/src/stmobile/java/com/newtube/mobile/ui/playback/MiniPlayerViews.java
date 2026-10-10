@@ -205,7 +205,7 @@ final class MiniPlayerViews {
         int onVideo = ContextCompat.getColor(context, R.color.mobile_player_on_video);
         if (style == MiniPlayerStyle.BAR_VIDEO) {
             textParams.setMarginStart(px(12, density));
-            textParams.setMarginEnd(2 * buttonSize + px(8, density));
+            textParams.setMarginEnd(buttonSize + px(12, density)); // only play/pause beside it
             if (mTitleFrost == null) {
                 mTitleFrost = new FrostedScrimDrawable(14f * density,
                         ContextCompat.getColor(context, R.color.mobile_mini_frost_tint));
@@ -233,7 +233,8 @@ final class MiniPlayerViews {
             play.width = buttonSize;
             play.height = buttonSize;
             play.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-            play.setMarginEnd(buttonSize);
+            // The video-background bar has no X (it closes by swiping): play/pause takes its place.
+            play.setMarginEnd(style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize);
             closeParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         } else {
             play.width = px(40, density);
@@ -285,10 +286,29 @@ final class MiniPlayerViews {
         }
         int buttons = style == MiniPlayerStyle.CARD_GESTURE ? View.GONE : View.VISIBLE;
         playPause.setVisibility(buttons);
-        close.setVisibility(buttons);
+        close.setVisibility(style == MiniPlayerStyle.BAR_VIDEO ? View.GONE : buttons);
+
+        // The tap answer: over the gesture card's middle, or a soft light ring on the video bar's
+        // play/pause (whose icon stays).
+        FrameLayout.LayoutParams flashParams = (FrameLayout.LayoutParams) flash.getLayoutParams();
+        if (style == MiniPlayerStyle.BAR_VIDEO) {
+            flashParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+            flashParams.setMarginEnd(px(4, density) + (buttonSize - px(44, density)) / 2);
+            android.graphics.drawable.GradientDrawable ring = new android.graphics.drawable.GradientDrawable();
+            ring.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            ring.setColor(ContextCompat.getColor(context, R.color.mobile_mini_play_flash));
+            flash.setBackground(ring);
+            flash.setImageDrawable(null);
+        } else {
+            flashParams.gravity = Gravity.CENTER;
+            flashParams.setMarginEnd(0);
+            flash.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
+        }
+        flash.setLayoutParams(flashParams);
 
         progress.setProgressBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
                 style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track)));
+        progress.setProgressTintList(ColorStateList.valueOf(MiniPlayerStyle.accent(context)));
 
         card.requestLayout();
     }

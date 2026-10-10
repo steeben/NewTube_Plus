@@ -94,6 +94,15 @@ public final class MiniPlayerStyle {
                 .getBoolean(UI_KEY_ROUNDED, true);
     }
 
+    /**
+     * NEWTUBE(accent): the progress line's colour - the accent from Appearance (read from that
+     * setting's own store, like the rounded corners above), the red by default.
+     */
+    public static int accent(Context context) {
+        return 0xFF000000 | context.getApplicationContext().getSharedPreferences(UI_PREFS_NAME, Context.MODE_PRIVATE)
+                .getInt("accent", 0xFFFF0033);
+    }
+
     /** Width of the bar's 16:9 thumbnail slot ({@link #BAR}), in px. */
     public static float barThumbWidthPx(float density) {
         return BAR_HEIGHT_DP * density * 16f / 9f;
