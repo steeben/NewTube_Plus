@@ -55,6 +55,31 @@ public final class MiniPlayerBridge {
          * THIS host's card instead of always assuming Home's geometry.
          */
         int getMiniCardBottomOffsetPx();
+
+        /**
+         * NEWTUBE(mini-style): the bottom navigation's share in sight (0 hidden below the screen,
+         * 1 in place) while a bar minimize or expand moves the watch page over it. Hosts without
+         * one ignore it.
+         */
+        default void setBottomBarReveal(float reveal) {
+        }
+
+        /** NEWTUBE(mini-style): the bottom navigation's height in px, 0 for hosts without one. */
+        default int getBottomBarHeightPx() {
+            return 0;
+        }
+    }
+
+    /**
+     * NEWTUBE(mini-style): the player's side of a bar pulled up from a host - the finger stays on the
+     * host's window while the player, brought to the front, follows it.
+     */
+    public interface ExpandDrag {
+        /** The finger is {@code liftPx} above where the pull began. */
+        void onExpandDrag(float liftPx);
+
+        /** It let go; {@code cancelled}: the touch was taken away instead. */
+        void onExpandDragEnd(float velocityY, boolean cancelled);
     }
 
     /**
@@ -164,6 +189,76 @@ public final class MiniPlayerBridge {
             fold.fold(onFolded);
         } else if (onFolded != null) {
             onFolded.run();
+        }
+    }
+
+    private static boolean sExpandDragging;
+    private static float sExpandLift;
+    private static boolean sExpandEnded;
+    private static float sExpandEndVelocity;
+    private static boolean sExpandEndCancelled;
+    @Nullable
+    private static ExpandDrag sExpandDrag;
+
+    /** NEWTUBE(mini-style): a host bar's pull begins; the expand it starts follows it. */
+    public static void beginExpandDrag() {
+        sExpandDragging = true;
+        sExpandLift = 0f;
+        sExpandEnded = false;
+    }
+
+    public static void expandDrag(float liftPx) {
+        if (!sExpandDragging) {
+            return;
+        }
+        sExpandLift = liftPx;
+        if (sExpandDrag != null) {
+            sExpandDrag.onExpandDrag(liftPx);
+        }
+    }
+
+    public static void endExpandDrag(float velocityY, boolean cancelled) {
+        if (!sExpandDragging) {
+            return;
+        }
+        sExpandDragging = false;
+        if (sExpandDrag != null) {
+            ExpandDrag drag = sExpandDrag;
+            sExpandDrag = null;
+            drag.onExpandDragEnd(velocityY, cancelled);
+        } else {
+            sExpandEnded = true; // the player is not in front yet: it reads this when it is
+            sExpandEndVelocity = velocityY;
+            sExpandEndCancelled = cancelled;
+        }
+    }
+
+    /** True while a pull started by a host bar has not been handed to its player yet. */
+    static boolean hasPendingExpandDrag() {
+        return sExpandDragging || sExpandEnded;
+    }
+
+    /**
+     * The player is in front and follows the pull: it gets where the finger is now, then every
+     * move, then the release (at once, if the finger already let go).
+     */
+    static void attachExpandDrag(ExpandDrag drag) {
+        if (sExpandEnded) {
+            sExpandEnded = false;
+            drag.onExpandDrag(sExpandLift);
+            drag.onExpandDragEnd(sExpandEndVelocity, sExpandEndCancelled);
+            return;
+        }
+        if (!sExpandDragging) {
+            return;
+        }
+        sExpandDrag = drag;
+        drag.onExpandDrag(sExpandLift);
+    }
+
+    static void detachExpandDrag(ExpandDrag drag) {
+        if (sExpandDrag == drag) {
+            sExpandDrag = null;
         }
     }
 

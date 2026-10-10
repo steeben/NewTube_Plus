@@ -354,6 +354,23 @@ public class MobileBrowseActivity extends MobileActivity
         return BrowseView.class;
     }
 
+    /**
+     * NEWTUBE(mini-style): a bar minimize or expand moves the watch page over the bottom navigation:
+     * it slides away below the screen as the page grows over it, and back up as the video lands.
+     */
+    @Override
+    public void setBottomBarReveal(float reveal) {
+        if (mBottomNav != null) {
+            float clamped = Math.max(0f, Math.min(1f, reveal));
+            mBottomNav.setTranslationY((1f - clamped) * mBottomNav.getHeight());
+        }
+    }
+
+    @Override
+    public int getBottomBarHeightPx() {
+        return mBottomNav != null ? mBottomNav.getHeight() : 0;
+    }
+
     @Override
     public int getMiniCardBottomOffsetPx() {
         // The card floats above the 56dp Material bottom-nav row (see activity_mobile_browse.xml).

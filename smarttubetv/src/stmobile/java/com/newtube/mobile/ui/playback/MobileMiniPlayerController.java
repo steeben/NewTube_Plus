@@ -70,13 +70,6 @@ public final class MobileMiniPlayerController {
     private int mStyle = -1;
     /** NEWTUBE(mini-style): the card is laid out in the bottom-left corner. */
     private boolean mCardLeft;
-    /**
-     * NEWTUBE(mini-style): a bar pulled up toward the player: the watch page's colour fills the
-     * space it leaves below it, so the page seems to come up with it (the player's own page takes
-     * over from it when it expands).
-     */
-    @Nullable
-    private View mSheet;
     private final Runnable mTick = this::onTick;
 
     private TextureView mTexture;
@@ -174,8 +167,18 @@ public final class MobileMiniPlayerController {
             }
 
             @Override
-            public void onLift(float translationY) {
-                liftSheet(translationY);
+            public void onExpandDragStart() {
+                expandByDrag();
+            }
+
+            @Override
+            public void onExpandDrag(float liftPx) {
+                MiniPlayerBridge.expandDrag(liftPx);
+            }
+
+            @Override
+            public void onExpandDragEnd(float velocityY, boolean cancelled) {
+                MiniPlayerBridge.endExpandDrag(velocityY, cancelled);
             }
         }, mFrame, mBar);
     }
@@ -186,6 +189,21 @@ public final class MobileMiniPlayerController {
         }
         restoreGestureVolume();
         publishBounds(); // from where it is, swiped up part of the way included
+        MiniPlayerBridge.expand(mActivity);
+    }
+
+    /**
+     * NEWTUBE(mini-style): a bar pulled up: the player comes to the front at once, sitting on this
+     * bar, and follows the finger from there (MiniPlayerBridge.expandDrag) - so the real watch
+     * page rises with it, the minimize run backwards.
+     */
+    private void expandByDrag() {
+        if (mClosing || !MiniPlayerBridge.isActive()) {
+            return;
+        }
+        restoreGestureVolume();
+        publishBounds();
+        MiniPlayerBridge.beginExpandDrag();
         MiniPlayerBridge.expand(mActivity);
     }
 
@@ -379,7 +397,6 @@ public final class MobileMiniPlayerController {
             return;
         }
         restoreGestureVolume();
-        removeSheet();
         mGestures.stop();
         mBar.animate().cancel();
         mBar.setAlpha(1f);
@@ -522,7 +539,6 @@ public final class MobileMiniPlayerController {
         mBar.animate().cancel();
         mEntryAnimating = false;
         mButtonsFadePending = false;
-        removeSheet();
         resetTransform();
         mBar.setAlpha(1f);
         mBar.setVisibility(View.GONE);
@@ -708,7 +724,7 @@ public final class MobileMiniPlayerController {
         boolean playing = player.getPlayWhenReady()
                 && player.getPlaybackState() != Player.STATE_ENDED
                 && player.getPlaybackState() != Player.STATE_IDLE;
-        mPlayPause.setImageResource(playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
+        mViews.setPlaying(playing);
         if (mStyle == MiniPlayerStyle.CARD_GESTURE) {
             // NEWTUBE(mini-style): no button to show it, so a paused gesture card stays dimmed.
             float dim = playing ? 0f : 1f;
@@ -808,42 +824,5 @@ public final class MobileMiniPlayerController {
         }
         mFrostAt = now;
         mViews.updateFrost(mTexture);
-    }
-
-    /**
-     * NEWTUBE(mini-style): a bar lifted {@code -translationY} px toward the player: fill the space
-     * between its bottom and where its bottom rests with the watch page's colour.
-     */
-    private void liftSheet(float translationY) {
-        if (!MiniPlayerStyle.isBar(mStyle) || translationY > -1f || mBar.getVisibility() != View.VISIBLE) {
-            removeSheet();
-            return;
-        }
-        ViewGroup content = mActivity.findViewById(android.R.id.content);
-        if (content == null) {
-            return;
-        }
-        if (mSheet == null) {
-            mSheet = new View(mActivity);
-            mSheet.setBackgroundColor(ContextCompat.getColor(mActivity, R.color.mobile_color_background));
-            mSheet.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        }
-        if (mSheet.getParent() == null) {
-            content.addView(mSheet, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        }
-        int[] bar = new int[2];
-        int[] origin = new int[2];
-        mBar.getLocationOnScreen(bar); // includes the lift
-        content.getLocationOnScreen(origin);
-        float bottom = bar[1] - origin[1] + mBar.getHeight();
-        mSheet.setTranslationY(bottom);
-        mSheet.setClipBounds(new Rect(0, 0, Math.max(1, content.getWidth()), Math.round(-translationY)));
-    }
-
-    private void removeSheet() {
-        if (mSheet != null && mSheet.getParent() instanceof ViewGroup) {
-            ((ViewGroup) mSheet.getParent()).removeView(mSheet);
-        }
     }
 }
