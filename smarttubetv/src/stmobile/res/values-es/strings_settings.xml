@@ -32,6 +32,8 @@
     <string name="mobile_settings_theme_system_short">del sistema</string>
     <string name="mobile_settings_theme_light_short">claro</string>
     <string name="mobile_settings_theme_dark_short">oscuro</string>
+    <string name="mobile_settings_theme_oled_short">OLED</string>
+    <string name="mobile_settings_theme_system_oled_short">del sistema (OLED)</string>
     <string name="mobile_settings_feeds">Pestañas y feeds</string>
     <string name="mobile_settings_feeds_summary">Pestañas, vídeos ocultos, menú de vídeo</string>
     <string name="mobile_settings_privacy">Historial y privacidad</string>

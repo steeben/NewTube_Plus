@@ -228,7 +228,8 @@ public class MotherActivity extends FragmentActivity {
             override.densityDpi = Math.round(base.getResources().getConfiguration().densityDpi * uiScale);
         }
         if (nightMode != Configuration.UI_MODE_NIGHT_UNDEFINED) {
-            // Night bits only (the type bits stay UNDEFINED, so the system's are kept).
+            // Night bits (the type bits stay UNDEFINED, so the system's are kept), except the
+            // phone's black theme, which sets a type to pick its palette (ThemeMode.OLED).
             override.uiMode = nightMode;
         }
         // The resources this override builds start from the activity's own context, not from the

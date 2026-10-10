@@ -53,7 +53,7 @@ public abstract class MobileActivity extends MotherActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         MobileSnackbar.install(getApplication()); // NEWTUBE(snackbar): tracks the screen in front
-        mThemedNight = ThemeMode.currentNight(this);
+        mThemedNight = ThemeMode.currentKey(this); // NEWTUBE(oled): night bits + black
         ThemeMode.register(this);
     }
 

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- NEWTUBE(oled): the black theme (Settings > General > Theme > OLED, or System default
+         (OLED) on the dark side). A screen in it carries UI_MODE_TYPE_APPLIANCE in its
+         configuration override (ThemeMode.OLED), so these win over values-night/; every colour not
+         listed here is the dark theme's. The page is true black; raised surfaces (sheets, cards,
+         menus) stay a step above it so they still read as raised. -->
+    <color name="mobile_color_background">#000000</color>
+    <color name="mobile_color_field">#000000</color>
+    <color name="mobile_color_background_scrim">#66000000</color>
+    <color name="mobile_color_navigation_bar">#000000</color>
+    <color name="mobile_color_surface">#121212</color>
+    <color name="mobile_color_card">#141414</color>
+    <color name="mobile_color_comment_parent">#0D0D0D</color>
+    <color name="mobile_color_placeholder">#1C1C1C</color>
+    <color name="mobile_color_skeleton_highlight">#2E2E2E</color>
+    <color name="mobile_color_subscribed_button">#262626</color>
+    <color name="mobile_color_menu_surface">#1C1C1C</color>
+    <color name="dialog_bg_color">#000000</color>
+</resources>

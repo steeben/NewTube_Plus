@@ -47,6 +47,17 @@ public final class ThemeMode {
     public static final int SYSTEM = 0;
     public static final int LIGHT = 1;
     public static final int DARK = 2;
+    /**
+     * NEWTUBE(oled): Dark with true black instead of the dark grey, and System default with that
+     * black on the dark side. The black palette is values-appliance-night/: an OLED screen gets
+     * the UI_MODE_TYPE_APPLIANCE type bits in its configuration override along with the night
+     * bits (nothing in the app or its libraries reads the type), so its night colours resolve
+     * there first and everything not overridden falls back to values-night/.
+     */
+    public static final int OLED = 3;
+    public static final int SYSTEM_OLED = 4;
+    /** NEWTUBE(oled): the type bits that select the black palette (see {@link #OLED}). */
+    private static final int OLED_TYPE = Configuration.UI_MODE_TYPE_APPLIANCE;
 
     private static final String PREFS = "newtube_theme";
     private static final String KEY_MODE = "mode";
@@ -72,7 +83,7 @@ public final class ThemeMode {
             NetPath.log("theme default mode=" + name(initial) + " existing=" + (existingInstall ? "y" : "n"));
         }
         sMode = sanitize(prefs.getInt(KEY_MODE, SYSTEM));
-        MotherActivity.setNightModeSource(context -> forcedNight(sMode));
+        MotherActivity.setNightModeSource(context -> forcedKey(sMode));
         applyProcessWide(app, sMode);
     }
 
@@ -119,13 +130,28 @@ public final class ThemeMode {
      * the override it was created with).
      */
     public static int desiredNight(@NonNull Context context) {
+        int oled = isOled(sMode) ? OLED_TYPE : 0; // NEWTUBE(oled): the night bits plus the black's type
         int forced = forcedNight(sMode);
         if (forced != Configuration.UI_MODE_NIGHT_UNDEFINED) {
-            return forced;
+            return forced | oled;
         }
         int system = context.getApplicationContext().getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
-        return system == Configuration.UI_MODE_NIGHT_YES ? Configuration.UI_MODE_NIGHT_YES : Configuration.UI_MODE_NIGHT_NO;
+        return (system == Configuration.UI_MODE_NIGHT_YES ? Configuration.UI_MODE_NIGHT_YES
+                : Configuration.UI_MODE_NIGHT_NO) | oled;
+    }
+
+    /**
+     * NEWTUBE(oled): what a screen's resources resolve with now, in {@link #desiredNight}'s terms:
+     * the night bits, plus the black's type bits when they are on.
+     */
+    public static int currentKey(@NonNull Context context) {
+        int type = context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK;
+        return currentNight(context) | (type == OLED_TYPE ? OLED_TYPE : 0);
+    }
+
+    public static boolean isOled(int mode) {
+        return mode == OLED || mode == SYSTEM_OLED;
     }
 
     /** The night bits a context's resources resolve with now. */
@@ -150,11 +176,17 @@ public final class ThemeMode {
     public static void syncResources(@NonNull Activity activity, int night) {
         Resources res = activity.getResources();
         Configuration current = res.getConfiguration();
-        if ((current.uiMode & Configuration.UI_MODE_NIGHT_MASK) == night) {
+        // NEWTUBE(oled): {@code night} may carry the black's type bits (see desiredNight).
+        int nightBits = night & Configuration.UI_MODE_NIGHT_MASK;
+        int type = (night & Configuration.UI_MODE_TYPE_MASK) == OLED_TYPE ? OLED_TYPE
+                : systemType(activity);
+        if ((current.uiMode & Configuration.UI_MODE_NIGHT_MASK) == nightBits
+                && (current.uiMode & Configuration.UI_MODE_TYPE_MASK) == type) {
             return;
         }
         Configuration updated = new Configuration(current);
-        updated.uiMode = (updated.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
+        updated.uiMode = (updated.uiMode & ~(Configuration.UI_MODE_NIGHT_MASK | Configuration.UI_MODE_TYPE_MASK))
+                | nightBits | type;
         res.updateConfiguration(updated, null);
         if (Build.VERSION.SDK_INT >= 29) {
             activity.getTheme().rebase();
@@ -212,10 +244,26 @@ public final class ThemeMode {
             case LIGHT:
                 return Configuration.UI_MODE_NIGHT_NO;
             case DARK:
+            case OLED:
                 return Configuration.UI_MODE_NIGHT_YES;
             default:
                 return Configuration.UI_MODE_NIGHT_UNDEFINED;
         }
+    }
+
+    /**
+     * NEWTUBE(oled): the uiMode a screen is created with: the forced night bits (or none), plus the
+     * black's type bits for the two black modes (System default black only sets the type).
+     */
+    static int forcedKey(int mode) {
+        return forcedNight(mode) | (isOled(mode) ? OLED_TYPE : Configuration.UI_MODE_TYPE_UNDEFINED);
+    }
+
+    /** The type bits the system gives the app (normal on a phone). */
+    private static int systemType(Context context) {
+        int type = context.getApplicationContext().getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_TYPE_MASK;
+        return type == OLED_TYPE ? Configuration.UI_MODE_TYPE_NORMAL : type;
     }
 
     static int appCompatMode(int mode) {
@@ -223,6 +271,7 @@ public final class ThemeMode {
             case LIGHT:
                 return AppCompatDelegate.MODE_NIGHT_NO;
             case DARK:
+            case OLED:
                 return AppCompatDelegate.MODE_NIGHT_YES;
             default:
                 return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
@@ -236,7 +285,7 @@ public final class ThemeMode {
                 UiModeManager uiModeManager = app.getSystemService(UiModeManager.class);
                 if (uiModeManager != null) {
                     uiModeManager.setApplicationNightMode(mode == LIGHT ? UiModeManager.MODE_NIGHT_NO
-                            : mode == DARK ? UiModeManager.MODE_NIGHT_YES : UiModeManager.MODE_NIGHT_AUTO);
+                            : mode == DARK || mode == OLED ? UiModeManager.MODE_NIGHT_YES : UiModeManager.MODE_NIGHT_AUTO);
                 }
             } catch (RuntimeException e) {
                 // Only the launch splash depends on it; the screens have their own override.
@@ -255,11 +304,12 @@ public final class ThemeMode {
     }
 
     private static int sanitize(int mode) {
-        return mode == LIGHT || mode == DARK ? mode : SYSTEM;
+        return mode == LIGHT || mode == DARK || mode == OLED || mode == SYSTEM_OLED ? mode : SYSTEM;
     }
 
     static String name(int mode) {
-        return mode == LIGHT ? "light" : mode == DARK ? "dark" : "system";
+        return mode == LIGHT ? "light" : mode == DARK ? "dark" : mode == OLED ? "oled"
+                : mode == SYSTEM_OLED ? "system-oled" : "system";
     }
 
     private static SharedPreferences prefs(Context context) {
