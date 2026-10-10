@@ -73,6 +73,27 @@ public class PlayerTimeBar extends View implements TimeBar {
     static final int BUFFERED_COLOR = 0x80FFFFFF;
     static final int UNPLAYED_COLOR = 0x33FFFFFF;
 
+    /**
+     * NEWTUBE(accent): the played part's colour - the user's accent, the red by default - and its
+     * gradient's tail (the red's own pink, or a lighter shade of the accent).
+     */
+    private int mPlayedColor = PLAYED_COLOR;
+
+    private void applyAccent() {
+        int accent = com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext());
+        int tail = accent == com.newtube.mobile.ui.common.UiPrefs.DEFAULT_ACCENT ? PLAYED_TAIL_COLOR
+                : androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.3f);
+        mPlayedColor = accent;
+        mPlayedPaint.setColor(accent);
+        mPlayedPaint.setShader(new LinearGradient(0f, 0f, mTailPx, 0f, accent, tail, Shader.TileMode.CLAMP));
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        applyAccent(); // changed in Settings since this bar was built
+    }
+
     private static final float TRACK_DP = 2f;
     private static final float TRACK_DRAGGING_DP = 3f;
     private static final float GAP_DP = 2f;
@@ -212,9 +233,7 @@ public class PlayerTimeBar extends View implements TimeBar {
         mDensity = getResources().getDisplayMetrics().density;
         mTouchDensity = context.getApplicationContext().getResources().getConfiguration().densityDpi / 160f;
         mTailPx = dp(TAIL_DP);
-        mPlayedPaint.setColor(PLAYED_COLOR);
-        mPlayedPaint.setShader(new LinearGradient(0f, 0f, mTailPx, 0f,
-                PLAYED_COLOR, PLAYED_TAIL_COLOR, Shader.TileMode.CLAMP));
+        applyAccent();
         setFocusable(true);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
@@ -500,7 +519,7 @@ public class PlayerTimeBar extends View implements TimeBar {
         if (radius > 0.5f && hasDuration) {
             float restRadius = dp(SCRUBBER_DP) / 2f;
             float cx = Math.max(left + restRadius, Math.min(right - restRadius, playedX));
-            mPaint.setColor(PLAYED_COLOR);
+            mPaint.setColor(mPlayedColor);
             canvas.drawCircle(cx, (top + bottom) / 2f, radius, mPaint);
         }
     }

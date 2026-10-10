@@ -40,7 +40,11 @@ separately from their code, and NewTube uses it under those terms:
   See [`filepicker-lib/LICENSE`](filepicker-lib/LICENSE).
 - **Tabler Icons** — © 2020-2026 Paweł Kuna, **MIT** (https://github.com/tabler/tabler-icons).
   The "playlist" icon (outline and filled) of the Playlists bottom-bar tab,
-  `ic_nav_playlists_outline.xml` / `ic_nav_playlists_fill.xml`.
+  `ic_nav_playlists_outline.xml` / `ic_nav_playlists_fill.xml`, and the "palette" icon of
+  Settings > Appearance (`ic_settings_appearance.xml`).
+- **League Gothic** — © Micah Rich, Caleb Maclennan, **SIL Open Font License 1.1**
+  (https://github.com/theleagueof/league-gothic). The top bar's header text
+  (`res/font/league_gothic.ttf`). See [`third_party/LeagueGothic/OFL.md`](third_party/LeagueGothic/OFL.md).
 
 ## Submodules
 

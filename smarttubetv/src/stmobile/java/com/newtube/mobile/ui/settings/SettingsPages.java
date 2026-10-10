@@ -16,6 +16,7 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.newtube.mobile.ui.about.AboutShareRows;
 import com.newtube.mobile.ui.browse.AccountsSheet;
 import com.newtube.mobile.ui.common.ThemeMode;
+import com.newtube.mobile.ui.common.UiPrefs;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,7 @@ import java.util.List;
 public final class SettingsPages {
     public static final String ROOT = "root";
     public static final String GENERAL = "general";
+    public static final String APPEARANCE = "appearance";
     public static final String FEEDS = "feeds";
     public static final String FEEDS_TABS = "feeds_tabs";
     public static final String FEEDS_HIDDEN = "feeds_hidden";
@@ -71,6 +73,8 @@ public final class SettingsPages {
         switch (id) {
             case GENERAL:
                 return AppPages.general(context);
+            case APPEARANCE:
+                return AppPages.appearance(context);
             case FEEDS:
                 return AppPages.feeds(context);
             case FEEDS_TABS:
@@ -120,6 +124,9 @@ public final class SettingsPages {
         rows.add(SettingsRow.page(R.drawable.ic_settings_general, context.getString(R.string.mobile_settings_general),
                 context.getString(R.string.mobile_settings_general_summary), GENERAL)
                 .summary(() -> generalSummary(context)));
+        // NEWTUBE(appearance): theme, accent, branding.
+        rows.add(SettingsRow.page(R.drawable.ic_settings_appearance, context.getString(R.string.mobile_appearance),
+                null, APPEARANCE).summary(() -> appearanceSummary(context)));
         rows.add(SettingsRow.page(R.drawable.ic_settings_feeds, context.getString(R.string.mobile_settings_feeds),
                 context.getString(R.string.mobile_settings_feeds_summary), FEEDS));
         rows.add(SettingsRow.page(R.drawable.ic_settings_privacy, context.getString(R.string.mobile_settings_privacy),
@@ -150,13 +157,25 @@ public final class SettingsPages {
 
     /** "Dark theme · English" style: the two settings people come to General for. */
     private static CharSequence generalSummary(Context context) {
+        return context.getString(R.string.mobile_settings_general_summary_moved);
+    }
+
+    private static String themeLabel(Context context) {
         int theme = ThemeMode.get();
         String themeLabel = context.getString(theme == ThemeMode.LIGHT ? R.string.mobile_settings_theme_light_short
                 : theme == ThemeMode.DARK ? R.string.mobile_settings_theme_dark_short
                 : theme == ThemeMode.OLED ? R.string.mobile_settings_theme_oled_short
                 : theme == ThemeMode.SYSTEM_OLED ? R.string.mobile_settings_theme_system_oled_short
                 : R.string.mobile_settings_theme_system_short);
-        return context.getString(R.string.mobile_settings_general_summary_value, themeLabel);
+        return themeLabel;
+    }
+
+    /** "Dark theme · custom accent" style. */
+    private static CharSequence appearanceSummary(Context context) {
+        String theme = themeLabel(context);
+        return UiPrefs.getAccent(context) == UiPrefs.DEFAULT_ACCENT
+                ? context.getString(R.string.mobile_appearance_summary, theme)
+                : context.getString(R.string.mobile_appearance_summary_accent, theme);
     }
 
     private static String versionLine(Context context) {

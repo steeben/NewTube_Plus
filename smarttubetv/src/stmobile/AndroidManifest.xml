@@ -299,6 +299,12 @@
             android:screenOrientation="unspecified"
             android:theme="@style/Theme.NewTube" />
 
+        <!-- NEWTUBE(branding): Appearance > Logo > Custom - the system picker, nothing of its own. -->
+        <activity
+            android:name="com.newtube.mobile.ui.settings.BrandLogoPickActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <activity
             android:name="com.newtube.mobile.ui.adddevice.MobileAddDeviceActivity"
             android:exported="false"
