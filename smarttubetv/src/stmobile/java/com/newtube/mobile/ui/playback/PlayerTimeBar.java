@@ -69,50 +69,47 @@ public class PlayerTimeBar extends View implements TimeBar {
     }
 
     static final int PLAYED_COLOR = 0xFFFF0033;
-    static final int PLAYED_TAIL_COLOR = 0xFFFF2791;
     static final int BUFFERED_COLOR = 0x80FFFFFF;
     static final int UNPLAYED_COLOR = 0x33FFFFFF;
 
     /**
-     * NEWTUBE(accent): the played part's colour - the user's accent, the red by default - and its
-     * gradient's tail (the red's own pink, or a lighter shade of the accent).
+     * NEWTUBE(accent): the played part's colour - the user's accent, the red by default - and the
+     * theme it was last built for (the gradient behind the tip is darker in the dark theme,
+     * lighter in the light one).
      */
     private int mPlayedColor = PLAYED_COLOR;
+    private boolean mPlayedLight;
 
     private void applyAccent() {
         int accent = com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext());
-        int tail = accent == com.newtube.mobile.ui.common.UiPrefs.DEFAULT_ACCENT ? PLAYED_TAIL_COLOR
-                : androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.3f);
+        boolean light = com.newtube.mobile.ui.common.ThemeMode.isLight(getContext());
         mPlayedColor = accent;
+        mPlayedLight = light;
         mPlayedPaint.setColor(accent);
-        // The trail: the accent along the bar, lightening over its last stretch into white at the
-        // very tip - the tip seems to glow.
-        mPlayedPaint.setShader(tipShader(accent, tail, mTailPx));
-        // The scrubber: a disc in a light shade of the accent with a short, soft edge (not a
-        // blur), a little glow around it.
-        int light = androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.45f) | 0xFF000000;
-        mScrubberPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
-                new int[] {light, light, (light & 0x00FFFFFF) | 0xE6000000, (accent & 0x00FFFFFF) | 0x59000000,
-                        accent & 0x00FFFFFF},
-                new float[] {0f, 0.52f, 0.62f, 0.8f, 1f}, Shader.TileMode.CLAMP));
+        // The trail: the full accent at the current time, fading back along the played part to a
+        // darker (dark theme) or lighter (light theme) shade of it.
+        mPlayedPaint.setShader(trailShader(accent, light));
+        // The scrubber: a solid disc of the accent.
+        mScrubberPaint.setColor(accent);
+    }
+
+    /** The shade the played part fades back to, behind the current time. */
+    static int trailBehind(int accent, boolean light) {
+        return androidx.core.graphics.ColorUtils.blendARGB(accent, light ? 0xFFFFFFFF : 0xFF000000,
+                light ? 0.6f : 0.55f) | 0xFF000000;
     }
 
     /**
-     * NEWTUBE(accent): the played part's colours over {@code tailPx} ending at x = tailPx: the
-     * accent, its lighter shade, then white at the tip. Also the mini player's (MiniProgressDrawable).
+     * NEWTUBE(accent): the trail's colours over one unit of width - the darker/lighter shade at x=0,
+     * the accent at x=1 (the current time). The caller scales it to the played width. Also the mini
+     * player's (MiniProgressDrawable).
      */
-    static LinearGradient tipShader(int accent, int tail, float tailPx) {
-        int light = androidx.core.graphics.ColorUtils.blendARGB(tail, 0xFFFFFFFF, 0.55f);
-        return new LinearGradient(0f, 0f, tailPx, 0f,
-                new int[] {accent, tail, light, 0xFFFFFFFF},
-                new float[] {0f, 0.55f, 0.85f, 1f}, Shader.TileMode.CLAMP);
+    static LinearGradient trailShader(int accent, boolean light) {
+        return new LinearGradient(0f, 0f, 1f, 0f, trailBehind(accent, light), accent | 0xFF000000,
+                Shader.TileMode.CLAMP);
     }
 
-    /** NEWTUBE(accent): the scrubber's glow, this many times the old dot's radius. */
-    private static final float SCRUBBER_GLOW_SCALE = 1.7f;
     private final Paint mScrubberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-    private final android.graphics.Matrix mGlowMatrix = new android.graphics.Matrix();
 
     @Override
     protected void onAttachedToWindow() {
@@ -126,8 +123,6 @@ public class PlayerTimeBar extends View implements TimeBar {
     private static final float GAP_DRAGGING_DP = 3f;
     private static final float SCRUBBER_DP = 12f;
     private static final float SCRUBBER_DRAGGING_DP = 18f;
-    /** The pink tail of the played track, ending at the dot. */
-    private static final float TAIL_DP = 72f; // NEWTUBE(accent): a longer trail into the tip
     /*
      * Touch distances below are physical dp (the system density, not the app's UI scale): a finger
      * does not shrink with the UI.
@@ -180,7 +175,6 @@ public class PlayerTimeBar extends View implements TimeBar {
     private final StringBuilder mFormatBuilder = new StringBuilder();
     private final Formatter mFormatter = new Formatter(mFormatBuilder, Locale.getDefault());
     private final float mDensity;
-    private final float mTailPx;
 
     @Nullable
     private CancelListener mCancelListener;
@@ -258,7 +252,6 @@ public class PlayerTimeBar extends View implements TimeBar {
         super(context, attrs, defStyleAttr);
         mDensity = getResources().getDisplayMetrics().density;
         mTouchDensity = context.getApplicationContext().getResources().getConfiguration().densityDpi / 160f;
-        mTailPx = dp(TAIL_DP);
         applyAccent();
         setFocusable(true);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
@@ -491,10 +484,13 @@ public class PlayerTimeBar extends View implements TimeBar {
         float bufferedX = hasDuration ? Math.max(playedX, xFor(mBufferedPosition, left, right)) : left;
         int restAlpha = Math.round(255 * mShown);
 
-        if (com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext()) != mPlayedColor) {
+        if (com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext()) != mPlayedColor
+                || com.newtube.mobile.ui.common.ThemeMode.isLight(getContext()) != mPlayedLight) {
             applyAccent(); // NEWTUBE(accent): changed in Settings while this video played
         }
-        mTailMatrix.setTranslate(playedX - mTailPx, 0f);
+        // The trail's gradient spans the played part: accent at the current time.
+        mTailMatrix.setScale(Math.max(1f, playedX - left), 1f);
+        mTailMatrix.postTranslate(left, 0f);
         mPlayedPaint.getShader().setLocalMatrix(mTailMatrix);
 
         // The track, one piece per chapter: played, buffered, then the rest.
@@ -549,11 +545,7 @@ public class PlayerTimeBar extends View implements TimeBar {
             float restRadius = dp(SCRUBBER_DP) / 2f;
             float cx = Math.max(left + restRadius, Math.min(right - restRadius, playedX));
             float cy = (top + bottom) / 2f;
-            float glow = radius * SCRUBBER_GLOW_SCALE;
-            mGlowMatrix.setScale(glow, glow);
-            mGlowMatrix.postTranslate(cx, cy);
-            mScrubberPaint.getShader().setLocalMatrix(mGlowMatrix);
-            canvas.drawCircle(cx, cy, glow, mScrubberPaint);
+            canvas.drawCircle(cx, cy, radius, mScrubberPaint);
         }
     }
 

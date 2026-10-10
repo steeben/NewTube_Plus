@@ -139,6 +139,24 @@ final class MiniPlayerViews {
         mCardClips = card.getClipToOutline();
     }
 
+    /**
+     * The video-background bar's top corners: the video cards' (when theirs are rounded). Also run
+     * when the card is shown again, because the setting may have been switched meanwhile.
+     */
+    void refreshBarCorners() {
+        Context context = card.getContext();
+        if (style == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(context)) {
+            mTopRadiusPx = MiniPlayerStyle.CARD_CORNER_DP * context.getResources().getDisplayMetrics().density;
+            card.setOutlineProvider(mTopRoundedOutline);
+            card.setClipToOutline(true);
+            card.invalidateOutline();
+        } else if (card.getOutlineProvider() == mTopRoundedOutline) {
+            card.setOutlineProvider(mCardOutline);
+            card.setClipToOutline(mCardClips);
+            card.invalidateOutline();
+        }
+    }
+
     /** Lay the card and its children out for {@code style}, docked left or right if it is the card. */
     void applyStyle(int style, boolean cardLeft) {
         this.style = style;
@@ -189,16 +207,7 @@ final class MiniPlayerViews {
             materialCard.setCardElevation(bar ? 0f : 8f * density);
             materialCard.setCardBackgroundColor(style == MiniPlayerStyle.BAR ? Color.TRANSPARENT : Color.BLACK);
         }
-        // The video-background bar's top corners: the video cards' (when theirs are rounded).
-        if (style == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(context)) {
-            mTopRadiusPx = MiniPlayerStyle.CARD_CORNER_DP * density;
-            card.setOutlineProvider(mTopRoundedOutline);
-            card.setClipToOutline(true);
-            card.invalidateOutline();
-        } else if (card.getOutlineProvider() == mTopRoundedOutline) {
-            card.setOutlineProvider(mCardOutline);
-            card.setClipToOutline(mCardClips);
-        }
+        refreshBarCorners();
 
         // The plain bar's surface is the page colour, the same as the bottom navigation bar's.
         backdrop.setVisibility(style == MiniPlayerStyle.BAR ? View.VISIBLE : View.GONE);
@@ -428,7 +437,8 @@ final class MiniPlayerViews {
     void updateProgressColors() {
         Context context = card.getContext();
         mProgressDrawable.setColors(MiniPlayerStyle.accent(context), ContextCompat.getColor(context,
-                style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track));
+                style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track),
+                com.newtube.mobile.ui.common.ThemeMode.isLight(context));
     }
 
     /** Show play/pause's state: the pause icon while it plays. */

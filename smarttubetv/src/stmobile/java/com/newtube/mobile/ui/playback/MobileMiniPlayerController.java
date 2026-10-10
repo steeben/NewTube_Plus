@@ -425,6 +425,8 @@ public final class MobileMiniPlayerController {
         int style = MiniPlayerStyle.get(mActivity);
         if (style != mStyle || MiniPlayerStyle.isCardLeft(mActivity) != mCardLeft) {
             applyStyle(style);
+        } else {
+            mViews.refreshBarCorners(); // Rounded thumbnail corners may have been switched
         }
         updateText();
         mViews.setHasNext(MiniPlayerBridge.hasNext());

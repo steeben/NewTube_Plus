@@ -674,6 +674,11 @@ public class MobileBrowseActivity extends MobileActivity
             }
 
             @Override
+            public View ghostAbove() {
+                return mFrostedApplied ? mNavGlass : null;
+            }
+
+            @Override
             public void onSlideFrame(View incoming) {
                 // The glass bars keep showing what is under them as the pages move.
                 for (com.newtube.mobile.ui.common.BackdropBlurDrawable glass : new com.newtube.mobile.ui.common.BackdropBlurDrawable[] {
@@ -877,7 +882,17 @@ public class MobileBrowseActivity extends MobileActivity
                 navGlass.setLayoutParams(navGlassParams);
             }
         });
+        // The order, bottom to top: both glass views, the title bar's views, the bottom navigation
+        // (a tab slide's picture goes in over the glass but under these).
+        glass.bringToFront();
         navGlass.bringToFront();
+        for (int id : new int[] {R.id.mobile_title_back, R.id.mobile_title_bar, R.id.mobile_cast_button,
+                R.id.mobile_search_button}) {
+            View view = findViewById(id);
+            if (view != null) {
+                view.bringToFront();
+            }
+        }
         mBottomNav.bringToFront();
         View mini = findViewById(R.id.mobile_mini_player);
         if (mini != null) {

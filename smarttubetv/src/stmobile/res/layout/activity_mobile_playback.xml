@@ -91,8 +91,7 @@
                 <View
                     android:id="@+id/mobile_player_dim"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@color/mobile_player_controls_dim" />
+                    android:layout_height="match_parent" />
 
                 <View
                     android:id="@+id/mobile_player_top_scrim"

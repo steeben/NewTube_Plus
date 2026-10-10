@@ -61,6 +61,14 @@ final class TabSlider {
          * the picture sliding in beside the page, or null once there is none.
          */
         void onSlideFrame(@Nullable View incoming);
+
+        /**
+         * A view the picture goes over (the glass bars' views), or null. The picture is a copy of
+         * the window, so it already has the glass in it: put under the glass it would be tinted
+         * twice (darker along the bars' soft edges); over it, it shows as it was.
+         */
+        @Nullable
+        View ghostAbove();
     }
 
     private static final long SLIDE_MS = 280;
@@ -76,6 +84,9 @@ final class TabSlider {
 
     @Nullable
     private ImageView mGhost;
+    /** The picture of the tab that just landed, fading out over the real page. */
+    @Nullable
+    private ImageView mFading;
     /** The tab coming in, and from which side: 1 = from the right (a later tab), -1 = the left. */
     private int mTarget;
     private int mDirection;
@@ -118,7 +129,7 @@ final class TabSlider {
             int neighbour = neighbour(direction);
             if (mGhost != null) {
                 removeGhost();
-                resetPage();
+                resetPage(null);
             }
             if (neighbour == 0 || !begin(neighbour, direction)) {
                 // No tab that way: the page gives a little, then stops.
@@ -181,7 +192,14 @@ final class TabSlider {
         if (area.width() <= 0 || area.height() <= 0) {
             return false;
         }
-        copyPage(mHost.selectedTabId(), area);
+        if (mFading != null) {
+            // A tab was tapped again while the last picture is still fading: it is gone now.
+            mFading.animate().cancel();
+            mRoot.removeView(mFading);
+            mFading = null;
+        } else {
+            copyPage(mHost.selectedTabId(), area);
+        }
         mTarget = target;
         mDirection = direction;
         mProgress = 0f;
@@ -196,10 +214,15 @@ final class TabSlider {
             ghost.setImageBitmap(picture);
         }
         ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(area.width(), area.height());
-        // Over the page's views, under the bars (which come after them in the root).
+        // Over the page's views (and the glass's, see Host.ghostAbove), under the bars' contents
+        // (which come after them in the root).
         int at = 0;
         for (View view : mHost.pageViews()) {
             at = Math.max(at, mRoot.indexOfChild(view) + 1);
+        }
+        View above = mHost.ghostAbove();
+        if (above != null) {
+            at = Math.max(at, mRoot.indexOfChild(above) + 1);
         }
         mRoot.addView(ghost, Math.min(at, mRoot.getChildCount()), params);
         ghost.setX(area.left);
@@ -256,7 +279,8 @@ final class TabSlider {
     private void land(boolean arrived) {
         ImageView ghost = mGhost;
         mGhost = null;
-        resetPage();
+        // The glass keeps showing the picture until it has faded: the real page may not be there yet.
+        resetPage(arrived ? ghost : null);
         if (!arrived) {
             if (ghost != null) {
                 mRoot.removeView(ghost);
@@ -267,8 +291,18 @@ final class TabSlider {
         if (ghost != null) {
             // The picture stays a moment over the page that replaced it, and fades.
             ghost.setX(mHost.pageRect().left);
+            mFading = ghost;
             ghost.animate().alpha(0f).setStartDelay(60).setDuration(160)
-                    .withEndAction(() -> mRoot.removeView(ghost)).start();
+                    .setUpdateListener(a -> mHost.onSlideFrame(ghost))
+                    .withEndAction(() -> {
+                        mRoot.removeView(ghost);
+                        if (mFading == ghost) {
+                            mFading = null;
+                            if (mGhost == null) {
+                                mHost.onSlideFrame(null);
+                            }
+                        }
+                    }).start();
         }
     }
 
@@ -281,7 +315,7 @@ final class TabSlider {
             land(true);
         } else if (mGhost != null) {
             removeGhost();
-            resetPage();
+            resetPage(null);
         }
     }
 
@@ -292,12 +326,12 @@ final class TabSlider {
         }
     }
 
-    private void resetPage() {
+    private void resetPage(@Nullable View incoming) {
         for (View view : mHost.pageViews()) {
             view.animate().cancel();
             view.setTranslationX(0f);
         }
-        mHost.onSlideFrame(null);
+        mHost.onSlideFrame(incoming);
     }
 
     // ---------------------------------------------------------------------------------

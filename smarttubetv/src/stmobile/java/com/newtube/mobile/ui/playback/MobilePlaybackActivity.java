@@ -681,6 +681,11 @@ public class MobilePlaybackActivity extends MobileActivity
         mControlsRoot = findViewById(R.id.mobile_controls_root);
         mTopScrim = findViewById(R.id.mobile_player_top_scrim);
         mBottomScrim = findViewById(R.id.mobile_player_bottom_scrim);
+        // NEWTUBE(frosted): the dim under the controls is a vignette - full at the edges, clear centre.
+        View controlsDim = findViewById(R.id.mobile_player_dim);
+        if (controlsDim != null) {
+            controlsDim.setBackground(new VignetteDrawable(0x0F0F0F, 0xA6));
+        }
         mTitleView = findViewById(R.id.mobile_player_title);
         mBackButton = findViewById(R.id.mobile_player_back);
         mPlayPauseButton = findViewById(R.id.mobile_player_play_pause);

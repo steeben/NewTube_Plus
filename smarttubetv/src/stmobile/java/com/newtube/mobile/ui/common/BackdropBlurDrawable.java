@@ -185,7 +185,16 @@ public final class BackdropBlurDrawable extends Drawable {
                 recording.restore();
                 if (extra != null) {
                     recording.translate(ex, ey);
-                    extra.draw(recording);
+                    // A picture fading out (the tab slide's) is drawn as faint as it is.
+                    float extraAlpha = Math.max(0f, Math.min(1f, extra.getAlpha()));
+                    if (extraAlpha < 1f) {
+                        recording.saveLayerAlpha(0f, 0f, extra.getWidth(), extra.getHeight(),
+                                Math.round(255 * extraAlpha));
+                        extra.draw(recording);
+                        recording.restore();
+                    } else {
+                        extra.draw(recording);
+                    }
                 }
             } finally {
                 node.endRecording();
