@@ -30,6 +30,8 @@ public final class UiPrefs {
     public static final int LOGO_NONE = 0;
     public static final int LOGO_NEWTUBE = 1;
     public static final int LOGO_CUSTOM = 2;
+    /** A play triangle in a circle of the accent colour. */
+    public static final int LOGO_PLAY = 3;
     /** NEWTUBE(branding): the top bar's header text (in League Gothic). */
     public static final int HEADER_NONE = 0;
     public static final int HEADER_DEFAULT = 1;
@@ -50,6 +52,8 @@ public final class UiPrefs {
     private static final String KEY_ACCENT = "accent";
     private static final String KEY_AMBIENT = "ambient";
     private static final String KEY_FROSTED = "frosted_glass";
+    private static final String KEY_NAV_LABELS = "nav_labels";
+    private static final String KEY_DEFAULTS = "fresh_install_defaults";
     private static final String CUSTOM_LOGO_FILE = "brand_logo.png";
     private static final String KEY_FULL_WIDTH_THUMBS = "full_width_thumbnails";
     private static final String KEY_HIDE_CARD_MENU = "hide_card_menu";
@@ -78,7 +82,7 @@ public final class UiPrefs {
         if (logo == LOGO_CUSTOM && !customLogoFile(context).isFile()) {
             return LOGO_NONE; // the picked picture is gone
         }
-        return logo == LOGO_NEWTUBE || logo == LOGO_CUSTOM ? logo : LOGO_NONE;
+        return logo == LOGO_NEWTUBE || logo == LOGO_CUSTOM || logo == LOGO_PLAY ? logo : LOGO_NONE;
     }
 
     public static void setLogo(Context context, int logo) {
@@ -173,6 +177,40 @@ public final class UiPrefs {
     public static void setDownloadsInBottomBar(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_DOWNLOADS_TAB, on).apply();
         notifyChanged();
+    }
+
+    /** NEWTUBE(nav-labels): the bottom bar's tab names (on by default). */
+    public static boolean isNavLabels(Context context) {
+        return prefs(context).getBoolean(KEY_NAV_LABELS, true);
+    }
+
+    public static void setNavLabels(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_NAV_LABELS, on).apply();
+        notifyChanged();
+    }
+
+    /**
+     * NEWTUBE(defaults): a new install starts with the look this fork is meant to have - frosted
+     * glass, the ambient player (not in full screen), full-width cards with rounded corners and no
+     * more button, the play logo, and the video-background mini bar. Written once, on the first
+     * launch of a new install only: an install updated from an earlier version keeps what it had
+     * (the getters' own defaults are the earlier behaviour).
+     */
+    public static void applyFreshInstallDefaults(Context context, boolean existingInstall) {
+        SharedPreferences prefs = prefs(context);
+        if (prefs.getBoolean(KEY_DEFAULTS, false)) {
+            return;
+        }
+        SharedPreferences.Editor editor = prefs.edit().putBoolean(KEY_DEFAULTS, true);
+        if (!existingInstall) {
+            editor.putBoolean(KEY_FROSTED, true)
+                    .putInt(KEY_AMBIENT, AMBIENT_NOT_FULLSCREEN)
+                    .putBoolean(KEY_FULL_WIDTH_THUMBS, true)
+                    .putBoolean(KEY_ROUNDED_THUMBS, true)
+                    .putBoolean(KEY_HIDE_CARD_MENU, true)
+                    .putInt(KEY_LOGO, LOGO_PLAY);
+        }
+        editor.apply();
     }
 
     /** NEWTUBE(frosted): glass bars on Home and glass buttons on the watch page. */

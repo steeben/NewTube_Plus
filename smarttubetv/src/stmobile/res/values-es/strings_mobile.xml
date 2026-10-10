@@ -442,7 +442,7 @@
     <string name="mobile_appearance_accent_note">Barras de progreso, la pestaña seleccionada y los interruptores</string>
     <string name="mobile_appearance_apply">Aplicar</string>
     <string name="mobile_appearance_default">Predeterminado</string>
-    <string name="mobile_appearance_ambient">Modo ambiente</string>
+    <string name="mobile_appearance_ambient">Reproductor ambiental</string>
     <string name="mobile_appearance_ambient_off">Desactivado</string>
     <string name="mobile_appearance_ambient_on">Activado</string>
     <string name="mobile_appearance_ambient_not_fullscreen">Activado, salvo en pantalla completa</string>
@@ -452,6 +452,10 @@
     <string name="mobile_appearance_logo">Logotipo</string>
     <string name="mobile_appearance_logo_none">Ninguno</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>
+    <string name="mobile_appearance_logo_play">Reproducir</string>
+    <string name="mobile_appearance_bottom_bar">Barra inferior</string>
+    <string name="mobile_appearance_nav_labels">Nombres de pestañas</string>
+    <string name="mobile_appearance_nav_labels_summary">Muestra los nombres bajo los iconos de la barra inferior</string>
     <string name="mobile_appearance_logo_custom">Personalizado…</string>
     <string name="mobile_appearance_logo_failed">No se ha podido usar esa imagen</string>
     <string name="mobile_appearance_header">Texto del encabezado</string>

@@ -66,6 +66,14 @@ public final class MiniPlayerStyle {
         }
     }
 
+    /** NEWTUBE(defaults): a new install starts with the video-background bar (see UiPrefs). */
+    public static void applyFreshInstallDefault(Context context, boolean existingInstall) {
+        SharedPreferences prefs = prefs(context);
+        if (!existingInstall && !prefs.contains(KEY_STYLE)) {
+            prefs.edit().putInt(KEY_STYLE, BAR_VIDEO).apply();
+        }
+    }
+
     public static void set(Context context, int style) {
         prefs(context).edit().putInt(KEY_STYLE, style).apply();
     }

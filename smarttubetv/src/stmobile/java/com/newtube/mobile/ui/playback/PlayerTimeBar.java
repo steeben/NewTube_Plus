@@ -85,8 +85,18 @@ public class PlayerTimeBar extends View implements TimeBar {
                 : androidx.core.graphics.ColorUtils.blendARGB(accent, 0xFFFFFFFF, 0.3f);
         mPlayedColor = accent;
         mPlayedPaint.setColor(accent);
+        // The trail: the accent along the bar, warming into the tip's lighter shade over its last
+        // stretch, so the tip blends into the rest.
         mPlayedPaint.setShader(new LinearGradient(0f, 0f, mTailPx, 0f, accent, tail, Shader.TileMode.CLAMP));
+        // The glow: a unit circle's radial fade, placed and sized per frame (mGlowMatrix).
+        mGlowPaint.setShader(new android.graphics.RadialGradient(0f, 0f, 1f,
+                new int[] {(tail & 0x00FFFFFF) | 0x99000000, (accent & 0x00FFFFFF) | 0x40000000, accent & 0x00FFFFFF},
+                new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
     }
+
+    private static final float GLOW_DP = 9f;
+    private final Paint mGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.Matrix mGlowMatrix = new android.graphics.Matrix();
 
     @Override
     protected void onAttachedToWindow() {
@@ -101,7 +111,7 @@ public class PlayerTimeBar extends View implements TimeBar {
     private static final float SCRUBBER_DP = 12f;
     private static final float SCRUBBER_DRAGGING_DP = 18f;
     /** The pink tail of the played track, ending at the dot. */
-    private static final float TAIL_DP = 40f;
+    private static final float TAIL_DP = 72f; // NEWTUBE(accent): a longer trail into the tip
     /*
      * Touch distances below are physical dp (the system density, not the app's UI scale): a finger
      * does not shrink with the UI.
@@ -465,6 +475,9 @@ public class PlayerTimeBar extends View implements TimeBar {
         float bufferedX = hasDuration ? Math.max(playedX, xFor(mBufferedPosition, left, right)) : left;
         int restAlpha = Math.round(255 * mShown);
 
+        if (com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext()) != mPlayedColor) {
+            applyAccent(); // NEWTUBE(accent): changed in Settings while this video played
+        }
         mTailMatrix.setTranslate(playedX - mTailPx, 0f);
         mPlayedPaint.getShader().setLocalMatrix(mTailMatrix);
 
@@ -491,6 +504,17 @@ public class PlayerTimeBar extends View implements TimeBar {
             if (segmentLeft < playedRight) {
                 canvas.drawRect(segmentLeft, top, playedRight, bottom, mPlayedPaint);
             }
+        }
+
+        // NEWTUBE(accent): a soft glow on the played part's tip, in its own colour.
+        if (hasDuration && playedX > left) {
+            float glow = dp(GLOW_DP) * (1f + 0.4f * mDrag);
+            float cy = (top + bottom) / 2f;
+            mGlowMatrix.setScale(glow, glow);
+            mGlowMatrix.postTranslate(playedX, cy);
+            mGlowPaint.getShader().setLocalMatrix(mGlowMatrix);
+            mGlowPaint.setAlpha(Math.max(Math.round(255 * 0.6f), restAlpha));
+            canvas.drawCircle(playedX, cy, glow, mGlowPaint);
         }
 
         // SponsorBlock ranges, over the track and cut by the same chapter gaps.

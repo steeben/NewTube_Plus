@@ -207,7 +207,11 @@ public class MobileMainApplication extends MainApplication {
         // dark-only app (so nothing changes colour on update). "Upgrading" is read off this
         // migrations file BEFORE the one-shot migrations below write to it: every version since
         // 2026-07 leaves an entry on its first launch (ThemeMode.isExistingInstall).
-        ThemeMode.init(this, ThemeMode.isExistingInstall(this, migrations));
+        boolean existingInstall = ThemeMode.isExistingInstall(this, migrations);
+        ThemeMode.init(this, existingInstall);
+        // NEWTUBE(defaults): a new install's starting look (UiPrefs, MiniPlayerStyle).
+        com.newtube.mobile.ui.common.UiPrefs.applyFreshInstallDefaults(this, existingInstall);
+        com.newtube.mobile.ui.playback.MiniPlayerStyle.applyFreshInstallDefault(this, existingInstall);
         com.liskovsoft.smartyoutubetv2.common.app.presenters.settings.MainUISettingsPresenter.setPhoneTopRows(
                 (context, presenter) -> {
                     java.util.List<com.liskovsoft.smartyoutubetv2.common.app.models.playback.ui.OptionItem> options =

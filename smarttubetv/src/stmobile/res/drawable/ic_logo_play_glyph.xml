@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEWTUBE(branding): the play triangle of Appearance > Logo > Play (drawn over a circle in the
+     accent colour, BrowseTopBar). Rounded corners, nudged right of centre so it sits optically
+     centred in the circle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M9.6,7.4C9.6,6.62 10.45,6.14 11.12,6.54L17.22,10.14C17.88,10.53 17.88,11.47 17.22,11.86L11.12,15.46C10.45,15.86 9.6,15.38 9.6,14.6Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineJoin="round"
+        android:strokeWidth="0.6" />
+</vector>

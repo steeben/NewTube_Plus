@@ -415,6 +415,8 @@ public final class MobileMiniPlayerController {
             applyStyle(style);
         }
         updateText();
+        // NEWTUBE(accent): the progress line in the accent, which may have changed since.
+        mProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(MiniPlayerStyle.accent(mActivity)));
 
         mEntryAnimating = animateFromPlayer;
         mTextureHasFrame = false;

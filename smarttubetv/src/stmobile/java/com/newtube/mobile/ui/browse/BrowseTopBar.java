@@ -107,6 +107,9 @@ final class BrowseTopBar {
                 case com.newtube.mobile.ui.common.UiPrefs.LOGO_CUSTOM:
                     mark = customLogo(context);
                     break;
+                case com.newtube.mobile.ui.common.UiPrefs.LOGO_PLAY:
+                    mark = playLogo(context);
+                    break;
                 default:
                     break;
             }
@@ -118,6 +121,16 @@ final class BrowseTopBar {
         mTitle.setCompoundDrawablesRelative(mark, null, null, null);
         CharSequence text = mTitle.getText();
         mTitle.setCompoundDrawablePadding(text != null && text.length() > 0 ? Math.round(8 * density) : 0);
+    }
+
+    /** NEWTUBE(branding): a play triangle on a circle of the accent colour. */
+    static android.graphics.drawable.Drawable playLogo(android.content.Context context) {
+        android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+        circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        circle.setColor(com.newtube.mobile.ui.common.UiPrefs.getAccent(context));
+        android.graphics.drawable.Drawable glyph = androidx.core.content.ContextCompat.getDrawable(context,
+                R.drawable.ic_logo_play_glyph);
+        return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[] {circle, glyph});
     }
 
     /** The user's picture, read again only when it changed. Rounded like the NewTube icon. */

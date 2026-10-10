@@ -223,6 +223,7 @@ public class MobileBrowseActivity extends MobileActivity
         // translucent player. The final zero-duration reorder only hands the live texture to the
         // mini card; ordinary navigation still uses BrowseWindowAnimation's quick fade.
 
+        mFrostedApplied = com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this); // before the insets
         setContentView(R.layout.activity_mobile_browse);
 
         registerBackHandler(this::handleBack);
@@ -230,7 +231,6 @@ public class MobileBrowseActivity extends MobileActivity
         bindViews();
         setupContentGrid();
         setupBottomNav();
-        mFrostedApplied = com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this);
         if (mFrostedApplied) {
             applyFrostedBars();
         }
@@ -550,6 +550,13 @@ public class MobileBrowseActivity extends MobileActivity
 
     /** NEWTUBE(frosted): this screen was laid out with the feed under glass bars. */
     private boolean mFrostedApplied;
+    /** NEWTUBE(frosted): the status bar's height, which the glass top bar now reaches up under. */
+    private int mStatusInset;
+
+    @Override
+    protected boolean shouldInsetContentForStatusBar() {
+        return !mFrostedApplied;
+    }
 
     /**
      * NEWTUBE(frosted): Settings > Appearance > Frosted glass. The feed runs the whole height of the
@@ -571,7 +578,7 @@ public class MobileBrowseActivity extends MobileActivity
         swipe.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
         mContentSwipe.setLayoutParams(swipe);
 
-        int titleHeight = getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height);
+        final int titleHeight = getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height);
         int page = getResources().getColor(R.color.mobile_color_background);
         int tint = (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
 
@@ -614,12 +621,18 @@ public class MobileBrowseActivity extends MobileActivity
                 }
                 int spans = mLayoutManager != null ? mLayoutManager.getSpanCount() : 1;
                 if (position < spans) {
-                    outRect.top += titleHeight;
+                    outRect.top += titleHeight + mStatusInset;
                 }
                 if (position >= state.getItemCount() - spans) {
                     outRect.bottom += mBottomNav.getHeight();
                 }
             }
+        });
+        // A tab change shows or hides what is under the glass (the You panel, an empty feed): the
+        // glass is drawn again after any layout, not only on a scroll.
+        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            glass.invalidate();
+            mBottomNav.invalidate();
         });
         mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (b - t != ob - ot) {
@@ -627,6 +640,30 @@ public class MobileBrowseActivity extends MobileActivity
             }
         });
         float density = getResources().getDisplayMetrics().density;
+        // The status bar is ours now (shouldInsetContentForStatusBar): the top bar's buttons and
+        // title move down by its height, its glass reaches up under it, and so does everything else
+        // that hung from the top.
+        View[] topRow = {findViewById(R.id.mobile_title_back), title, findViewById(R.id.mobile_cast_button),
+                findViewById(R.id.mobile_search_button)};
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            int top = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()
+                    | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).top;
+            if (top != mStatusInset) {
+                mStatusInset = top;
+                for (View item : topRow) {
+                    if (item != null && item.getLayoutParams() instanceof android.view.ViewGroup.MarginLayoutParams) {
+                        ((android.view.ViewGroup.MarginLayoutParams) item.getLayoutParams()).topMargin = top;
+                        item.requestLayout();
+                    }
+                }
+                glassParams.height = titleHeight + top;
+                glass.setLayoutParams(glassParams);
+                mContentSwipe.setProgressViewOffset(false, titleHeight + top - Math.round(40 * density),
+                        titleHeight + top + Math.round(24 * density));
+                mContentGrid.invalidateItemDecorations();
+            }
+            return insets;
+        });
         mContentSwipe.setProgressViewOffset(false, titleHeight - Math.round(40 * density),
                 titleHeight + Math.round(24 * density));
         // The glass shows what is under it: draw it again as the feed moves.
@@ -639,20 +676,24 @@ public class MobileBrowseActivity extends MobileActivity
         });
     }
 
-    /** NEWTUBE(accent): the selected tab's icon in the user's accent; the rest, and the labels, as before. */
-    private void applyNavAccent() {
+    /**
+     * NEWTUBE(nav-labels): Settings > Appearance > Bottom bar labels - the tab names under the icons,
+     * or the icons alone. (The icons stay monochrome: the selected tab shows by its filled icon.)
+     */
+    private void applyNavLabels() {
         if (mBottomNav == null) {
             return;
         }
-        int normal = getResources().getColor(R.color.mobile_color_on_surface);
-        int accent = com.newtube.mobile.ui.common.UiPrefs.getAccent(this);
-        mBottomNav.setItemIconTintList(new android.content.res.ColorStateList(
-                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                new int[] {accent == com.newtube.mobile.ui.common.UiPrefs.DEFAULT_ACCENT ? normal : accent, normal}));
+        int mode = com.newtube.mobile.ui.common.UiPrefs.isNavLabels(this)
+                ? com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_LABELED
+                : com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_UNLABELED;
+        if (mBottomNav.getLabelVisibilityMode() != mode) {
+            mBottomNav.setLabelVisibilityMode(mode);
+        }
     }
 
     private void setupBottomNav() {
-        applyNavAccent();
+        applyNavLabels();
         mBottomNav.setOnItemSelectedListener(item -> {
             if (!mSuppressNavCallback) {
                 onNavItemChosen(item.getItemId());
@@ -1564,7 +1605,7 @@ public class MobileBrowseActivity extends MobileActivity
         }
         // NEWTUBE(ui-options): Branding and the Playlists tab may have changed in Settings.
         mTopBar.applyBranding();
-        applyNavAccent();
+        applyNavLabels();
         // (a bit per tab whose place is a choice: Playlists, Downloads)
         int tabs = (com.newtube.mobile.ui.common.UiPrefs.isPlaylistsInBottomBar(this) ? 1 : 0)
                 | (com.newtube.mobile.ui.common.UiPrefs.isDownloadsInBottomBar(this) ? 2 : 0);

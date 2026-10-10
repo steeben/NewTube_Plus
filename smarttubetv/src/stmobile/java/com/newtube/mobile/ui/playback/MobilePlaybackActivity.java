@@ -182,6 +182,8 @@ public class MobilePlaybackActivity extends MobileActivity
     /** NEWTUBE(ambient): the video's colours around the player (Settings > Appearance). */
     @Nullable
     private AmbientMode mAmbient;
+    /** NEWTUBE(ambient): a morph is bringing the page in; the status bar's glow comes after it. */
+    private boolean mAmbientWaitsForPage;
     private TextView mZoomHintView;
     private DoubleTapPlayerViewImpl mPlayerView;
     private YouTubeOverlay mYouTubeOverlay;
@@ -1473,6 +1475,12 @@ public class MobilePlaybackActivity extends MobileActivity
         // it the whole time, so no surface change, no codec re-init, no frozen frames. The card
         // captured its last frame for us; it covers the 1-2 frames until the texture paints.
         boolean fromMini = MiniPlayerBridge.isActive();
+        // NEWTUBE(ambient): coming back from the mini player the page grows in first; the status
+        // bar's glow waits for it (resetMorph fades it in) instead of showing under the morph.
+        mAmbientWaitsForPage = fromMini || launch != null;
+        if (mAmbientWaitsForPage && mAmbient != null) {
+            mAmbient.hideBand();
+        }
         boolean miniCrop = fromMini && MiniPlayerBridge.isMiniBoundsCropped(); // NEWTUBE(mini-style)
         Rect miniBounds = fromMini ? MiniPlayerBridge.takeMiniBounds() : null;
         if (fromMini) {
@@ -2399,7 +2407,7 @@ public class MobilePlaybackActivity extends MobileActivity
 
         if (mAmbient != null) {
             mAmbient.apply(orientation); // NEWTUBE(ambient): over the backgrounds just set
-            if (mMorphFraction <= 0f && mMorphAnimator == null) {
+            if (mMorphFraction <= 0f && mMorphAnimator == null && !mAmbientWaitsForPage) {
                 mAmbient.showBand();
             }
         }
@@ -5385,6 +5393,12 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mBarNavHeight;
     /** The bar lands with rounded top corners (the video-background bar, see MiniPlayerStyle). */
     private boolean mBarRoundedTop;
+    /**
+     * The video-background bar fills itself with the video (cropped): a narrower video - 4:3, or
+     * upright - grows to the box's width over the slide, so its side bars go as it lands instead
+     * of vanishing in one frame at the hand-off.
+     */
+    private boolean mBarZoomContent;
     /** The slide runs from the bar up (an expand), not down onto it: the navigation's curve flips. */
     private boolean mBarExpanding;
     /** The navigation stays put for this share of the slide's start, either way. */
@@ -5466,6 +5480,7 @@ public class MobilePlaybackActivity extends MobileActivity
         MiniPlayerBridge.MiniHost navHost = MiniPlayerBridge.getMiniHost();
         mBarNavHeight = navHost != null ? navHost.getBottomBarHeightPx() : 0;
         mBarRoundedTop = MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(this);
+        mBarZoomContent = MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO;
         showBarChrome(barTop, barHeight);
         mBarVideo.set(video);
         mBarTop = barTop;
@@ -5512,6 +5527,9 @@ public class MobilePlaybackActivity extends MobileActivity
         mVideoArea.setTranslationZ(0f);
         mOutlineCropLocalPx = cropLocal;
         mOutlineTopRadiusPx = mBarRoundedTop ? MiniPlayerStyle.CARD_CORNER_DP * density * down / scale : 0f;
+        if (mBarZoomContent) {
+            setContentZoom(settled);
+        }
         applyMorphCorners(settled, scale, density);
 
         // Home's bottom navigation slides back up as the video comes down onto it (and away under
@@ -5564,6 +5582,20 @@ public class MobilePlaybackActivity extends MobileActivity
             mBarChrome.card.setAlpha(Math.max(0f, Math.min(1f,
                     (settled - (1f - BAR_CHROME_FADE)) / BAR_CHROME_FADE)));
         }
+    }
+
+    /** See {@link #mBarZoomContent}: the video's own frame grown {@code f} of the way to the box's width. */
+    private void setContentZoom(float f) {
+        View content = mPlayerView != null ? mPlayerView.getContentFrame() : null;
+        if (content == null) {
+            return;
+        }
+        float zoom = 1f;
+        if (f > 0f && content.getWidth() > 0 && mVideoArea != null) {
+            zoom = 1f + (Math.max(1f, mVideoArea.getWidth() / (float) content.getWidth()) - 1f) * f;
+        }
+        content.setScaleX(zoom);
+        content.setScaleY(zoom);
     }
 
     /** See {@link #mBarChrome}: a fresh mini player, styled like the host's, without its video. */
@@ -5887,6 +5919,10 @@ public class MobilePlaybackActivity extends MobileActivity
             }
         }
         mOutlineTopRadiusPx = 0f;
+        if (mBarZoomContent) {
+            mBarZoomContent = false;
+            setContentZoom(0f);
+        }
         disarmExpandWatchdog();
         MiniPlayerBridge.detachExpandDrag(mExpandDrag);
         removeBarChrome();
@@ -5913,6 +5949,7 @@ public class MobilePlaybackActivity extends MobileActivity
             mCommentsPanel.setMorphAlpha(1f);
         }
         if (mAmbient != null && !isFinishing()) {
+            mAmbientWaitsForPage = false;
             mAmbient.showBand(); // NEWTUBE(ambient): the page is open again
         }
     }

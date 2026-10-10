@@ -354,9 +354,10 @@ final class AmbientMode {
                 return;
             }
             scroll.getLocationInWindow(mOffset);
-            // A view's background is drawn at its scroll offset: stay put on the screen.
-            float x = mOffset[0] - scroll.getScrollX();
-            float y = mOffset[1] - scroll.getScrollY();
+            // A view's background is drawn where the view sits, whatever its scroll (View#draw
+            // undoes the scroll for it), so the glow stays put under the video as the page scrolls.
+            float x = mOffset[0];
+            float y = mOffset[1];
             canvas.save();
             canvas.clipRect(bounds);
             drawGlow(canvas, x, y, Math.round(255 * strength() * mAlpha / 255f));

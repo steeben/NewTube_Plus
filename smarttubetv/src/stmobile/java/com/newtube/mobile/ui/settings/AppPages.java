@@ -72,16 +72,7 @@ final class AppPages {
                 context.getString(R.string.mobile_settings_24_hour_summary),
                 generalData::is24HourLocaleEnabled, generalData::set24HourLocaleEnabled).needsRestart());
 
-        // NEWTUBE(ui-options): how the feeds' video cards look (UiPrefs).
-        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_video_cards)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_full_width_thumbs),
-                context.getString(R.string.mobile_settings_full_width_thumbs_summary),
-                () -> UiPrefs.isFullWidthThumbnails(context), on -> UiPrefs.setFullWidthThumbnails(context, on)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_rounded_thumbs), null,
-                () -> UiPrefs.isRoundedThumbnails(context), on -> UiPrefs.setRoundedThumbnails(context, on)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_card_menu),
-                context.getString(R.string.mobile_settings_card_menu_summary),
-                () -> !UiPrefs.isCardMenuHidden(context), on -> UiPrefs.setCardMenuHidden(context, !on)));
+        addVideoCardRows(context, rows); // NEWTUBE(ui-options), also under Appearance
 
         return new SettingsPages.Page(context.getString(R.string.mobile_settings_general), rows);
     }
@@ -124,7 +115,31 @@ final class AppPages {
                 () -> headerSummary(context),
                 page -> showHeaderDialog(page)));
 
+        // NEWTUBE(nav-labels): the bottom bar, with or without its tab names.
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_appearance_bottom_bar)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_appearance_nav_labels),
+                context.getString(R.string.mobile_appearance_nav_labels_summary),
+                () -> UiPrefs.isNavLabels(context), on -> UiPrefs.setNavLabels(context, on)));
+
+        // Also in Playback (where it was first), and General's video card options.
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_mini_player)));
+        rows.add(PlayerPages.miniPlayerStyleRow(context));
+        addVideoCardRows(context, rows);
+
         return new SettingsPages.Page(context.getString(R.string.mobile_appearance), rows);
+    }
+
+    /** NEWTUBE(ui-options): how the feeds' video cards look (UiPrefs) - in General and in Appearance. */
+    private static void addVideoCardRows(Context context, List<SettingsRow> rows) {
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_video_cards)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_full_width_thumbs),
+                context.getString(R.string.mobile_settings_full_width_thumbs_summary),
+                () -> UiPrefs.isFullWidthThumbnails(context), on -> UiPrefs.setFullWidthThumbnails(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_rounded_thumbs), null,
+                () -> UiPrefs.isRoundedThumbnails(context), on -> UiPrefs.setRoundedThumbnails(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_card_menu),
+                context.getString(R.string.mobile_settings_card_menu_summary),
+                () -> !UiPrefs.isCardMenuHidden(context), on -> UiPrefs.setCardMenuHidden(context, !on)));
     }
 
     /** NEWTUBE(oled): System default / Light / Dark / System default (OLED) / OLED. */
@@ -142,6 +157,7 @@ final class AppPages {
 
     private static int logoLabel(int logo) {
         return logo == UiPrefs.LOGO_NEWTUBE ? R.string.mobile_appearance_logo_newtube
+                : logo == UiPrefs.LOGO_PLAY ? R.string.mobile_appearance_logo_play
                 : logo == UiPrefs.LOGO_CUSTOM ? R.string.mobile_appearance_logo_custom
                 : R.string.mobile_appearance_logo_none;
     }
@@ -149,7 +165,7 @@ final class AppPages {
     /** None / NewTube / Custom… (a picture from the phone, BrandLogoPickActivity). */
     private static void showLogoDialog(SettingsPageFragment page) {
         Context context = page.requireContext();
-        int[] logos = {UiPrefs.LOGO_NONE, UiPrefs.LOGO_NEWTUBE, UiPrefs.LOGO_CUSTOM};
+        int[] logos = {UiPrefs.LOGO_NONE, UiPrefs.LOGO_NEWTUBE, UiPrefs.LOGO_PLAY, UiPrefs.LOGO_CUSTOM};
         CharSequence[] labels = new CharSequence[logos.length];
         int checked = 0;
         for (int i = 0; i < logos.length; i++) {

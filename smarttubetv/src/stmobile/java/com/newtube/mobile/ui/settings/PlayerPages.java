@@ -57,6 +57,21 @@ final class PlayerPages {
     // Playback
     // ---------------------------------------------------------------------------------------------
 
+    /** NEWTUBE(mini-style): how a minimized video docks - in Playback and in Appearance. */
+    static SettingsRow miniPlayerStyleRow(Context context) {
+        return SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_mini_style))
+                .option(context.getString(R.string.mobile_settings_mini_style_card),
+                        context.getString(R.string.mobile_settings_mini_style_card_desc), MiniPlayerStyle.CARD)
+                .option(context.getString(R.string.mobile_settings_mini_style_card_gesture),
+                        context.getString(R.string.mobile_settings_mini_style_card_gesture_desc),
+                        MiniPlayerStyle.CARD_GESTURE)
+                .option(context.getString(R.string.mobile_settings_mini_style_bar),
+                        context.getString(R.string.mobile_settings_mini_style_bar_desc), MiniPlayerStyle.BAR)
+                .option(context.getString(R.string.mobile_settings_mini_style_bar_video),
+                        context.getString(R.string.mobile_settings_mini_style_bar_video_desc), MiniPlayerStyle.BAR_VIDEO)
+                .bind(() -> MiniPlayerStyle.get(context), style -> MiniPlayerStyle.set(context, style));
+    }
+
     static SettingsPages.Page playback(Context context) {
         List<SettingsRow> rows = new ArrayList<>();
         PlayerData playerData = PlayerData.instance(context);
@@ -164,17 +179,7 @@ final class PlayerPages {
         // NEWTUBE(mini-style): how a minimized video docks (MiniPlayerStyle); applies to the next
         // minimize, and to a mini player already docked when its screen comes back.
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_mini_player)));
-        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_mini_style))
-                .option(context.getString(R.string.mobile_settings_mini_style_card),
-                        context.getString(R.string.mobile_settings_mini_style_card_desc), MiniPlayerStyle.CARD)
-                .option(context.getString(R.string.mobile_settings_mini_style_card_gesture),
-                        context.getString(R.string.mobile_settings_mini_style_card_gesture_desc),
-                        MiniPlayerStyle.CARD_GESTURE)
-                .option(context.getString(R.string.mobile_settings_mini_style_bar),
-                        context.getString(R.string.mobile_settings_mini_style_bar_desc), MiniPlayerStyle.BAR)
-                .option(context.getString(R.string.mobile_settings_mini_style_bar_video),
-                        context.getString(R.string.mobile_settings_mini_style_bar_video_desc), MiniPlayerStyle.BAR_VIDEO)
-                .bind(() -> MiniPlayerStyle.get(context), style -> MiniPlayerStyle.set(context, style)));
+        rows.add(miniPlayerStyleRow(context));
 
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_watch_page)));
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_hide_related),

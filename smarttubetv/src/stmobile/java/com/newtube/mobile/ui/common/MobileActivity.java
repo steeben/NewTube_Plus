@@ -176,7 +176,7 @@ public abstract class MobileActivity extends MotherActivity {
                 Insets insets = windowInsets.getInsets(
                         WindowInsetsCompat.Type.systemBars()
                                 | WindowInsetsCompat.Type.displayCutout());
-                view.setPadding(insets.left, insets.top, insets.right,
+                view.setPadding(insets.left, shouldInsetContentForStatusBar() ? insets.top : 0, insets.right,
                         shouldInsetContentForNavigationBar() ? insets.bottom : 0);
             } else {
                 view.setPadding(0, 0, 0, 0);
@@ -188,6 +188,14 @@ public abstract class MobileActivity extends MotherActivity {
 
     /** Override for a screen that intentionally draws behind hidden system bars. */
     protected boolean shouldInsetContentForSystemBars() {
+        return true;
+    }
+
+    /**
+     * NEWTUBE(frosted): a screen whose top bar is glass draws under the status bar too, and keeps
+     * its own content below it.
+     */
+    protected boolean shouldInsetContentForStatusBar() {
         return true;
     }
 

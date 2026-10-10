@@ -78,7 +78,7 @@ public final class ThemeMode {
     public static void init(@NonNull Application app, boolean existingInstall) {
         SharedPreferences prefs = prefs(app);
         if (!prefs.contains(KEY_MODE)) {
-            int initial = existingInstall ? DARK : SYSTEM;
+            int initial = existingInstall ? DARK : SYSTEM_OLED; // NEWTUBE(defaults): black on the dark side
             prefs.edit().putInt(KEY_MODE, initial).apply();
             NetPath.log("theme default mode=" + name(initial) + " existing=" + (existingInstall ? "y" : "n"));
         }
