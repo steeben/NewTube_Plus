@@ -308,6 +308,7 @@ final class MiniPlayerViews {
 
         progress.setProgressBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
                 style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track)));
+        progress.setProgressTintList(ColorStateList.valueOf(MiniPlayerStyle.accent(context)));
 
         card.requestLayout();
     }
