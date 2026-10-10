@@ -1519,10 +1519,17 @@ public class MobilePlaybackActivity extends MobileActivity
                 if (barSlide) {
                     // The bar's title and buttons are ours now (mBarChrome, fading out as the video
                     // leaves the bar): the host's bar folds under our first frame, and the page
-                    // rises from where the bar is.
+                    // rises from the bar - under the finger, if the bar was pulled up.
+                    boolean pulled = MiniPlayerBridge.hasPendingExpandDrag();
                     FrameGate.afterNextFrame(mContainer, HOST_CARD_FOLD_WAIT_MS,
                             () -> MiniPlayerBridge.foldHostCard(() -> {
-                                if (!isFinishing() && !isDestroyed() && mMorphAnimator == null) {
+                                if (isFinishing() || isDestroyed() || mMorphAnimator != null) {
+                                    return;
+                                }
+                                if (pulled) {
+                                    armExpandWatchdog();
+                                    MiniPlayerBridge.attachExpandDrag(mExpandDrag);
+                                } else {
                                     animateMorph(0f, 340, Motion.EMPHASIZED, this::resetMorph);
                                 }
                             }));
@@ -5279,6 +5286,8 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mMorphOutlineFraction;
     /** NEWTUBE(mini-style): what the outline cuts off the top and the bottom of the box right now. */
     private float mOutlineCropLocalPx;
+    /** NEWTUBE(mini-style): the outline's top corners only (the video-background bar), local px. */
+    private float mOutlineTopRadiusPx;
     @Nullable
     private android.view.ViewOutlineProvider mVideoAreaOutline;
     private final android.view.ViewOutlineProvider mMorphOutline = new android.view.ViewOutlineProvider() {
@@ -5287,6 +5296,15 @@ public class MobilePlaybackActivity extends MobileActivity
             int height = view.getHeight();
             int crop = Math.round(Math.min(height / 2f - 1f, Math.max(0f, mOutlineCropLocalPx)));
             crop = Math.max(0, crop);
+            if (mOutlineTopRadiusPx > 0f && android.os.Build.VERSION.SDK_INT >= 33) {
+                // NEWTUBE(mini-style): the video-background bar's rounded top (a path clips from 13).
+                android.graphics.Path path = new android.graphics.Path();
+                float r = mOutlineTopRadiusPx;
+                path.addRoundRect(0, crop, view.getWidth(), height - crop, new float[] {r, r, r, r, 0, 0, 0, 0},
+                        android.graphics.Path.Direction.CW);
+                outline.setPath(path);
+                return;
+            }
             outline.setRoundRect(0, crop, view.getWidth(), height - crop, mMorphCornerLocalPx);
         }
     };
@@ -5326,6 +5344,59 @@ public class MobilePlaybackActivity extends MobileActivity
     private MiniPlayerViews mBarChrome;
     /** The share of the slide, at its end, over which the bar's title and buttons fade. */
     private static final float BAR_CHROME_FADE = 0.3f;
+    /** The host's bottom navigation height (0: none), which slides away under the moving page. */
+    private float mBarNavHeight;
+    /** The bar lands with rounded top corners (the video-background bar, see MiniPlayerStyle). */
+    private boolean mBarRoundedTop;
+    /**
+     * NEWTUBE(mini-style): a host bar pulled up hands its finger to this player: the slide runs
+     * backwards under it, then settles open (or, let go early, back into the bar).
+     */
+    private final MiniPlayerBridge.ExpandDrag mExpandDrag = new MiniPlayerBridge.ExpandDrag() {
+        @Override
+        public void onExpandDrag(float liftPx) {
+            if (!mBarSlide || mMorphAnimator != null) {
+                return;
+            }
+            armExpandWatchdog();
+            applyMorph(Math.max(0f, 1f - liftPx / Math.max(1f, mBarTravelPx)));
+        }
+
+        @Override
+        public void onExpandDragEnd(float velocityY, boolean cancelled) {
+            disarmExpandWatchdog();
+            MiniPlayerBridge.detachExpandDrag(this);
+            if (!mBarSlide || isFinishing() || isDestroyed()) {
+                return;
+            }
+            float flick = MINIMIZE_FLICK_DP * getResources().getDisplayMetrics().density;
+            boolean open = cancelled || velocityY < -flick || (velocityY <= flick && mMorphFraction < 0.85f);
+            mDragTravelPx = Math.max(1f, mBarTravelPx);
+            if (open) {
+                settleMorph(0f, velocityY, MobilePlaybackActivity.this::resetMorph);
+            } else {
+                // Let go near the bar: back into it, as a minimize.
+                mDismissDragActive = true;
+                updatePipActions();
+                settleMorph(1f, velocityY, MobilePlaybackActivity.this::minimizeByDrag);
+            }
+        }
+    };
+    /** No word from the host for a while mid-pull (its touch went quiet): open. */
+    private final Runnable mExpandWatchdog = () -> mExpandDrag.onExpandDragEnd(0f, true);
+
+    private void armExpandWatchdog() {
+        if (mContainer != null) {
+            mContainer.removeCallbacks(mExpandWatchdog);
+            mContainer.postDelayed(mExpandWatchdog, 800);
+        }
+    }
+
+    private void disarmExpandWatchdog() {
+        if (mContainer != null) {
+            mContainer.removeCallbacks(mExpandWatchdog);
+        }
+    }
     @Nullable
     private View mWatchArea;
 
@@ -5349,6 +5420,9 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         mBarSlide = true;
         mBarClipBottom = clipBottom;
+        MiniPlayerBridge.MiniHost navHost = MiniPlayerBridge.getMiniHost();
+        mBarNavHeight = navHost != null ? navHost.getBottomBarHeightPx() : 0;
+        mBarRoundedTop = MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(this);
         showBarChrome(barTop, barHeight);
         mBarVideo.set(video);
         mBarTop = barTop;
@@ -5394,14 +5468,23 @@ public class MobilePlaybackActivity extends MobileActivity
         mVideoArea.setTranslationY(bandTop - cropLocal * scale - video.top);
         mVideoArea.setTranslationZ(0f);
         mOutlineCropLocalPx = cropLocal;
+        mOutlineTopRadiusPx = mBarRoundedTop ? MiniPlayerStyle.CARD_CORNER_DP * density * down / scale : 0f;
         applyMorphCorners(settled, scale, density);
 
-        // The page under the video goes down with it, cut at the bar's bottom edge so Home's
-        // navigation row stays in sight.
+        // Home's bottom navigation slides back up as the video comes down onto it (and away under
+        // the page as it goes up): the page is cut at the navigation's moving top.
+        float reveal = Math.max(0f, Math.min(1f, (down - 0.6f) / 0.4f));
+        MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
+        if (host != null && mBarNavHeight > 0f) {
+            host.setBottomBarReveal(reveal);
+        }
+        float clipBottom = mBarClipBottom + (1f - reveal) * mBarNavHeight;
+
+        // The page under the video goes down with it.
         if (mWatchArea != null) {
             float areaShift = bandBottom - video.bottom;
             mWatchArea.setTranslationY(areaShift);
-            int visible = Math.round(mBarClipBottom - (mBarAreaTop + areaShift));
+            int visible = Math.round(clipBottom - (mBarAreaTop + areaShift));
             mWatchArea.setClipBounds(new Rect(0, 0, mWatchArea.getWidth(),
                     Math.max(0, Math.min(mWatchArea.getHeight(), visible))));
         }
@@ -5424,6 +5507,8 @@ public class MobilePlaybackActivity extends MobileActivity
             mCommentsPanel.setMorphAlpha(1f);
         }
         if (mBarChrome != null) {
+            // The title and buttons ride on the moving video, fading in as it lands.
+            mBarChrome.card.setTranslationY(bandTop + (bandHeight - mBarHeight) / 2f);
             mBarChrome.card.setAlpha(Math.max(0f, Math.min(1f,
                     (settled - (1f - BAR_CHROME_FADE)) / BAR_CHROME_FADE)));
         }
@@ -5462,7 +5547,7 @@ public class MobilePlaybackActivity extends MobileActivity
             chrome.title.setText(video != null ? video.getTitle() : null);
             chrome.channel.setText(video != null ? video.getAuthor() : null);
             boolean playing = mPlayer != null && mPlayer.getPlayWhenReady();
-            chrome.playPause.setImageResource(playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
+            chrome.setPlaying(playing);
             if (mPlayer != null && mPlayer.getDuration() > 0) {
                 chrome.progress.setProgress((int) (mPlayer.getCurrentPosition() * 1000 / mPlayer.getDuration()));
             }
@@ -5743,7 +5828,14 @@ public class MobilePlaybackActivity extends MobileActivity
                 mWatchArea.setTranslationY(0f);
                 mWatchArea.setClipBounds(null);
             }
+            MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
+            if (host != null) {
+                host.setBottomBarReveal(1f); // in place again (under us, or in sight once docked)
+            }
         }
+        mOutlineTopRadiusPx = 0f;
+        disarmExpandWatchdog();
+        MiniPlayerBridge.detachExpandDrag(mExpandDrag);
         removeBarChrome();
         mVideoArea.setScaleX(1f);
         mVideoArea.setScaleY(1f);

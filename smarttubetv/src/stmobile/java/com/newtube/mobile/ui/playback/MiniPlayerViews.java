@@ -8,7 +8,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.InsetDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.TextureView;
@@ -59,10 +58,34 @@ final class MiniPlayerViews {
 
     @Nullable
     private FrostedScrimDrawable mTitleFrost;
+    /** The video-background bar's play/pause and close: icons of frosted glass. */
     @Nullable
-    private FrostedScrimDrawable mPlayFrost;
+    private FrostedIconDrawable mPlayIcon;
     @Nullable
-    private FrostedScrimDrawable mCloseFrost;
+    private FrostedIconDrawable mCloseIcon;
+    private boolean mPlaying = true;
+    /** The card's own outline and clipping, put back when the rounded-top bar is left. */
+    private final android.view.ViewOutlineProvider mCardOutline;
+    private final boolean mCardClips;
+    private float mTopRadiusPx;
+    private final android.view.ViewOutlineProvider mTopRoundedOutline = new android.view.ViewOutlineProvider() {
+        @Override
+        public void getOutline(View view, android.graphics.Outline outline) {
+            int width = view.getWidth();
+            int height = view.getHeight();
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                android.graphics.Path path = new android.graphics.Path();
+                float r = mTopRadiusPx;
+                path.addRoundRect(0, 0, width, height, new float[] {r, r, r, r, 0, 0, 0, 0},
+                        android.graphics.Path.Direction.CW);
+                outline.setPath(path);
+            } else {
+                // Before Android 13 only a rounded rectangle clips: one that runs past the bottom
+                // edge (which the view's bounds cut anyway) rounds only the top corners.
+                outline.setRoundRect(0, 0, width, height + Math.round(mTopRadiusPx), mTopRadiusPx);
+            }
+        }
+    };
     @Nullable
     private Bitmap mFrostSample;
     @Nullable
@@ -86,6 +109,8 @@ final class MiniPlayerViews {
         title = card.findViewById(R.id.mobile_mini_title);
         channel = card.findViewById(R.id.mobile_mini_channel);
         flash = card.findViewById(R.id.mobile_mini_flash);
+        mCardOutline = card.getOutlineProvider();
+        mCardClips = card.getClipToOutline();
     }
 
     /** Lay the card and its children out for {@code style}, docked left or right if it is the card. */
@@ -95,7 +120,7 @@ final class MiniPlayerViews {
         Context context = card.getContext();
         float density = context.getResources().getDisplayMetrics().density;
         boolean bar = MiniPlayerStyle.isBar(style);
-        int barHeight = px(MiniPlayerStyle.BAR_HEIGHT_DP, density);
+        int barHeight = px(MiniPlayerStyle.barHeightDp(style), density);
         int thumbWidth = Math.round(MiniPlayerStyle.barThumbWidthPx(density));
         int buttonSize = px(48, density);
 
@@ -134,6 +159,16 @@ final class MiniPlayerViews {
             materialCard.setRadius(bar ? 0f : MiniPlayerStyle.CARD_CORNER_DP * density);
             materialCard.setCardElevation(bar ? 0f : 8f * density);
             materialCard.setCardBackgroundColor(style == MiniPlayerStyle.BAR ? Color.TRANSPARENT : Color.BLACK);
+        }
+        // The video-background bar's top corners: the video cards' (when theirs are rounded).
+        if (style == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(context)) {
+            mTopRadiusPx = MiniPlayerStyle.CARD_CORNER_DP * density;
+            card.setOutlineProvider(mTopRoundedOutline);
+            card.setClipToOutline(true);
+            card.invalidateOutline();
+        } else if (card.getOutlineProvider() == mTopRoundedOutline) {
+            card.setOutlineProvider(mCardOutline);
+            card.setClipToOutline(mCardClips);
         }
 
         // The plain bar's surface is the page colour, the same as the bottom navigation bar's.
@@ -220,20 +255,21 @@ final class MiniPlayerViews {
             playPause.setImageTintList(ColorStateList.valueOf(onSurface));
             close.setImageTintList(ColorStateList.valueOf(onSurface));
         } else if (style == MiniPlayerStyle.BAR_VIDEO) {
-            // Nearly-white frosted glass circles (40dp inside the 48dp target), dark icons.
-            if (mPlayFrost == null) {
+            // Just the two icons, no circle: each one nearly-white frosted glass over the video.
+            if (mPlayIcon == null) {
                 int tint = ContextCompat.getColor(context, R.color.mobile_mini_button_frost_tint);
-                mPlayFrost = new FrostedScrimDrawable(-1f, tint);
-                mCloseFrost = new FrostedScrimDrawable(-1f, tint);
+                mPlayIcon = new FrostedIconDrawable(icon(context, mPlaying), tint);
+                mCloseIcon = new FrostedIconDrawable(
+                        ContextCompat.getDrawable(context, R.drawable.ic_sheet_close), tint);
             }
-            int inset = px(4, density);
-            playPause.setBackground(new InsetDrawable(mPlayFrost, inset));
-            close.setBackground(new InsetDrawable(mCloseFrost, inset));
-            setPadding(playPause, px(13, density));
-            setPadding(close, px(15, density));
-            int icon = ContextCompat.getColor(context, R.color.mobile_mini_button_frost_icon);
-            playPause.setImageTintList(ColorStateList.valueOf(icon));
-            close.setImageTintList(ColorStateList.valueOf(icon));
+            playPause.setBackground(borderlessRipple(context));
+            close.setBackground(borderlessRipple(context));
+            setPadding(playPause, px(11, density));
+            setPadding(close, px(13, density));
+            playPause.setImageTintList(null);
+            close.setImageTintList(null);
+            playPause.setImageDrawable(mPlayIcon);
+            close.setImageDrawable(mCloseIcon);
         } else {
             // White icons on dark circles over the card's video.
             playPause.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
@@ -243,6 +279,10 @@ final class MiniPlayerViews {
             playPause.setImageTintList(null);
             close.setImageTintList(ColorStateList.valueOf(onVideo));
         }
+        if (style != MiniPlayerStyle.BAR_VIDEO) {
+            close.setImageResource(R.drawable.ic_sheet_close);
+            setPlaying(mPlaying);
+        }
         int buttons = style == MiniPlayerStyle.CARD_GESTURE ? View.GONE : View.VISIBLE;
         playPause.setVisibility(buttons);
         close.setVisibility(buttons);
@@ -251,6 +291,23 @@ final class MiniPlayerViews {
                 style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track)));
 
         card.requestLayout();
+    }
+
+    /** Show play/pause's state: the pause icon while it plays. */
+    void setPlaying(boolean playing) {
+        mPlaying = playing;
+        if (style == MiniPlayerStyle.BAR_VIDEO && mPlayIcon != null) {
+            mPlayIcon.setIcon(icon(card.getContext(), playing));
+            if (playPause.getDrawable() != mPlayIcon) {
+                playPause.setImageDrawable(mPlayIcon);
+            }
+        } else {
+            playPause.setImageResource(playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
+        }
+    }
+
+    private static Drawable icon(Context context, boolean playing) {
+        return ContextCompat.getDrawable(context, playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
     }
 
     /** Everything drawn over or around the video (what fades in when a minimized video lands). */
@@ -306,24 +363,32 @@ final class MiniPlayerViews {
         boxBlur(mFrostPixels, mFrostScratch, FROST_WIDTH, FROST_HEIGHT, FROST_BLUR_RADIUS);
         boxBlur(mFrostPixels, mFrostScratch, FROST_WIDTH, FROST_HEIGHT, FROST_BLUR_RADIUS);
         mFrostBlur.setPixels(mFrostPixels, 0, FROST_WIDTH, 0, 0, FROST_WIDTH, FROST_HEIGHT);
-        float inset = 4f * card.getResources().getDisplayMetrics().density;
-        applyFrost(mTitleFrost, text, 0f);
-        applyFrost(mPlayFrost, playPause, inset);
-        applyFrost(mCloseFrost, close, inset);
+        if (sourceFor(text, false) && mTitleFrost != null) {
+            mTitleFrost.setFrame(mFrostBlur, mFrostSource);
+        }
+        if (sourceFor(playPause, true) && mPlayIcon != null) {
+            mPlayIcon.setFrame(mFrostBlur, mFrostSource);
+        }
+        if (sourceFor(close, true) && mCloseIcon != null) {
+            mCloseIcon.setFrame(mFrostBlur, mFrostSource);
+        }
     }
 
-    /** The part of the blurred frame under {@code view} (shrunk by {@code inset}) to its glass. */
-    private void applyFrost(@Nullable FrostedScrimDrawable glass, View view, float inset) {
+    /**
+     * Put in {@link #mFrostSource} the part of the blurred frame under {@code view} - its content
+     * box when {@code content} (an icon inside its padding). False if there is nothing to map.
+     */
+    private boolean sourceFor(View view, boolean content) {
         int frameWidth = frame.getWidth();
         int frameHeight = frame.getHeight();
-        if (glass == null || frameWidth <= 0 || frameHeight <= 0 || view.getWidth() <= 0) {
-            return;
+        if (frameWidth <= 0 || frameHeight <= 0 || view.getWidth() <= 0) {
+            return false;
         }
         // The view's box in the frame's pixels (siblings in one FrameLayout), then the copy's.
-        float left = view.getLeft() + inset - frame.getLeft();
-        float top = view.getTop() + inset - frame.getTop();
-        float right = view.getRight() - inset - frame.getLeft();
-        float bottom = view.getBottom() - inset - frame.getTop();
+        float left = view.getLeft() + (content ? view.getPaddingLeft() : 0) - frame.getLeft();
+        float top = view.getTop() + (content ? view.getPaddingTop() : 0) - frame.getTop();
+        float right = view.getRight() - (content ? view.getPaddingRight() : 0) - frame.getLeft();
+        float bottom = view.getBottom() - (content ? view.getPaddingBottom() : 0) - frame.getTop();
         float sx = (float) FROST_WIDTH / frameWidth;
         float sy = (float) FROST_HEIGHT / frameHeight;
         mFrostSource.set(Math.round(left * sx), Math.round(top * sy), Math.round(right * sx), Math.round(bottom * sy));
@@ -333,7 +398,7 @@ final class MiniPlayerViews {
         if (mFrostSource.height() <= 0) {
             mFrostSource.bottom = mFrostSource.top + 1;
         }
-        glass.setFrame(mFrostBlur, mFrostSource);
+        return true;
     }
 
     /** One horizontal and one vertical box-blur pass over {@code pixels}, in place. */

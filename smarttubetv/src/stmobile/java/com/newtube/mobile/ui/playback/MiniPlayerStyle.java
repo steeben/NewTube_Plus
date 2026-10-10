@@ -33,6 +33,15 @@ public final class MiniPlayerStyle {
     public static final int CARD_MARGIN_DP = 12;
     public static final float CARD_CORNER_DP = 12f;
     public static final int BAR_HEIGHT_DP = 64;
+    /** NEWTUBE(mini-style): the video-background bar is 40% taller - it is mostly picture. */
+    public static final int BAR_VIDEO_HEIGHT_DP = 90;
+    /**
+     * The video-background bar's top corners: the video cards' radius while their rounded
+     * corners are on (General > Video cards, read from that setting's own store so this works
+     * whether or not it exists in this build), square otherwise.
+     */
+    private static final String UI_PREFS_NAME = "newtube_ui";
+    private static final String UI_KEY_ROUNDED = "rounded_thumbnails";
 
     private static final String PREFS_NAME = "newtube_mini_player";
     private static final String KEY_STYLE = "style";
@@ -72,6 +81,17 @@ public final class MiniPlayerStyle {
 
     public static void setCardLeft(Context context, boolean left) {
         prefs(context).edit().putBoolean(KEY_CARD_LEFT, left).apply();
+    }
+
+    /** Height of {@code style}'s bar, in dp. */
+    public static int barHeightDp(int style) {
+        return style == BAR_VIDEO ? BAR_VIDEO_HEIGHT_DP : BAR_HEIGHT_DP;
+    }
+
+    /** The video-background bar's top corners are rounded (see {@link #UI_KEY_ROUNDED}). */
+    public static boolean isBarRounded(Context context) {
+        return context.getApplicationContext().getSharedPreferences(UI_PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(UI_KEY_ROUNDED, true);
     }
 
     /** Width of the bar's 16:9 thumbnail slot ({@link #BAR}), in px. */
@@ -118,7 +138,7 @@ public final class MiniPlayerStyle {
                 return new Target(rect, false, 0f);
             }
             case BAR_VIDEO: {
-                float barHeight = BAR_HEIGHT_DP * density;
+                float barHeight = BAR_VIDEO_HEIGHT_DP * density;
                 RectF rect = new RectF(0f, bottom - barHeight, width, bottom);
                 return new Target(rect, true, 0f);
             }

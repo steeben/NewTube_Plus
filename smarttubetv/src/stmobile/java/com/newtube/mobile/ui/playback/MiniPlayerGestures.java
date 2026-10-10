@@ -56,8 +56,20 @@ final class MiniPlayerGestures implements View.OnTouchListener {
         /** Swiped up: expand from where the mini player is now. */
         void onExpand();
 
-        /** The mini player's lift changed ({@code translationY} < 0 while it is pulled up). */
-        void onLift(float translationY);
+        /**
+         * A bar is being pulled up: the player comes to the front now and follows the finger
+         * ({@link #onExpandDrag}, {@link #onExpandDragEnd}) - the minimize, backwards.
+         */
+        void onExpandDragStart();
+
+        /** The finger is {@code liftPx} above where the pull began. */
+        void onExpandDrag(float liftPx);
+
+        /**
+         * The finger let go - or, {@code cancelled}, the touch was taken away (then it expands:
+         * the pull was meant to open the player).
+         */
+        void onExpandDragEnd(float velocityY, boolean cancelled);
 
         /** The card reached the other corner (its translation is the whole travel): dock it there. */
         void onDockedOtherSide();
@@ -130,6 +142,9 @@ final class MiniPlayerGestures implements View.OnTouchListener {
 
     /** The host is about to move the view itself: stop the springs and ignore the rest of a touch. */
     void stop() {
+        if (mMode == MODE_EXPAND && !mCallback.isCard()) {
+            return; // a bar's pull drives the player above, whatever happens to the bar itself
+        }
         if (mMode != MODE_NONE) {
             mMode = MODE_NONE;
             mIgnoring = true;
@@ -199,6 +214,7 @@ final class MiniPlayerGestures implements View.OnTouchListener {
             case MotionEvent.ACTION_POINTER_DOWN:
                 // A second finger: not a drag any more. Back to rest; the rest of the touch is ignored.
                 if (mMode != MODE_NONE) {
+                    endBarExpand();
                     mMode = MODE_NONE;
                     mIgnoring = true;
                     recycleVelocity();
@@ -209,6 +225,7 @@ final class MiniPlayerGestures implements View.OnTouchListener {
                 recycleVelocity();
                 mIgnoring = false;
                 if (mMode != MODE_NONE) {
+                    endBarExpand();
                     mMode = MODE_NONE;
                     restAll();
                     return true;
@@ -216,6 +233,13 @@ final class MiniPlayerGestures implements View.OnTouchListener {
                 return false;
             default:
                 return mMode != MODE_NONE;
+        }
+    }
+
+    /** A bar's pull broke off before the finger let go: the player settles where it is. */
+    private void endBarExpand() {
+        if (mMode == MODE_EXPAND && !mCallback.isCard()) {
+            mCallback.onExpandDragEnd(0f, true);
         }
     }
 
@@ -247,6 +271,8 @@ final class MiniPlayerGestures implements View.OnTouchListener {
             mMagnetX.start();
         } else if (mMode == MODE_CLOSE_DOWN) {
             mMagnetY.start();
+        } else if (mMode == MODE_EXPAND && !mCallback.isCard()) {
+            mCallback.onExpandDragStart();
         }
     }
 
@@ -258,13 +284,13 @@ final class MiniPlayerGestures implements View.OnTouchListener {
             case MODE_CLOSE_DOWN:
                 mMagnetY.move(Math.max(0f, dy));
                 break;
-            case MODE_EXPAND: {
-                // A bar follows the finger (the page fills in under it); the card only leans.
-                float lift = Math.min(0f, dy) * (mCallback.isCard() ? EXPAND_PULL : 1f);
-                mView.setTranslationY(lift);
-                mCallback.onLift(lift);
+            case MODE_EXPAND:
+                if (mCallback.isCard()) {
+                    mView.setTranslationY(Math.min(0f, dy) * EXPAND_PULL); // the card leans up
+                } else {
+                    mCallback.onExpandDrag(Math.max(0f, -dy)); // the player draws the bar now
+                }
                 break;
-            }
             case MODE_MOVE: {
                 float travel = mCallback.cornerTravelPx();
                 float sign = mCallback.isDockedLeft() ? 1f : -1f;
@@ -288,6 +314,10 @@ final class MiniPlayerGestures implements View.OnTouchListener {
                 releaseClose(false, mMagnetY.isDetached(), Math.max(0f, dy), velocityY);
                 break;
             case MODE_EXPAND: {
+                if (!mCallback.isCard()) {
+                    mCallback.onExpandDragEnd(velocityY, false);
+                    break;
+                }
                 boolean go = (-dy >= mExpandPx && velocityY <= mFlingVelocity) || velocityY < -mFlingVelocity;
                 if (go && mCallback.canDrag()) {
                     Haptics.threshold(mView, true);
@@ -383,10 +413,7 @@ final class MiniPlayerGestures implements View.OnTouchListener {
         SpringAnimation spring = new SpringAnimation(mView, DynamicAnimation.TRANSLATION_Y, to);
         spring.getSpring().setStiffness(SNAP_BACK_STIFFNESS).setDampingRatio(SNAP_BACK_DAMPING);
         spring.setStartVelocity(velocity);
-        spring.addUpdateListener((animation, value, v) -> {
-            applyCloseProgress(closeFractionY(Math.max(0f, value)));
-            mCallback.onLift(value);
-        });
+        spring.addUpdateListener((animation, value, v) -> applyCloseProgress(closeFractionY(Math.max(0f, value))));
         spring.addEndListener((animation, canceled, value, v) -> {
             if (!canceled) {
                 applyCloseProgress(0f);

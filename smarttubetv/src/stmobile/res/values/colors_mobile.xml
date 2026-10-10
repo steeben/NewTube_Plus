@@ -75,8 +75,7 @@
     <color name="mobile_mini_dim">#40000000</color>
     <color name="mobile_mini_title_scrim">#8C000000</color>
     <!-- Over the frosted (blurred) picture of the video: a dark tint for the white title, and
-         the play/pause and close buttons' nearly-white glass with dark icons on it. -->
+         the wash that makes the play/pause and close icons nearly-white glass. -->
     <color name="mobile_mini_frost_tint">#59000000</color>
-    <color name="mobile_mini_button_frost_tint">#D9F4F4F4</color>
-    <color name="mobile_mini_button_frost_icon">#1F1F1F</color>
+    <color name="mobile_mini_button_frost_tint">#C7FFFFFF</color>
 </resources>
