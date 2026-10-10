@@ -267,6 +267,8 @@
     <string name="mobile_settings_mini_style">Mini player style</string>
     <string name="mobile_settings_mini_style_card">Floating card</string>
     <string name="mobile_settings_mini_style_card_desc">A small video in the corner</string>
+    <string name="mobile_settings_mini_style_card_gesture">Floating card (gesture)</string>
+    <string name="mobile_settings_mini_style_card_gesture_desc">No buttons: tap to play or pause, swipe up to open, down or to the side to close</string>
     <string name="mobile_settings_mini_style_bar">Bar</string>
     <string name="mobile_settings_mini_style_bar_desc">Across the bottom, with the title and channel</string>
     <string name="mobile_settings_mini_style_bar_video">Bar with video background</string>

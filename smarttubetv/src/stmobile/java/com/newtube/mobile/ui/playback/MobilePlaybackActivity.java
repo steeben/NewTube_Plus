@@ -1489,17 +1489,43 @@ public class MobilePlaybackActivity extends MobileActivity
             mMorphStartPending = true;
             mContainer.post(() -> {
                 mMorphStartPending = false;
+                int miniStyle = MiniPlayerStyle.get(this);
+                boolean barSlide = false;
                 if (miniBounds != null) {
-                    // NEWTUBE(mini-style): from the style's own slot: a square-cornered bar
-                    // thumbnail, or the whole video-background bar (cropped).
-                    int miniStyle = MiniPlayerStyle.get(this);
-                    computeMorphTarget(miniBounds, miniCrop, MiniPlayerStyle.isBar(miniStyle)
-                            ? 0f : MiniPlayerStyle.CARD_CORNER_DP);
+                    if (MiniPlayerStyle.isBar(miniStyle)) {
+                        // NEWTUBE(mini-style): the bar's slide, backwards, from its thumbnail
+                        // (or the whole video-background bar).
+                        int[] containerLocation = new int[2];
+                        mContainer.getLocationOnScreen(containerLocation);
+                        barSlide = setupBarSlide(miniBounds.top - containerLocation[1],
+                                miniBounds.height(), miniBounds.width());
+                    }
+                    if (!barSlide) {
+                        // From the style's own slot: the card, or a bar's (cropped) video.
+                        computeMorphTarget(miniBounds, miniCrop, MiniPlayerStyle.isBar(miniStyle)
+                                ? 0f : MiniPlayerStyle.CARD_CORNER_DP);
+                    }
                 } else {
                     computeMorphTarget();
+                    barSlide = mBarSlide;
                 }
                 applyMorph(1f);
                 mContainer.setVisibility(View.VISIBLE);
+                if (barSlide) {
+                    // The host's bar stays under the page until it is covered for good: the video
+                    // grows over it, then the page rises over the rest. It folds at the end.
+                    FrameGate.afterNextFrame(mContainer, HOST_CARD_FOLD_WAIT_MS, () -> {
+                        if (!isFinishing() && !isDestroyed() && mMorphAnimator == null) {
+                            animateMorph(0f, 320, Motion.EMPHASIZED, () -> {
+                                resetMorph();
+                                MiniPlayerBridge.foldHostCard(null);
+                            });
+                        } else {
+                            MiniPlayerBridge.foldHostCard(null);
+                        }
+                    });
+                    return;
+                }
                 // NEWTUBE(motion): the host kept its card up, frozen (MiniPlayerBridge
                 // .setPendingCardFold). Our frame over it first, then the card folds, then the video
                 // grows: no frame without either. Each step waits at most HOST_CARD_FOLD_WAIT_MS.
@@ -5249,18 +5275,137 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mMorphCropLocalPx;
     /** The settled morph fraction the outline is drawn at (see applyMorph). */
     private float mMorphOutlineFraction;
+    /** NEWTUBE(mini-style): what the outline cuts off the top and the bottom of the box right now. */
+    private float mOutlineCropLocalPx;
     @Nullable
     private android.view.ViewOutlineProvider mVideoAreaOutline;
     private final android.view.ViewOutlineProvider mMorphOutline = new android.view.ViewOutlineProvider() {
         @Override
         public void getOutline(View view, android.graphics.Outline outline) {
             int height = view.getHeight();
-            int crop = Math.round(Math.min(height / 2f - 1f,
-                    Math.max(0f, mMorphCropLocalPx * mMorphOutlineFraction)));
+            int crop = Math.round(Math.min(height / 2f - 1f, Math.max(0f, mOutlineCropLocalPx)));
             crop = Math.max(0, crop);
             outline.setRoundRect(0, crop, view.getWidth(), height - crop, mMorphCornerLocalPx);
         }
     };
+
+    /**
+     * NEWTUBE(mini-style): the bars' minimize, YouTube's old one. The whole watch page slides down
+     * with the finger while the video, still full width, is cut from the top and the bottom down
+     * to the bar's height; once it reaches the bar it shrinks sideways onto the bar's thumbnail
+     * (the plain bar). Nothing fades: the host's bar is already drawn under this window
+     * (MiniPlayerBridge.previewHost) and the shrinking video uncovers it. The expand runs the
+     * same path backwards.
+     */
+    private boolean mBarSlide;
+    /** The video box at full size, in container coordinates. */
+    private final android.graphics.RectF mBarVideo = new android.graphics.RectF();
+    /** The bar's top and height, and the video's landed width there, in container px. */
+    private float mBarTop;
+    private float mBarHeight;
+    private float mBarLandedWidth;
+    /** The fraction at which the slide down ends and the sideways shrink begins. */
+    private float mBarSplit = 1f;
+    /** Finger travel for the whole bar minimize. */
+    private float mBarTravelPx = 1f;
+    /** The top of the area under the video (mobile_watch_area), in container coordinates. */
+    private float mBarAreaTop;
+    @Nullable
+    private View mWatchArea;
+
+    /** Set up the bar slide onto a bar at {@code barTop} (container px). False: no geometry yet. */
+    private boolean setupBarSlide(float barTop, float barHeight, float landedWidth) {
+        if (mVideoArea == null || mContainer == null) {
+            return false;
+        }
+        Rect video = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
+        if (video.width() <= 0 || video.height() <= 0 || barHeight <= 0f || landedWidth <= 0f) {
+            return false;
+        }
+        mContainer.offsetDescendantRectToMyCoords(mVideoArea, video);
+        if (mWatchArea == null) {
+            mWatchArea = findViewById(R.id.mobile_watch_area);
+        }
+        if (mWatchArea != null) {
+            Rect area = new Rect(0, 0, mWatchArea.getWidth(), mWatchArea.getHeight());
+            mContainer.offsetDescendantRectToMyCoords(mWatchArea, area);
+            mBarAreaTop = area.top;
+        }
+        mBarSlide = true;
+        mBarVideo.set(video);
+        mBarTop = barTop;
+        mBarHeight = barHeight;
+        mBarLandedWidth = Math.min(landedWidth, video.width());
+        float down = Math.max(1f, (barTop + barHeight) - video.bottom);
+        float sideways = mBarLandedWidth < video.width() - 1f
+                ? Math.max(1f, mContainer.getHeight() * 0.18f) : 0f;
+        mBarTravelPx = down + sideways;
+        mBarSplit = down / mBarTravelPx;
+        // The plain morph's terms, for whatever reads them (the settle's speed, the drag travel).
+        mMorphCornerDp = 0f;
+        mMorphCropLocalPx = 0f;
+        mMorphScaleX = mBarLandedWidth / video.width();
+        mMorphScaleY = mMorphScaleX;
+        mMorphTx = -video.left;
+        mMorphTy = barTop - video.top;
+        return true;
+    }
+
+    private void applyBarSlide(float f) {
+        mMorphFraction = f;
+        float settled = Math.max(0f, Math.min(1f, f));
+        float density = getResources().getDisplayMetrics().density;
+        android.graphics.RectF video = mBarVideo;
+        float down = mBarSplit > 0f ? Math.min(1f, settled / mBarSplit) : 1f;
+        float sideways = mBarSplit < 1f ? Math.max(0f, (settled - mBarSplit) / (1f - mBarSplit)) : 0f;
+
+        // The visible band of the video: from the whole box down onto the bar, full width.
+        float barBottom = mBarTop + mBarHeight;
+        float bandTop = video.top + (mBarTop - video.top) * down;
+        float bandBottom = video.bottom + (barBottom - video.bottom) * down;
+        float bandHeight = Math.max(1f, bandBottom - bandTop);
+        // Then narrower, keeping the bar's height: the cut shrinks as the box does.
+        float scale = 1f + (mBarLandedWidth / video.width() - 1f) * sideways;
+        float cropLocal = Math.max(0f, (video.height() - bandHeight / scale) / 2f);
+
+        mVideoArea.setPivotX(0f);
+        mVideoArea.setPivotY(0f);
+        mVideoArea.setScaleX(scale);
+        mVideoArea.setScaleY(scale);
+        mVideoArea.setTranslationX(-video.left * sideways);
+        mVideoArea.setTranslationY(bandTop - cropLocal * scale - video.top);
+        mVideoArea.setTranslationZ(0f);
+        mOutlineCropLocalPx = cropLocal;
+        applyMorphCorners(settled, scale, density);
+
+        // The page under the video goes down with it, cut at the bar's bottom edge so Home's
+        // navigation row stays in sight.
+        if (mWatchArea != null) {
+            float areaShift = bandBottom - video.bottom;
+            mWatchArea.setTranslationY(areaShift);
+            int visible = Math.round(barBottom - (mBarAreaTop + areaShift));
+            mWatchArea.setClipBounds(new Rect(0, 0, mWatchArea.getWidth(),
+                    Math.max(0, Math.min(mWatchArea.getHeight(), visible))));
+        }
+        if (mWatchContent != null) {
+            mWatchContent.setAlpha(1f);
+        }
+        if (mWatchScroll != null && mWatchScroll.getBackground() != null) {
+            mWatchScroll.getBackground().mutate().setAlpha(255);
+        }
+        // Only the window's own backdrop goes (at once): the screen behind shows above the page.
+        setWindowBackdropAlpha(settled > 0f && !mMorphOverOwnBackdrop ? 0f : 1f);
+        float controlsAlpha = Math.max(0f, 1f - settled * 6f);
+        if (mControlsRoot != null && mControlsRoot.getVisibility() == View.VISIBLE) {
+            mControlsRoot.setAlpha(controlsAlpha);
+        }
+        if (mTimeBar != null) {
+            mTimeBar.setAlpha(controlsAlpha);
+        }
+        if (mCommentsPanel != null) {
+            mCommentsPanel.setMorphAlpha(1f);
+        }
+    }
 
     /** Compute the video transform (pivot 0,0) that maps the video area onto the mini player. */
     private void computeMorphTarget() {
@@ -5270,8 +5415,15 @@ public class MobilePlaybackActivity extends MobileActivity
         // containers already exclude the gesture inset in portrait, so no inset term here.
         MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
         float bottomNav = host != null ? host.getMiniCardBottomOffsetPx() : 56 * density;
-        MiniPlayerStyle.Target target = MiniPlayerStyle.target(MiniPlayerStyle.get(this),
-                mContainer.getWidth(), mContainer.getHeight(), bottomNav, density);
+        int style = MiniPlayerStyle.get(this);
+        MiniPlayerStyle.Target target = MiniPlayerStyle.target(style,
+                mContainer.getWidth(), mContainer.getHeight(), bottomNav, density,
+                MiniPlayerStyle.isCardLeft(this));
+        mBarSlide = false;
+        if (MiniPlayerStyle.isBar(style) && host != null
+                && setupBarSlide(target.rect.top, target.rect.height(), target.rect.width())) {
+            return; // the bars slide down instead (applyBarSlide)
+        }
 
         Rect video = new Rect();
         video.set(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
@@ -5322,6 +5474,7 @@ public class MobilePlaybackActivity extends MobileActivity
      * video-background bar (see applyCropTarget), {@code cornerDp} - the corner it ends at.
      */
     private void computeMorphTarget(Rect sourceBounds, boolean crop, float cornerDp) {
+        mBarSlide = false;
         Rect video = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
         mContainer.offsetDescendantRectToMyCoords(mVideoArea, video);
 
@@ -5374,6 +5527,10 @@ public class MobilePlaybackActivity extends MobileActivity
 
     /** Apply the morph at fraction f (0 = fullscreen player, 1 = sitting on the mini card). */
     private void applyMorph(float f) {
+        if (mBarSlide) {
+            applyBarSlide(f); // NEWTUBE(mini-style)
+            return;
+        }
         mMorphFraction = f;
         mVideoArea.setPivotX(0f);
         mVideoArea.setPivotY(0f);
@@ -5390,6 +5547,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // NEWTUBE(haptics): the settle spring lands a few px past the card (f a little over 1):
         // the box moves and shrinks on with it, but corners and fades stop at their card values.
         float settled = Math.min(1f, f);
+        mOutlineCropLocalPx = mMorphCropLocalPx * Math.max(0f, settled); // NEWTUBE(mini-style)
         applyMorphCorners(settled, Math.min(sx, sy), density);
 
         // Remove labels/cards early so they do not ghost over Browse, then fade the solid watch
@@ -5487,7 +5645,18 @@ public class MobilePlaybackActivity extends MobileActivity
         mMorphFraction = 0f;
         mMorphOverOwnBackdrop = false;
         mMorphCropLocalPx = 0f; // NEWTUBE(mini-style)
+        mOutlineCropLocalPx = 0f;
         mMorphCornerDp = MORPH_CORNER_DP;
+        if (mBarSlide) {
+            mBarSlide = false;
+            if (mWatchArea != null) {
+                mWatchArea.setTranslationY(0f);
+                mWatchArea.setClipBounds(null);
+            }
+        }
+        // A cancelled bar minimize: the host's bar, drawn under this window for it, goes again
+        // (a no-op once the host shows a live session).
+        MiniPlayerBridge.endHostPreview();
         mVideoArea.setScaleX(1f);
         mVideoArea.setScaleY(1f);
         mVideoArea.setTranslationX(0f);
@@ -5597,6 +5766,9 @@ public class MobilePlaybackActivity extends MobileActivity
      * low on the video. Sideways the video follows its path to the card, like YouTube's.
      */
     private float dragTravelFor(float downRawY) {
+        if (mBarSlide) {
+            return Math.max(1f, mBarTravelPx); // NEWTUBE(mini-style): the page moves with the finger
+        }
         float fallback = Math.max(1, mContainer.getHeight()) * 0.6f;
         float height = mVideoArea.getHeight();
         if (height <= 0f) {
@@ -5658,6 +5830,15 @@ public class MobilePlaybackActivity extends MobileActivity
         computeMorphTarget(); // anchor the corner path once per morph
         // NEWTUBE(no-host-minimize): nothing of ours beneath - see the field doc.
         mMorphOverOwnBackdrop = MiniPlayerBridge.getMiniHost() == null;
+        if (mBarSlide) {
+            // NEWTUBE(mini-style): the host draws its bar under us now, for the video to land in.
+            int progress = 0;
+            if (mPlayer != null && mPlayer.getDuration() > 0) {
+                progress = (int) (mPlayer.getCurrentPosition() * 1000 / mPlayer.getDuration());
+            }
+            MiniPlayerBridge.previewHost(getVideo(), progress,
+                    mPlayer != null && mPlayer.getPlayWhenReady());
+        }
         // A minimize means "dock it inside the app", never "PiP it". Disarm auto-enter for the whole
         // morph so an overlapping home gesture cannot pin the task (see the field doc).
         mDismissDragActive = true;

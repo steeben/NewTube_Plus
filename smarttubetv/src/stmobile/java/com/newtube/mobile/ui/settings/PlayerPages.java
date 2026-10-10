@@ -167,6 +167,9 @@ final class PlayerPages {
         rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_mini_style))
                 .option(context.getString(R.string.mobile_settings_mini_style_card),
                         context.getString(R.string.mobile_settings_mini_style_card_desc), MiniPlayerStyle.CARD)
+                .option(context.getString(R.string.mobile_settings_mini_style_card_gesture),
+                        context.getString(R.string.mobile_settings_mini_style_card_gesture_desc),
+                        MiniPlayerStyle.CARD_GESTURE)
                 .option(context.getString(R.string.mobile_settings_mini_style_bar),
                         context.getString(R.string.mobile_settings_mini_style_bar_desc), MiniPlayerStyle.BAR)
                 .option(context.getString(R.string.mobile_settings_mini_style_bar_video),

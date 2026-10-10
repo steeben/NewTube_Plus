@@ -121,6 +121,20 @@
             android:src="@drawable/ic_sheet_close"
             android:tint="@color/mobile_player_on_video" />
 
+        <!-- NEWTUBE(mini-style): the gesture card's play/pause answer to a tap - it shows the new
+             state for a moment and fades. -->
+        <ImageView
+            android:id="@+id/mobile_mini_flash"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center"
+            android:alpha="0"
+            android:background="@drawable/bg_mini_scrim_circle"
+            android:importantForAccessibility="no"
+            android:padding="10dp"
+            android:src="@drawable/ic_player_pause"
+            android:visibility="gone" />
+
         <ProgressBar
             android:id="@+id/mobile_mini_progress"
             style="?android:attr/progressBarStyleHorizontal"

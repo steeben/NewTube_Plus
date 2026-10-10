@@ -8,8 +8,8 @@ import android.graphics.RectF;
  * NEWTUBE(mini-style): how a minimized video docks on Home, Search and the channel screens.
  *
  * <ul>
- *   <li>{@link #CARD} - the floating 180x102dp card in the bottom corner (the default, and the only
- *   style before this setting).</li>
+ *   <li>{@link #CARD} - the floating 180x102dp card in a bottom corner (the default, and the only
+ *   style before this setting); {@link #CARD_GESTURE} - the same card with no buttons.</li>
  *   <li>{@link #BAR} - a full-width bar like the old YouTube app's: the video as a 16:9 thumbnail on
  *   the left, the title and channel beside it, play/pause and close on the right.</li>
  *   <li>{@link #BAR_VIDEO} - the same full-width bar with the live video cropped to fill it, dimmed,
@@ -23,7 +23,7 @@ import android.graphics.RectF;
  */
 public final class MiniPlayerStyle {
     public static final int CARD = 0;
-    /** Reserved for the gesture-only card (tap = play/pause, no buttons). */
+    /** The card without buttons: a tap plays or pauses, everything else is a gesture. */
     public static final int CARD_GESTURE = 1;
     public static final int BAR = 2;
     public static final int BAR_VIDEO = 3;
@@ -36,6 +36,7 @@ public final class MiniPlayerStyle {
 
     private static final String PREFS_NAME = "newtube_mini_player";
     private static final String KEY_STYLE = "style";
+    private static final String KEY_CARD_LEFT = "card_left";
 
     private MiniPlayerStyle() {
     }
@@ -47,6 +48,7 @@ public final class MiniPlayerStyle {
     public static int get(Context context) {
         int style = prefs(context).getInt(KEY_STYLE, CARD);
         switch (style) {
+            case CARD_GESTURE:
             case BAR:
             case BAR_VIDEO:
                 return style;
@@ -61,6 +63,15 @@ public final class MiniPlayerStyle {
 
     public static boolean isBar(int style) {
         return style == BAR || style == BAR_VIDEO;
+    }
+
+    /** The floating card is docked in the bottom-left corner (else the bottom-right). */
+    public static boolean isCardLeft(Context context) {
+        return prefs(context).getBoolean(KEY_CARD_LEFT, false);
+    }
+
+    public static void setCardLeft(Context context, boolean left) {
+        prefs(context).edit().putBoolean(KEY_CARD_LEFT, left).apply();
     }
 
     /** Width of the bar's 16:9 thumbnail slot ({@link #BAR}), in px. */
@@ -94,9 +105,11 @@ public final class MiniPlayerStyle {
     /**
      * Where a minimize lands for {@code style}, in a full-window container of {@code width} x
      * {@code height} px whose host keeps {@code bottomOffsetPx} (Home's bottom-nav row, 0 for the
-     * overlay hosts) between the mini player and the content bottom.
+     * overlay hosts) between the mini player and the content bottom; {@code cardLeft} - the card
+     * is docked in the bottom-left corner.
      */
-    public static Target target(int style, float width, float height, float bottomOffsetPx, float density) {
+    public static Target target(int style, float width, float height, float bottomOffsetPx, float density,
+            boolean cardLeft) {
         float bottom = height - bottomOffsetPx;
         switch (style) {
             case BAR: {
@@ -113,8 +126,8 @@ public final class MiniPlayerStyle {
                 float margin = CARD_MARGIN_DP * density;
                 float cardWidth = CARD_WIDTH_DP * density;
                 float cardBottom = bottom - margin;
-                RectF rect = new RectF(width - margin - cardWidth, cardBottom - CARD_HEIGHT_DP * density,
-                        width - margin, cardBottom);
+                float left = cardLeft ? margin : width - margin - cardWidth;
+                RectF rect = new RectF(left, cardBottom - CARD_HEIGHT_DP * density, left + cardWidth, cardBottom);
                 return new Target(rect, false, CARD_CORNER_DP);
             }
         }
