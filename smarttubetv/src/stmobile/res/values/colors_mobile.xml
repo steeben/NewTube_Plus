@@ -74,8 +74,9 @@
          darker scrim behind its title that grows with the title's length. -->
     <color name="mobile_mini_dim">#40000000</color>
     <color name="mobile_mini_title_scrim">#8C000000</color>
-    <!-- Over the frosted (blurred) picture of the video: a dark tint for the white title, and a
-         faint light edge that sells the glass. -->
+    <!-- Over the frosted (blurred) picture of the video: a dark tint for the white title, and
+         the play/pause and close buttons' nearly-white glass with dark icons on it. -->
     <color name="mobile_mini_frost_tint">#59000000</color>
-    <color name="mobile_mini_frost_edge">#26FFFFFF</color>
+    <color name="mobile_mini_button_frost_tint">#D9F4F4F4</color>
+    <color name="mobile_mini_button_frost_icon">#1F1F1F</color>
 </resources>

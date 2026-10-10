@@ -2,16 +2,11 @@ package com.newtube.mobile.ui.playback;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
-import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
-import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,18 +16,14 @@ import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.ui.AspectRatioFrameLayout;
-import com.google.android.material.card.MaterialCardView;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -57,13 +48,12 @@ public final class MobileMiniPlayerController {
     private static final long FOLD_WAIT_MS = 50;
     /** NEWTUBE(mini-style): the sound's fade when the mini player is closed (X, or past a swipe). */
     private static final long VOLUME_FADE_MIN_MS = 160;
-    /** NEWTUBE(mini-style): the frosted title's picture of the video: size and refresh. */
-    private static final int FROST_WIDTH = 64;
-    private static final int FROST_HEIGHT = 36;
-    private static final int FROST_BLUR_RADIUS = 2;
+    /** NEWTUBE(mini-style): how often the frosted glass takes a new picture of the video. */
     private static final long FROST_INTERVAL_MS = 80;
 
     private final Activity mActivity;
+    /** NEWTUBE(mini-style): the mini player's views and how each style lays them out. */
+    private final MiniPlayerViews mViews;
     private final View mBar;
     /** NEWTUBE(mini-style): every drag on the mini player (close, expand, change corner). */
     private final MiniPlayerGestures mGestures;
@@ -72,10 +62,7 @@ public final class MobileMiniPlayerController {
     private final ImageButton mPlayPause;
     private final ImageButton mClose;
     private final ProgressBar mProgress;
-    /** NEWTUBE(mini-style): the other styles' parts (GONE where a style has no use for them). */
-    private final View mBackdrop;
     private final View mDim;
-    private final LinearLayout mText;
     private final TextView mTitle;
     private final TextView mChannel;
     private final ImageView mFlash;
@@ -83,6 +70,13 @@ public final class MobileMiniPlayerController {
     private int mStyle = -1;
     /** NEWTUBE(mini-style): the card is laid out in the bottom-left corner. */
     private boolean mCardLeft;
+    /**
+     * NEWTUBE(mini-style): a bar pulled up toward the player: the watch page's colour fills the
+     * space it leaves below it, so the page seems to come up with it (the player's own page takes
+     * over from it when it expands).
+     */
+    @Nullable
+    private View mSheet;
     private final Runnable mTick = this::onTick;
 
     private TextureView mTexture;
@@ -90,8 +84,6 @@ public final class MobileMiniPlayerController {
     private boolean mTextureHasFrame;
     /** NEWTUBE(motion): pre-drawn for a minimize; the buttons fade in once the host is in front. */
     private boolean mButtonsFadePending;
-    /** NEWTUBE(mini-style): the bar is drawn for a minimize that is still under the finger. */
-    private boolean mPreviewing;
     private final MiniPlayerBridge.CardFold mCardFold = this::foldForPlayer;
 
     /** NEWTUBE(mini-style): the volume when a closing drag began; -1 when none is fading it. */
@@ -99,19 +91,7 @@ public final class MobileMiniPlayerController {
     @Nullable
     private ValueAnimator mVolumeFade;
 
-    /** NEWTUBE(mini-style): the frosted glass behind the video-background bar's title. */
-    @Nullable
-    private FrostedScrimDrawable mFrost;
-    @Nullable
-    private Bitmap mFrostSample;
-    @Nullable
-    private Bitmap mFrostBlur;
-    @Nullable
-    private int[] mFrostPixels;
-    @Nullable
-    private int[] mFrostScratch;
     private long mFrostAt;
-    private final Rect mFrostSource = new Rect();
 
     /** NEWTUBE(mini-style): the gesture card's TalkBack actions (no buttons to reach). */
     private int mExpandActionId = View.NO_ID;
@@ -119,23 +99,22 @@ public final class MobileMiniPlayerController {
 
     public MobileMiniPlayerController(Activity activity) {
         mActivity = activity;
-        mBar = activity.findViewById(R.id.mobile_mini_player);
-        mFrame = activity.findViewById(R.id.mobile_mini_player_frame);
-        mFreeze = activity.findViewById(R.id.mobile_mini_freeze);
-        mPlayPause = activity.findViewById(R.id.mobile_mini_play_pause);
-        mClose = activity.findViewById(R.id.mobile_mini_close);
-        mProgress = activity.findViewById(R.id.mobile_mini_progress);
-        mBackdrop = activity.findViewById(R.id.mobile_mini_backdrop);
-        mDim = activity.findViewById(R.id.mobile_mini_dim);
-        mText = activity.findViewById(R.id.mobile_mini_text);
-        mTitle = activity.findViewById(R.id.mobile_mini_title);
-        mChannel = activity.findViewById(R.id.mobile_mini_channel);
-        mFlash = activity.findViewById(R.id.mobile_mini_flash);
+        mViews = new MiniPlayerViews(activity.findViewById(R.id.mobile_mini_player));
+        mBar = mViews.card;
+        mFrame = mViews.frame;
+        mFreeze = mViews.freeze;
+        mPlayPause = mViews.playPause;
+        mClose = mViews.close;
+        mProgress = mViews.progress;
+        mDim = mViews.dim;
+        mTitle = mViews.title;
+        mChannel = mViews.channel;
+        mFlash = mViews.flash;
         applyStyle(MiniPlayerStyle.get(activity));
 
         // A tap expands, or - on the gesture card - plays or pauses.
         View.OnClickListener tap = v -> {
-            if (mClosing || mPreviewing || !MiniPlayerBridge.isActive()) {
+            if (mClosing || !MiniPlayerBridge.isActive()) {
                 return; // a closed card leaving
             }
             if (mStyle == MiniPlayerStyle.CARD_GESTURE) {
@@ -153,7 +132,7 @@ public final class MobileMiniPlayerController {
         mGestures = MiniPlayerGestures.attach(mBar, new MiniPlayerGestures.Callback() {
             @Override
             public boolean canDrag() {
-                return !mClosing && !mEntryAnimating && !mPreviewing && MiniPlayerBridge.isActive();
+                return !mClosing && !mEntryAnimating && MiniPlayerBridge.isActive();
             }
 
             @Override
@@ -193,11 +172,16 @@ public final class MobileMiniPlayerController {
             public void onDockedOtherSide() {
                 dockOtherSide();
             }
+
+            @Override
+            public void onLift(float translationY) {
+                liftSheet(translationY);
+            }
         }, mFrame, mBar);
     }
 
     private void expand() {
-        if (mClosing || mPreviewing || !MiniPlayerBridge.isActive()) {
+        if (mClosing || !MiniPlayerBridge.isActive()) {
             return;
         }
         restoreGestureVolume();
@@ -375,7 +359,7 @@ public final class MobileMiniPlayerController {
         detachTexture();
         if (mBar.getVisibility() == View.VISIBLE && MiniPlayerBridge.isActive()) {
             MiniPlayerBridge.setPendingCardFold(mCardFold);
-        } else if (!mPreviewing) {
+        } else {
             hide();
         }
     }
@@ -385,59 +369,17 @@ public final class MobileMiniPlayerController {
         hide();
     }
 
-    /**
-     * NEWTUBE(mini-style): a bar minimize is under the finger on the player above this host: draw
-     * the bar now, with the title and buttons but no video, so the video lands in a bar that is
-     * already there instead of one fading in around it (see MiniPlayerBridge.previewHost).
-     */
-    public void preview(@Nullable Video video, int progress, boolean playing) {
-        if (MiniPlayerBridge.isActive() || mActivity.isFinishing() || mActivity.isDestroyed()) {
-            return;
-        }
-        int style = MiniPlayerStyle.get(mActivity);
-        if (style != mStyle || MiniPlayerStyle.isCardLeft(mActivity) != mCardLeft) {
-            applyStyle(style);
-        }
-        if (!MiniPlayerStyle.isBar(mStyle)) {
-            return;
-        }
-        finishClose();
-        mGestures.stop();
-        mBar.animate().cancel();
-        mPreviewing = true;
-        resetTransform();
-        mBar.setAlpha(1f);
-        mFreeze.setVisibility(View.GONE);
-        setTextIfChanged(mTitle, video != null ? video.getTitle() : null);
-        setTextIfChanged(mChannel, video != null ? video.getAuthor() : null);
-        mProgress.setProgress(progress);
-        mPlayPause.setImageResource(playing ? R.drawable.ic_player_pause : R.drawable.ic_player_play);
-        mBar.setVisibility(View.VISIBLE);
-    }
-
-    /** NEWTUBE(mini-style): the minimize was cancelled - the previewed bar goes. */
-    public void endPreview() {
-        if (!mPreviewing) {
-            return;
-        }
-        mPreviewing = false;
-        if (!MiniPlayerBridge.isActive()) {
-            fold();
-        }
-    }
-
     /** Show the live mini session. Optionally animate it down from the watch-page video box. */
     public void sync(boolean animateFromPlayer) {
         finishClose(); // a card closing when this runs is closed, not brought back
         MiniPlayerBridge.clearPendingCardFold(mCardFold);
         ExoPlayer player = MiniPlayerBridge.getPlayer();
         if (player == null) {
-            mPreviewing = false;
             hide();
             return;
         }
-        mPreviewing = false;
         restoreGestureVolume();
+        removeSheet();
         mGestures.stop();
         mBar.animate().cancel();
         mBar.setAlpha(1f);
@@ -580,7 +522,7 @@ public final class MobileMiniPlayerController {
         mBar.animate().cancel();
         mEntryAnimating = false;
         mButtonsFadePending = false;
-        mPreviewing = false;
+        removeSheet();
         resetTransform();
         mBar.setAlpha(1f);
         mBar.setVisibility(View.GONE);
@@ -592,16 +534,9 @@ public final class MobileMiniPlayerController {
         }
     }
 
-    /**
-     * Everything drawn over or around the video: hidden while the minimized video lands on the
-     * card, then faded in. NEWTUBE(mini-style): the bars' parts too (they are drawn whole under a
-     * bar minimize, so for them this only matters to the card).
-     */
+    /** Everything drawn over or around the video: hidden while a minimized video lands on the card. */
     private View[] chromeViews() {
-        if (mStyle == MiniPlayerStyle.CARD_GESTURE) {
-            return new View[] {mProgress}; // its dim shows the paused state (updatePlayPause)
-        }
-        return new View[] {mPlayPause, mClose, mProgress, mBackdrop, mDim, mText};
+        return mViews.chromeViews();
     }
 
     private void attachTexture() {
@@ -806,151 +741,8 @@ public final class MobileMiniPlayerController {
     private void applyStyle(int style) {
         mStyle = style;
         mCardLeft = MiniPlayerStyle.isCardLeft(mActivity);
-        float density = mActivity.getResources().getDisplayMetrics().density;
-        boolean bar = MiniPlayerStyle.isBar(style);
-        int barHeight = px(MiniPlayerStyle.BAR_HEIGHT_DP, density);
-        int thumbWidth = Math.round(MiniPlayerStyle.barThumbWidthPx(density));
-        int buttonSize = px(48, density);
-
-        // The card: in a bottom corner, or a square-cornered bar across the screen.
-        ViewGroup.LayoutParams params = mBar.getLayoutParams();
-        if (params instanceof ViewGroup.MarginLayoutParams) {
-            ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
-            int margin = bar ? 0 : px(MiniPlayerStyle.CARD_MARGIN_DP, density);
-            int startMargin = !bar && mCardLeft ? margin : 0;
-            int endMargin = !bar && !mCardLeft ? margin : 0;
-            margins.height = bar ? barHeight : px(MiniPlayerStyle.CARD_HEIGHT_DP, density);
-            margins.width = bar ? ViewGroup.LayoutParams.MATCH_PARENT : px(MiniPlayerStyle.CARD_WIDTH_DP, density);
-            margins.leftMargin = startMargin;
-            margins.rightMargin = endMargin;
-            margins.setMarginStart(startMargin);
-            margins.setMarginEnd(endMargin);
-            margins.bottomMargin = margin;
-            if (params instanceof ConstraintLayout.LayoutParams) {
-                ConstraintLayout.LayoutParams constraints = (ConstraintLayout.LayoutParams) params;
-                if (bar) {
-                    constraints.width = 0; // MATCH_CONSTRAINT between the two edges
-                }
-                constraints.startToStart = bar || mCardLeft
-                        ? ConstraintLayout.LayoutParams.PARENT_ID : ConstraintLayout.LayoutParams.UNSET;
-                constraints.endToEnd = bar || !mCardLeft
-                        ? ConstraintLayout.LayoutParams.PARENT_ID : ConstraintLayout.LayoutParams.UNSET;
-                constraints.validate();
-            } else if (params instanceof FrameLayout.LayoutParams) {
-                ((FrameLayout.LayoutParams) params).gravity = bar ? Gravity.BOTTOM
-                        : Gravity.BOTTOM | (mCardLeft ? Gravity.START : Gravity.END);
-            }
-            mBar.setLayoutParams(params);
-        }
-        if (mBar instanceof MaterialCardView) {
-            MaterialCardView card = (MaterialCardView) mBar;
-            card.setRadius(bar ? 0f : MiniPlayerStyle.CARD_CORNER_DP * density);
-            card.setCardElevation(bar ? 0f : 8f * density);
-            card.setCardBackgroundColor(style == MiniPlayerStyle.BAR ? Color.TRANSPARENT : Color.BLACK);
-        }
-
-        mBackdrop.setVisibility(style == MiniPlayerStyle.BAR ? View.VISIBLE : View.GONE);
-        boolean dim = style == MiniPlayerStyle.BAR_VIDEO || style == MiniPlayerStyle.CARD_GESTURE;
-        mDim.setVisibility(dim ? View.VISIBLE : View.GONE);
-        mDim.animate().cancel();
-        mDim.setAlpha(style == MiniPlayerStyle.CARD_GESTURE ? 0f : 1f);
-        mFlash.animate().cancel();
-        mFlash.setVisibility(View.GONE);
-
-        // The video: the whole card, the bar's 16:9 thumbnail slot, or the whole bar cropped.
-        FrameLayout.LayoutParams frame = (FrameLayout.LayoutParams) mFrame.getLayoutParams();
-        if (style == MiniPlayerStyle.BAR) {
-            frame.width = thumbWidth;
-            frame.height = ViewGroup.LayoutParams.MATCH_PARENT;
-            frame.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
-        } else {
-            frame.width = ViewGroup.LayoutParams.MATCH_PARENT;
-            frame.height = ViewGroup.LayoutParams.MATCH_PARENT;
-            frame.gravity = Gravity.CENTER;
-        }
-        mFrame.setLayoutParams(frame);
-        if (mFrame instanceof AspectRatioFrameLayout) {
-            ((AspectRatioFrameLayout) mFrame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
-                    ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
-        }
-        mFrame.setBackgroundColor(style == MiniPlayerStyle.BAR ? Color.BLACK : Color.TRANSPARENT);
-
-        // The title (and channel): beside the thumbnail, or on frosted glass over the video.
-        FrameLayout.LayoutParams text = (FrameLayout.LayoutParams) mText.getLayoutParams();
-        text.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
-        int onSurface = ContextCompat.getColor(mActivity, R.color.mobile_color_on_surface);
-        int onVideo = ContextCompat.getColor(mActivity, R.color.mobile_player_on_video);
-        if (style == MiniPlayerStyle.BAR_VIDEO) {
-            text.setMarginStart(px(12, density));
-            text.setMarginEnd(2 * buttonSize + px(8, density));
-            if (mFrost == null) {
-                mFrost = new FrostedScrimDrawable(14f * density,
-                        ContextCompat.getColor(mActivity, R.color.mobile_mini_frost_tint),
-                        ContextCompat.getColor(mActivity, R.color.mobile_mini_frost_edge), density);
-            }
-            mText.setBackground(mFrost);
-            mText.setPadding(px(12, density), px(6, density), px(12, density), px(6, density));
-            mTitle.setTextColor(onVideo);
-            mChannel.setVisibility(View.GONE);
-        } else {
-            text.setMarginStart(thumbWidth + px(12, density));
-            text.setMarginEnd(2 * buttonSize + px(4, density));
-            mText.setBackground(null);
-            mText.setPadding(0, 0, 0, 0);
-            mTitle.setTextColor(onSurface);
-            mChannel.setVisibility(View.VISIBLE);
-        }
-        mText.setLayoutParams(text);
-        mText.setVisibility(bar ? View.VISIBLE : View.GONE);
-
-        // Play/pause and close: over the card's video, side by side at the bar's end, or - on the
-        // gesture card - none at all.
-        FrameLayout.LayoutParams play = (FrameLayout.LayoutParams) mPlayPause.getLayoutParams();
-        FrameLayout.LayoutParams close = (FrameLayout.LayoutParams) mClose.getLayoutParams();
-        if (bar) {
-            play.width = buttonSize;
-            play.height = buttonSize;
-            play.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-            play.setMarginEnd(buttonSize);
-            close.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-        } else {
-            play.width = px(40, density);
-            play.height = px(40, density);
-            play.gravity = Gravity.CENTER;
-            play.setMarginEnd(0);
-            close.gravity = Gravity.TOP | Gravity.END;
-        }
-        close.width = buttonSize;
-        close.height = buttonSize;
-        mPlayPause.setLayoutParams(play);
-        mClose.setLayoutParams(close);
-        if (bar) {
-            // Plain icons: on the page colour (the bar), or white straight on the dimmed video.
-            int iconColor = style == MiniPlayerStyle.BAR ? onSurface : onVideo;
-            mPlayPause.setBackground(borderlessRipple());
-            mClose.setBackground(borderlessRipple());
-            mPlayPause.setPadding(px(12, density), px(12, density), px(12, density), px(12, density));
-            mClose.setPadding(px(14, density), px(14, density), px(14, density), px(14, density));
-            mPlayPause.setImageTintList(ColorStateList.valueOf(iconColor));
-            mClose.setImageTintList(ColorStateList.valueOf(iconColor));
-        } else {
-            // White icons on dark circles over the card's video.
-            mPlayPause.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
-            mClose.setBackgroundResource(R.drawable.bg_mini_scrim_circle_touch);
-            mPlayPause.setPadding(px(9, density), px(9, density), px(9, density), px(9, density));
-            mClose.setPadding(px(15, density), px(15, density), px(15, density), px(15, density));
-            mPlayPause.setImageTintList(null);
-            mClose.setImageTintList(ColorStateList.valueOf(onVideo));
-        }
-        int buttons = style == MiniPlayerStyle.CARD_GESTURE ? View.GONE : View.VISIBLE;
-        mPlayPause.setVisibility(buttons);
-        mClose.setVisibility(buttons);
-
-        mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(mActivity,
-                style == MiniPlayerStyle.BAR ? R.color.mobile_color_track : R.color.mobile_color_progress_track)));
-
+        mViews.applyStyle(style, mCardLeft);
         updateAccessibility();
-        mBar.requestLayout();
     }
 
     /**
@@ -985,20 +777,6 @@ public final class MobileMiniPlayerController {
         }
     }
 
-    @Nullable
-    private Drawable borderlessRipple() {
-        TypedValue value = new TypedValue();
-        if (!mActivity.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, value, true)
-                || value.resourceId == 0) {
-            return null;
-        }
-        return ContextCompat.getDrawable(mActivity, value.resourceId);
-    }
-
-    private static int px(float dp, float density) {
-        return Math.round(dp * density);
-    }
-
     /** The bars' title and channel, from the playing video (an autoplayed next one included). */
     private void updateText() {
         if (!MiniPlayerStyle.isBar(mStyle)) {
@@ -1017,13 +795,11 @@ public final class MobileMiniPlayerController {
     }
 
     /**
-     * NEWTUBE(mini-style): refresh the frosted glass behind the video-background bar's title - a
-     * tiny copy of the current frame, blurred, of which the scrim draws the part under the title.
-     * At most every {@link #FROST_INTERVAL_MS}, on the texture's own frame callback.
+     * NEWTUBE(mini-style): refresh the video-background bar's frosted glass from the live video, at
+     * most every {@link #FROST_INTERVAL_MS}, on the texture's own frame callback.
      */
     private void updateFrost() {
-        if (mStyle != MiniPlayerStyle.BAR_VIDEO || mFrost == null || mTexture == null
-                || !mTexture.isAvailable() || mText.getVisibility() != View.VISIBLE) {
+        if (mStyle != MiniPlayerStyle.BAR_VIDEO || mTexture == null || !mTexture.isAvailable()) {
             return;
         }
         long now = SystemClock.uptimeMillis();
@@ -1031,78 +807,43 @@ public final class MobileMiniPlayerController {
             return;
         }
         mFrostAt = now;
-        int frameWidth = mFrame.getWidth();
-        int frameHeight = mFrame.getHeight();
-        if (frameWidth <= 0 || frameHeight <= 0 || mText.getWidth() <= 0) {
-            return;
-        }
-        try {
-            if (mFrostSample == null) {
-                mFrostSample = Bitmap.createBitmap(FROST_WIDTH, FROST_HEIGHT, Bitmap.Config.ARGB_8888);
-                mFrostBlur = Bitmap.createBitmap(FROST_WIDTH, FROST_HEIGHT, Bitmap.Config.ARGB_8888);
-                mFrostPixels = new int[FROST_WIDTH * FROST_HEIGHT];
-                mFrostScratch = new int[FROST_WIDTH * FROST_HEIGHT];
-            }
-            mTexture.getBitmap(mFrostSample);
-        } catch (RuntimeException e) {
-            return; // the texture went away under us; the scrim keeps its last picture
-        }
-        mFrostSample.getPixels(mFrostPixels, 0, FROST_WIDTH, 0, 0, FROST_WIDTH, FROST_HEIGHT);
-        boxBlur(mFrostPixels, mFrostScratch, FROST_WIDTH, FROST_HEIGHT, FROST_BLUR_RADIUS);
-        boxBlur(mFrostPixels, mFrostScratch, FROST_WIDTH, FROST_HEIGHT, FROST_BLUR_RADIUS);
-        mFrostBlur.setPixels(mFrostPixels, 0, FROST_WIDTH, 0, 0, FROST_WIDTH, FROST_HEIGHT);
-
-        // The title's box in the frame's pixels, then in the small copy's.
-        float left = mText.getLeft() - mFrame.getLeft();
-        float top = mText.getTop() - mFrame.getTop();
-        float sx = (float) FROST_WIDTH / frameWidth;
-        float sy = (float) FROST_HEIGHT / frameHeight;
-        mFrostSource.set(Math.round(left * sx), Math.round(top * sy),
-                Math.round((left + mText.getWidth()) * sx), Math.round((top + mText.getHeight()) * sy));
-        if (mFrostSource.width() <= 0) {
-            mFrostSource.right = mFrostSource.left + 1;
-        }
-        if (mFrostSource.height() <= 0) {
-            mFrostSource.bottom = mFrostSource.top + 1;
-        }
-        mFrost.setFrame(mFrostBlur, mFrostSource);
+        mViews.updateFrost(mTexture);
     }
 
-    /** One horizontal and one vertical box-blur pass over {@code pixels}, in place. */
-    private static void boxBlur(int[] pixels, int[] scratch, int width, int height, int radius) {
-        int window = radius * 2 + 1;
-        for (int y = 0; y < height; y++) {
-            int row = y * width;
-            for (int x = 0; x < width; x++) {
-                int a = 0;
-                int r = 0;
-                int g = 0;
-                int b = 0;
-                for (int k = -radius; k <= radius; k++) {
-                    int c = pixels[row + Math.max(0, Math.min(width - 1, x + k))];
-                    a += c >>> 24;
-                    r += (c >> 16) & 0xFF;
-                    g += (c >> 8) & 0xFF;
-                    b += c & 0xFF;
-                }
-                scratch[row + x] = ((a / window) << 24) | ((r / window) << 16) | ((g / window) << 8) | (b / window);
-            }
+    /**
+     * NEWTUBE(mini-style): a bar lifted {@code -translationY} px toward the player: fill the space
+     * between its bottom and where its bottom rests with the watch page's colour.
+     */
+    private void liftSheet(float translationY) {
+        if (!MiniPlayerStyle.isBar(mStyle) || translationY > -1f || mBar.getVisibility() != View.VISIBLE) {
+            removeSheet();
+            return;
         }
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                int a = 0;
-                int r = 0;
-                int g = 0;
-                int b = 0;
-                for (int k = -radius; k <= radius; k++) {
-                    int c = scratch[Math.max(0, Math.min(height - 1, y + k)) * width + x];
-                    a += c >>> 24;
-                    r += (c >> 16) & 0xFF;
-                    g += (c >> 8) & 0xFF;
-                    b += c & 0xFF;
-                }
-                pixels[y * width + x] = ((a / window) << 24) | ((r / window) << 16) | ((g / window) << 8) | (b / window);
-            }
+        ViewGroup content = mActivity.findViewById(android.R.id.content);
+        if (content == null) {
+            return;
+        }
+        if (mSheet == null) {
+            mSheet = new View(mActivity);
+            mSheet.setBackgroundColor(ContextCompat.getColor(mActivity, R.color.mobile_color_background));
+            mSheet.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        }
+        if (mSheet.getParent() == null) {
+            content.addView(mSheet, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        int[] bar = new int[2];
+        int[] origin = new int[2];
+        mBar.getLocationOnScreen(bar); // includes the lift
+        content.getLocationOnScreen(origin);
+        float bottom = bar[1] - origin[1] + mBar.getHeight();
+        mSheet.setTranslationY(bottom);
+        mSheet.setClipBounds(new Rect(0, 0, Math.max(1, content.getWidth()), Math.round(-translationY)));
+    }
+
+    private void removeSheet() {
+        if (mSheet != null && mSheet.getParent() instanceof ViewGroup) {
+            ((ViewGroup) mSheet.getParent()).removeView(mSheet);
         }
     }
 }

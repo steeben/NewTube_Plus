@@ -630,22 +630,6 @@ public class MobileSearchActivity extends MobileActivity
         return mMiniPlayer != null && mMiniPlayer.prepareForHandoff(onDrawn);
     }
 
-    /** NEWTUBE(mini-style): a bar minimize is under the finger - draw the bar under the player. */
-    @Override
-    public void previewMiniPlayer(@androidx.annotation.Nullable
-            com.liskovsoft.smartyoutubetv2.common.app.models.data.Video video, int progress, boolean playing) {
-        if (mMiniPlayer != null) {
-            mMiniPlayer.preview(video, progress, playing);
-        }
-    }
-
-    @Override
-    public void endMiniPlayerPreview() {
-        if (mMiniPlayer != null) {
-            mMiniPlayer.endPreview();
-        }
-    }
-
     @Override
     public Class<?> getMiniHostViewClass() {
         return SearchView.class;
