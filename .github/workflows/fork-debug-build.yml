@@ -46,9 +46,11 @@ jobs:
       - name: Report build errors
         if: failure()
         run: |
-          grep -a -E "error:|e: |ERROR:|What went wrong" -A2 build.log | head -60 | while IFS= read -r line; do
-            echo "::error::${line//%/%25}"
-          done
+          # One annotation (GitHub keeps only a few per step): the errors, newlines escaped.
+          msg=$(grep -a -E "error:|^e: |ERROR:|What went wrong|^\* What|\.java:[0-9]+:" -A3 build.log | grep -av "^Note:" | head -80)
+          msg=${msg//'%'/'%25'}
+          msg=${msg//$'\n'/'%0A'}
+          echo "::error title=Build errors::${msg}"
 
       - name: List what was built
         run: ls -l smarttubetv/build/outputs/renamed_apks/stmobileDebug/
