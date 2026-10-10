@@ -682,10 +682,7 @@ public class MobilePlaybackActivity extends MobileActivity
         mTopScrim = findViewById(R.id.mobile_player_top_scrim);
         mBottomScrim = findViewById(R.id.mobile_player_bottom_scrim);
         // NEWTUBE(frosted): the dim under the controls is a vignette - full at the edges, clear centre.
-        View controlsDim = findViewById(R.id.mobile_player_dim);
-        if (controlsDim != null) {
-            controlsDim.setBackground(new VignetteDrawable(0x0F0F0F, 0xA6));
-        }
+        updateControlsDim();
         mTitleView = findViewById(R.id.mobile_player_title);
         mBackButton = findViewById(R.id.mobile_player_back);
         mPlayPauseButton = findViewById(R.id.mobile_player_play_pause);
@@ -1544,6 +1541,7 @@ public class MobilePlaybackActivity extends MobileActivity
                         // From the style's own slot: the card, or a bar's (cropped) video.
                         computeMorphTarget(miniBounds, miniCrop, MiniPlayerStyle.isBar(miniStyle)
                                 ? 0f : MiniPlayerStyle.CARD_CORNER_DP);
+                        mMorphLineOn = true;
                     }
                 } else {
                     computeMorphTarget();
@@ -2184,6 +2182,7 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mControlsRoot == null) {
             return;
         }
+        updateControlsDim();
         int left = 0, top = 0, right = 0, bottom = 0;
         if (isLandscape()) {
             WindowInsetsCompat rootInsets = ViewCompat.getRootWindowInsets(mControlsRoot);
@@ -2341,6 +2340,20 @@ public class MobilePlaybackActivity extends MobileActivity
      * area. Padded with the root, the scrims stopped at the 16:9 box or at the cutout inset and left
      * a hard vertical edge on any picture that reaches the screen edge.
      */
+    @Nullable
+    private Boolean mDimLight;
+
+    /** The dim under the controls: a black vignette, a faint white one in the light theme. */
+    private void updateControlsDim() {
+        View dim = findViewById(R.id.mobile_player_dim);
+        boolean light = com.newtube.mobile.ui.common.ThemeMode.isLight(this);
+        if (dim == null || (mDimLight != null && mDimLight == light)) {
+            return;
+        }
+        mDimLight = light;
+        dim.setBackground(light ? new VignetteDrawable(0xFFFFFF, 0x38) : new VignetteDrawable(0x000000, 0xA6));
+    }
+
     private static void bleedScrim(@Nullable View scrim, int left, int top, int right, int bottom) {
         if (scrim == null || !(scrim.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
             return;
@@ -5550,8 +5563,67 @@ public class MobilePlaybackActivity extends MobileActivity
     @Nullable
     private View mWatchArea;
 
+    /**
+     * NEWTUBE(mini-progress): one progress line from the player to the mini player. The seek bar
+     * gives way at once to this line, which rides the bottom of the shrinking video (the same
+     * drawing as the mini player's), and the mini player's own takes over where it lands.
+     */
+    @Nullable
+    private View mMorphLine;
+    @Nullable
+    private MiniProgressDrawable mMorphLineDrawable;
+    /** The morph under way is to or from a mini player (not from a feed card's thumbnail). */
+    private boolean mMorphLineOn;
+
+    /** True while the line stands in for the seek bar. */
+    private boolean updateMorphLine(float f, float bottom) {
+        if (!mMorphLineOn || mContainer == null || mVideoArea == null || mTimeBar == null || f <= 0f
+                || mTimeBar.getVisibility() != View.VISIBLE || isLandscape()
+                || !(mControlsVisible || mTimeBar.isLineWhenHidden())) {
+            removeMorphLine();
+            return false;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        Rect box = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
+        mContainer.offsetDescendantRectToMyCoords(mVideoArea, box);
+        int height = Math.round(10 * density);
+        int width = Math.max(1, box.width());
+        if (mMorphLine == null) {
+            mMorphLineDrawable = new MiniProgressDrawable(density);
+            mMorphLineDrawable.setColors(MiniPlayerStyle.accent(this), getResources().getColor(
+                    R.color.mobile_color_progress_track), com.newtube.mobile.ui.common.ThemeMode.isLight(this));
+            if (mPlayer != null && mPlayer.getDuration() > 0) {
+                mMorphLineDrawable.setLevel((int) (mPlayer.getCurrentPosition() * 10000L / mPlayer.getDuration()));
+            }
+            mMorphLine = new View(this);
+            mMorphLine.setBackground(mMorphLineDrawable);
+            mMorphLine.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            mContainer.addView(mMorphLine, new FrameLayout.LayoutParams(width, height,
+                    android.view.Gravity.TOP | android.view.Gravity.START));
+        }
+        ViewGroup.LayoutParams params = mMorphLine.getLayoutParams();
+        if (params.width != width) {
+            params.width = width;
+            mMorphLine.setLayoutParams(params);
+        }
+        mMorphLine.setTranslationX(box.left);
+        mMorphLine.setTranslationY(bottom - height);
+        return true;
+    }
+
+    private void removeMorphLine() {
+        if (mMorphLine != null) {
+            if (mMorphLine.getParent() instanceof ViewGroup) {
+                ((ViewGroup) mMorphLine.getParent()).removeView(mMorphLine);
+            }
+            mMorphLine = null;
+            mMorphLineDrawable = null;
+        }
+    }
+
     /** Set up the bar slide onto a bar at {@code barTop} (container px). False: no geometry yet. */
     private boolean setupBarSlide(float barTop, float barHeight, float landedWidth, float clipBottom) {
+        mMorphLineOn = true; // NEWTUBE(mini-progress)
         if (mVideoArea == null || mContainer == null) {
             return false;
         }
@@ -5664,7 +5736,7 @@ public class MobilePlaybackActivity extends MobileActivity
             mControlsRoot.setAlpha(controlsAlpha);
         }
         if (mTimeBar != null) {
-            mTimeBar.setAlpha(controlsAlpha);
+            mTimeBar.setAlpha(updateMorphLine(settled, bandBottom) ? 0f : controlsAlpha);
         }
         if (mCommentsPanel != null) {
             mCommentsPanel.setMorphAlpha(1f);
@@ -5766,6 +5838,7 @@ public class MobilePlaybackActivity extends MobileActivity
 
     /** Compute the video transform (pivot 0,0) that maps the video area onto the mini player. */
     private void computeMorphTarget() {
+        mMorphLineOn = true; // NEWTUBE(mini-progress)
         float density = getResources().getDisplayMetrics().density;
         // The bottom offset comes from the DESTINATION host: Browse's mini player sits above its
         // 56dp bottom-nav row, Search/Channel overlay ones at the content bottom. Both
@@ -5826,6 +5899,7 @@ public class MobilePlaybackActivity extends MobileActivity
     /** Map the watch-page video box onto an arbitrary tapped thumbnail in screen coordinates. */
     private void computeMorphTarget(Rect sourceBounds) {
         computeMorphTarget(sourceBounds, false, MORPH_CORNER_DP);
+        mMorphLineOn = false; // a feed card's thumbnail has no progress line
     }
 
     /**
@@ -5932,11 +6006,21 @@ public class MobilePlaybackActivity extends MobileActivity
             mControlsRoot.setAlpha(contentAlpha);
         }
         if (mTimeBar != null) {
-            mTimeBar.setAlpha(contentAlpha); // outside the controls since NEWTUBE(seek bar): fade it too
+            // outside the controls since NEWTUBE(seek bar): fade it too - or, when a mini player is
+            // the other end, hand it to the line riding the video (NEWTUBE(mini-progress)).
+            boolean line = updateMorphLine(settled, mVideoAreaBottom());
+            mTimeBar.setAlpha(line ? 0f : contentAlpha);
         }
         if (mCommentsPanel != null) {
             mCommentsPanel.setMorphAlpha(contentAlpha);
         }
+    }
+
+    /** The bottom of the video box as it is drawn now, in the container's coordinates. */
+    private float mVideoAreaBottom() {
+        Rect box = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
+        mContainer.offsetDescendantRectToMyCoords(mVideoArea, box);
+        return box.bottom;
     }
 
     /**
@@ -6024,6 +6108,7 @@ public class MobilePlaybackActivity extends MobileActivity
             }
         }
         mOutlineTopRadiusPx = 0f;
+        removeMorphLine();
         if (mBarZoomContent) {
             mBarZoomContent = false;
             setContentZoom(0f);

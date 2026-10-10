@@ -46,7 +46,10 @@ final class TabSlider {
         /** Change to {@code tabId} at once (the bar and the page). */
         void switchTo(int tabId);
 
-        /** The page's area in the root: what the picture covers (between the bars). */
+        /**
+         * The picture's area in the root: the whole page, including what is under the glass bars
+         * (the pictures are of the page alone, without the bars; the live glass blurs them).
+         */
         Rect pageRect();
 
         /** The loading placeholders' view (drawn for a tab that has no picture yet), if any. */
@@ -62,13 +65,6 @@ final class TabSlider {
          */
         void onSlideFrame(@Nullable View incoming);
 
-        /**
-         * A view the picture goes over (the glass bars' views), or null. The picture is a copy of
-         * the window, so it already has the glass in it: put under the glass it would be tinted
-         * twice (darker along the bars' soft edges); over it, it shows as it was.
-         */
-        @Nullable
-        View ghostAbove();
     }
 
     private static final long SLIDE_MS = 280;
@@ -214,16 +210,13 @@ final class TabSlider {
             ghost.setImageBitmap(picture);
         }
         ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(area.width(), area.height());
-        // Over the page's views (and the glass's, see Host.ghostAbove), under the bars' contents
-        // (which come after them in the root).
+        // Over the page's views, under the glass bars (which come after them in the root and blur
+        // it as they do the page).
         int at = 0;
         for (View view : mHost.pageViews()) {
             at = Math.max(at, mRoot.indexOfChild(view) + 1);
         }
-        View above = mHost.ghostAbove();
-        if (above != null) {
-            at = Math.max(at, mRoot.indexOfChild(above) + 1);
-        }
+
         mRoot.addView(ghost, Math.min(at, mRoot.getChildCount()), params);
         ghost.setX(area.left);
         ghost.setY(area.top);
@@ -338,34 +331,112 @@ final class TabSlider {
     // Pictures
     // ---------------------------------------------------------------------------------
 
-    /** The window's pixels over the page, kept (at half size) as {@code tabId}'s picture. */
+    /**
+     * The page as it is now (without the bars: its views drawn on their own, so nothing of the
+     * glass is in it), kept at half size as {@code tabId}'s picture.
+     */
     private void copyPage(int tabId, Rect area) {
-        if (Build.VERSION.SDK_INT < 26 || tabId == 0) {
+        if (Build.VERSION.SDK_INT < 29 || tabId == 0) {
             return;
         }
-        int[] at = new int[2];
-        mRoot.getLocationInWindow(at);
-        Rect inWindow = new Rect(area);
-        inWindow.offset(at[0], at[1]);
-        Bitmap bitmap;
+        int width = Math.max(1, area.width() / 2);
+        int height = Math.max(1, area.height() / 2);
         try {
-            bitmap = Bitmap.createBitmap(Math.max(1, area.width() / 2), Math.max(1, area.height() / 2),
-                    Bitmap.Config.RGB_565);
-        } catch (OutOfMemoryError e) {
-            return;
-        }
-        try {
-            PixelCopy.request(mActivity.getWindow(), inWindow, bitmap, result -> {
-                if (result == PixelCopy.SUCCESS) {
-                    Bitmap old = mPictures.get(tabId);
-                    mPictures.put(tabId, bitmap);
-                    if (old != null && old != bitmap && (mGhost == null || !isShown(old))) {
-                        old.recycle();
-                    }
+            android.graphics.RenderNode node = new android.graphics.RenderNode("tab-picture");
+            node.setPosition(0, 0, width, height);
+            android.graphics.RecordingCanvas canvas = node.beginRecording(width, height);
+            try {
+                canvas.scale(0.5f, 0.5f);
+                canvas.drawColor(mHost.pageColor());
+                for (View view : mHost.pageViews()) {
+                    canvas.save();
+                    canvas.translate(view.getLeft() - area.left, view.getTop() - area.top);
+                    canvas.clipRect(0, 0, view.getWidth(), view.getHeight());
+                    view.draw(canvas);
+                    canvas.restore();
                 }
-            }, mHandler);
-        } catch (RuntimeException e) {
-            // No surface to copy from (the window is going): no picture this time.
+            } finally {
+                node.endRecording();
+            }
+            if (mPictureRenderer == null) {
+                mPictureRenderer = new PictureRenderer();
+            }
+            Bitmap bitmap = mPictureRenderer.render(node, width, height);
+            if (bitmap == null) {
+                return;
+            }
+            Bitmap old = mPictures.get(tabId);
+            mPictures.put(tabId, bitmap);
+            if (old != null && old != bitmap && (mGhost == null || !isShown(old))) {
+                old.recycle();
+            }
+        } catch (RuntimeException | OutOfMemoryError e) {
+            // No picture this time (the tab comes in as its placeholders).
+        }
+    }
+
+    @Nullable
+    private PictureRenderer mPictureRenderer;
+
+    /** Give back the renderer (the screen is going). */
+    void release() {
+        if (mPictureRenderer != null) {
+            mPictureRenderer.release();
+            mPictureRenderer = null;
+        }
+    }
+
+    /** Draws a RenderNode into a bitmap on the GPU; keeps its renderer between pictures (it is slow to build). */
+    @androidx.annotation.RequiresApi(29)
+    private static final class PictureRenderer {
+        @Nullable
+        private android.media.ImageReader mReader;
+        @Nullable
+        private android.graphics.HardwareRenderer mRenderer;
+        private int mWidth;
+        private int mHeight;
+
+        @Nullable
+        Bitmap render(android.graphics.RenderNode node, int width, int height) {
+            if (mReader == null || mWidth != width || mHeight != height) {
+                release();
+                mReader = android.media.ImageReader.newInstance(width, height, android.graphics.PixelFormat.RGBA_8888, 1,
+                        android.hardware.HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
+                                | android.hardware.HardwareBuffer.USAGE_GPU_COLOR_OUTPUT);
+                mRenderer = new android.graphics.HardwareRenderer();
+                mRenderer.setSurface(mReader.getSurface());
+                mWidth = width;
+                mHeight = height;
+            }
+            mRenderer.setContentRoot(node);
+            mRenderer.createRenderRequest().setWaitForPresent(true).syncAndDraw();
+            android.media.Image image = mReader.acquireLatestImage();
+            if (image == null) {
+                return null;
+            }
+            try {
+                Bitmap hardware = Bitmap.wrapHardwareBuffer(image.getHardwareBuffer(),
+                        android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB));
+                if (hardware == null) {
+                    return null;
+                }
+                Bitmap copy = hardware.copy(Bitmap.Config.RGB_565, false);
+                hardware.recycle();
+                return copy;
+            } finally {
+                image.close();
+            }
+        }
+
+        void release() {
+            if (mRenderer != null) {
+                mRenderer.destroy();
+                mRenderer = null;
+            }
+            if (mReader != null) {
+                mReader.close();
+                mReader = null;
+            }
         }
     }
 

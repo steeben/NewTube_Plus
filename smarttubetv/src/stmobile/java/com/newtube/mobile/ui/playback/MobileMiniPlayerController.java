@@ -480,6 +480,7 @@ public final class MobileMiniPlayerController {
             // host is in front (its onResume sync) rather than appearing with the card in one frame.
             // NEWTUBE(mini-style): the bars were drawn whole under the minimize: nothing fades in.
             setControlsAlpha(0f);
+            mProgress.setAlpha(1f); // NEWTUBE(mini-progress): the line that rode the video lands on this one
             mButtonsFadePending = true;
         }
 

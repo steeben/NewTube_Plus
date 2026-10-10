@@ -660,6 +660,10 @@ public class MobileBrowseActivity extends MobileActivity
 
             @Override
             public android.graphics.Rect pageRect() {
+                if (mFrostedApplied) {
+                    // The whole page, under the glass bars too (they blur the picture live).
+                    return new android.graphics.Rect(0, 0, root.getWidth(), root.getHeight());
+                }
                 return slidePageRect();
             }
 
@@ -671,11 +675,6 @@ public class MobileBrowseActivity extends MobileActivity
             @Override
             public int pageColor() {
                 return getColorInt(R.color.mobile_color_background);
-            }
-
-            @Override
-            public View ghostAbove() {
-                return mFrostedApplied ? mNavGlass : null;
             }
 
             @Override
@@ -2173,6 +2172,9 @@ public class MobileBrowseActivity extends MobileActivity
         mNavHandler.removeCallbacks(mRunwayCheck);
         cancelFeedSwap(); // NEWTUBE(feed-swap)
         mContentGrid.removeCallbacks(mRestoreItemAnimator);
+        if (mTabSlider != null) {
+            mTabSlider.release();
+        }
         MiniPlayerBridge.unregisterMiniHost(this);
         DownloadRegistry.instance(this).removeListener(mDownloadsListener);
         AppUpdates.instance(this).removeListener(mUpdatesListener);
