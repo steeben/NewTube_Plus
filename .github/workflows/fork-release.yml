@@ -1,10 +1,13 @@
 name: Fork release
 
-# Pushing a tag like v1.0 builds the APKs and attaches them to a GitHub release.
+# Run from the Actions tab: builds the APKs and attaches them to a GitHub release.
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag"
+        default: "v1.0"
 
 permissions:
   contents: write
@@ -35,5 +38,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l smarttubetv/build/outputs/renamed_apks/stmobileDebug/
-          gh release create "$GITHUB_REF_NAME" smarttubetv/build/outputs/renamed_apks/stmobileDebug/*.apk \
+          gh release create "${{ inputs.tag }}" --target "$GITHUB_SHA" smarttubetv/build/outputs/renamed_apks/stmobileDebug/*.apk \
             --repo "$GITHUB_REPOSITORY" --title "NewTube+ 1.0" --notes-file RELEASE_NOTES.md
