@@ -236,6 +236,7 @@ public class MobileBrowseActivity extends MobileActivity
         }
         setupYouPanel();
         setupTabSlider();
+        setupAutoplay();
         setupErrorAction();
         setupSearchButton();
         setupCastButton();
@@ -703,6 +704,26 @@ public class MobileBrowseActivity extends MobileActivity
     @Nullable
     private android.os.Parcelable mPendingScrollRestore;
 
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(autoplay): the feed card at the reading line plays, muted (FeedAutoplay)
+    // ---------------------------------------------------------------------------------
+
+    @Nullable
+    private com.newtube.mobile.ui.playback.FeedAutoplay mAutoplay;
+
+    private void setupAutoplay() {
+        if (mContentGrid == null) {
+            return;
+        }
+        mAutoplay = new com.newtube.mobile.ui.playback.FeedAutoplay(this, mContentGrid, () ->
+                !mYouShowing
+                        && mContentGrid.getVisibility() == View.VISIBLE
+                        && (mLayoutManager == null || mLayoutManager.getSpanCount() == 1)
+                        && !com.newtube.mobile.ui.playback.MiniPlayerBridge.isActive()
+                        && (mTabSlider == null || !mTabSlider.isBusy())
+                        && !isDownloadsSectionShowing());
+    }
+
     private void setupTabSlider() {
         ViewGroup root = findViewById(R.id.mobile_browse_root);
         if (root == null) {
@@ -772,6 +793,13 @@ public class MobileBrowseActivity extends MobileActivity
             public void onSlideFrame(View incoming) {
                 // The glass bars blur whatever is under them (mGlassLayers), as it moves.
                 invalidateGlass();
+                if (mAutoplay != null) {
+                    if (incoming != null) {
+                        mAutoplay.stop(); // NEWTUBE(autoplay): not while the pages slide
+                    } else {
+                        mAutoplay.evaluateSoon();
+                    }
+                }
             }
         });
     }
@@ -1176,6 +1204,9 @@ public class MobileBrowseActivity extends MobileActivity
     /** Show the You panel over the content area (the panel is opaque; the grid stays put). */
     private void showYouPanel() {
         mYouShowing = true;
+        if (mAutoplay != null) {
+            mAutoplay.stop();
+        }
         mSectionFromYou = false;
         rebuildYouRows();
         updateAccountRow();
@@ -1188,6 +1219,9 @@ public class MobileBrowseActivity extends MobileActivity
         mYouShowing = false;
         mYouPanel.setVisibility(View.GONE);
         onYouPanelToggled();
+        if (mAutoplay != null) {
+            mAutoplay.evaluateSoon();
+        }
     }
 
     /**
@@ -2190,6 +2224,9 @@ public class MobileBrowseActivity extends MobileActivity
     @Override
     protected void onResume() {
         super.onResume();
+        if (mAutoplay != null) {
+            mAutoplay.setActive(true); // NEWTUBE(autoplay)
+        }
 
         if (mPresenter != null) {
             mPresenter.onViewResumed();
@@ -2294,6 +2331,9 @@ public class MobileBrowseActivity extends MobileActivity
     @Override
     protected void onPause() {
         super.onPause();
+        if (mAutoplay != null) {
+            mAutoplay.setActive(false); // NEWTUBE(autoplay): stops, and gives the player back
+        }
         if (mBottomNav != null) {
             BrowseNavMirror.setSelected(mBottomNav.getSelectedItemId()); // NEWTUBE(nav-mirror)
         }
@@ -2340,6 +2380,9 @@ public class MobileBrowseActivity extends MobileActivity
 
     @Override
     protected void onDestroy() {
+        if (mAutoplay != null) {
+            mAutoplay.release();
+        }
         mNavHandler.removeCallbacks(mNavRebuild);
         mNavHandler.removeCallbacks(mRunwayCheck);
         cancelFeedSwap(); // NEWTUBE(feed-swap)
@@ -2762,6 +2805,9 @@ public class MobileBrowseActivity extends MobileActivity
             return;
         }
         mSectionSwapPending = false;
+        if (mAutoplay != null) {
+            mAutoplay.evaluateSoon(); // NEWTUBE(autoplay): another section, another card
+        }
         // DiffUtil keeps the viewport anchored on a card both sections share; a new section starts
         // at its top - or, NEWTUBE(tab-slide), where it was left.
         android.os.Parcelable restore = mPendingScrollRestore;

@@ -227,7 +227,8 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
      * Public for reuse by other screens that render the standard video card (kept public
      * after the channel page's old heterogeneous adapter was replaced by tabs, 2026-07-09).
      */
-    public static class VideoViewHolder extends RecyclerView.ViewHolder {
+    public static class VideoViewHolder extends RecyclerView.ViewHolder
+            implements com.newtube.mobile.ui.playback.FeedAutoplay.Card {
         private final ImageView mThumbnail;
         private final View mThumbnailFrame;
         private final TextView mBadge;
@@ -252,6 +253,10 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             itemView.setOnClickListener(v -> {
                 if (mVideo != null && clickListener != null) {
                     if (mVideo.videoId != null) {
+                        // NEWTUBE(autoplay): a previewing card opens from its live picture, at its time.
+                        com.newtube.mobile.ui.playback.FeedAutoplay.beforeOpen(
+                                mThumbnailFrame instanceof ViewGroup ? (ViewGroup) mThumbnailFrame : null,
+                                mThumbnail, mVideo);
                         PlayerTransitionBridge.prepare(mThumbnailFrame, mBadge, mWatchProgress);
                     } else {
                         PlayerTransitionBridge.clear();
@@ -259,6 +264,21 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
                     clickListener.onVideoClick(mVideo);
                 }
             });
+        }
+
+        @Override
+        public Video video() {
+            return mVideo;
+        }
+
+        @Override
+        public ViewGroup thumbnailFrame() {
+            return mThumbnailFrame instanceof ViewGroup ? (ViewGroup) mThumbnailFrame : null;
+        }
+
+        @Override
+        public ImageView thumbnail() {
+            return mThumbnail;
         }
 
         public void bind(Video video, OnVideoLongClickListener longClickListener) {

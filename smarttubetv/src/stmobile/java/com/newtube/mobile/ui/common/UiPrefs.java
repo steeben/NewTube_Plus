@@ -167,6 +167,18 @@ public final class UiPrefs {
         notifyChanged();
     }
 
+    // NEWTUBE(autoplay): the feed plays the card at the reading line, muted (one column only).
+    private static final String KEY_FEED_AUTOPLAY = "feed_autoplay";
+
+    public static boolean isFeedAutoplay(Context context) {
+        return prefs(context).getBoolean(KEY_FEED_AUTOPLAY, true);
+    }
+
+    public static void setFeedAutoplay(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_FEED_AUTOPLAY, on).apply();
+        notifyChanged();
+    }
+
     // NEWTUBE(black-bars): look for black bars at the start of each video and crop them.
     private static final String KEY_BLACK_BARS = "detect_black_bars";
 

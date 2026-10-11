@@ -547,6 +547,10 @@
     <string name="mobile_settings_wave_colors_live">From the video (updates as it plays)</string>
     <string name="mobile_settings_wave_colors_thumbnail">From the video\'s thumbnail</string>
     <string name="mobile_player_song">Song</string>
+    <string name="mobile_settings_feed_autoplay">Autoplay</string>
+    <string name="mobile_settings_feed_autoplay_summary">Plays the video in the middle of the feed, muted. Only when the feed shows one column</string>
+    <string name="mobile_autoplay_mute">Mute</string>
+    <string name="mobile_autoplay_unmute">Unmute</string>
     <string name="mobile_player_detect_bars">Detect black bars</string>
     <string name="mobile_player_bars_cropped">Black bars cropped</string>
     <string name="mobile_player_bars_none">No black bars found</string>
