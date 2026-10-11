@@ -425,31 +425,47 @@ public final class MiniPlayerBridge {
      * sync and their progress tick - the tick picks up an autoplayed video of another shape.
      */
     public static void fitToVideo(@Nullable View frame) {
-        ExoPlayer player = getPlayer();
-        if (!(frame instanceof AspectRatioFrameLayout) || player == null) {
+        if (!(frame instanceof AspectRatioFrameLayout)) {
             return;
         }
-        VideoSize size = player.getVideoSize();
-        if (size.width > 0 && size.height > 0) {
-            float aspect = size.width * size.pixelWidthHeightRatio / size.height;
-            float[] crop = sCrop;
-            if (crop != null) {
-                aspect = aspect * (1f - crop[2] - crop[3]) / Math.max(0.01f, 1f - crop[0] - crop[1]);
-            }
-            ((AspectRatioFrameLayout) frame).setAspectRatio(aspect);
-        }
-        // NEWTUBE(black-bars): the frame has the cropped shape; its picture (video, still) grows
-        // past it - each way by what the bars took - with the crop's middle on the frame's.
+        // NEWTUBE(black-bars): the frame's shape and its picture's crop are checked together right
+        // before every frame is drawn - set apart (a tick, a layout), one could be a frame behind
+        // the other, a picture stretched for a frame.
         if (!sCropFrames.containsKey(frame)) {
             sCropFrames.put(frame, Boolean.TRUE);
-            frame.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-                if (r - l != or - ol || b - t != ob - ot) {
-                    applyCropTransform(v);
-                }
+            frame.getViewTreeObserver().addOnPreDrawListener(() -> {
+                boolean reshaped = updateFrameAspect((AspectRatioFrameLayout) frame);
+                applyCropTransform(frame);
+                return !reshaped; // a new shape: lay out first, then draw
             });
+        }
+        if (updateFrameAspect((AspectRatioFrameLayout) frame)) {
+            frame.requestLayout();
         }
         applyCropTransform(frame);
     }
+
+    /** The frame's shape: the video's, cropped. True if it changed. */
+    private static boolean updateFrameAspect(AspectRatioFrameLayout frame) {
+        ExoPlayer player = getPlayer();
+        if (player == null) {
+            return false;
+        }
+        VideoSize size = player.getVideoSize();
+        if (size.width <= 0 || size.height <= 0) {
+            return false;
+        }
+        float aspect = croppedAspect(size.width * size.pixelWidthHeightRatio / size.height);
+        Float shown = sFrameAspects.get(frame);
+        if (shown != null && Math.abs(shown - aspect) < 0.0001f) {
+            return false;
+        }
+        sFrameAspects.put(frame, aspect);
+        frame.setAspectRatio(aspect);
+        return true;
+    }
+
+    private static final java.util.WeakHashMap<View, Float> sFrameAspects = new java.util.WeakHashMap<>();
 
     private static void applyCropTransform(View frame) {
         android.view.ViewGroup group = (android.view.ViewGroup) frame;
@@ -471,6 +487,9 @@ public final class MiniPlayerBridge {
                 child.setTranslationX(0f);
                 child.setTranslationY(0f);
                 continue;
+            }
+            if (child.getWidth() <= 0 || child.getHeight() <= 0) {
+                continue; // laid out later: its layout listener crops it then
             }
             float sx = 1f / Math.max(0.01f, 1f - crop[2] - crop[3]);
             float sy = 1f / Math.max(0.01f, 1f - crop[0] - crop[1]);
