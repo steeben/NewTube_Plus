@@ -94,6 +94,11 @@ final class WaveProgress {
         mBlendStart = nowMs;
     }
 
+    /** The first layer's colour as it is now (mid-blend too): the bar's own colour goes with it. */
+    int currentMain() {
+        return mNow[0] | 0xFF000000;
+    }
+
     /** True while the colours are still blending (keep drawing). */
     boolean blending(long nowMs) {
         if (mBlendStart == 0) {
@@ -137,7 +142,8 @@ final class WaveProgress {
             return;
         }
         float rampIn = 36f * mDensity;
-        float rampOut = 22f * mDensity;
+        // The humps settle down over a long stretch before the scrubber (not just at it).
+        float rampOut = Math.max(48f * mDensity, Math.min(150f * mDensity, width * 0.45f));
         float step = Math.max(2f, 2.5f * mDensity);
         mMatrix.setScale(width, 1f);
         mMatrix.postTranslate(left, 0f);

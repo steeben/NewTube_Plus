@@ -167,12 +167,36 @@ public final class UiPrefs {
         notifyChanged();
     }
 
-    public static boolean isWaveVideoColors(Context context) {
-        return prefs(context).getBoolean(KEY_WAVE_VIDEO_COLORS, false);
+    // NEWTUBE(black-bars): look for black bars at the start of each video and crop them.
+    private static final String KEY_BLACK_BARS = "detect_black_bars";
+
+    public static boolean isBlackBarDetection(Context context) {
+        return prefs(context).getBoolean(KEY_BLACK_BARS, true);
     }
 
-    public static void setWaveVideoColors(Context context, boolean on) {
-        prefs(context).edit().putBoolean(KEY_WAVE_VIDEO_COLORS, on).apply();
+    public static void setBlackBarDetection(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_BLACK_BARS, on).apply();
+        notifyChanged();
+    }
+
+    /** Where the wave (and, with it, the bar) takes its colours from. */
+    public static final int WAVE_COLORS_ACCENT = 0;
+    public static final int WAVE_COLORS_LIVE = 1;
+    public static final int WAVE_COLORS_THUMBNAIL = 2;
+    private static final String KEY_WAVE_COLOR_SOURCE = "wave_progress_color_source";
+
+    public static int getWaveColorSource(Context context) {
+        SharedPreferences prefs = prefs(context);
+        if (!prefs.contains(KEY_WAVE_COLOR_SOURCE)) {
+            // The first version was an on/off "from the video" (live).
+            return prefs.getBoolean(KEY_WAVE_VIDEO_COLORS, false) ? WAVE_COLORS_LIVE : WAVE_COLORS_ACCENT;
+        }
+        int source = prefs.getInt(KEY_WAVE_COLOR_SOURCE, WAVE_COLORS_ACCENT);
+        return source == WAVE_COLORS_LIVE || source == WAVE_COLORS_THUMBNAIL ? source : WAVE_COLORS_ACCENT;
+    }
+
+    public static void setWaveColorSource(Context context, int source) {
+        prefs(context).edit().putInt(KEY_WAVE_COLOR_SOURCE, source).apply();
         notifyChanged();
     }
 

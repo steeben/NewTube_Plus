@@ -115,6 +115,24 @@ public final class MiniPlayerBridge {
     private static Bitmap sHandoffStill;
     private static Bitmap sMiniEntryStill;
     private static Rect sMiniBounds;
+    /** NEWTUBE(wave): the player's wave, for the video-background mini bar to show the same. */
+    private static boolean sWaveOn;
+    @Nullable
+    private static int[] sWaveColors;
+
+    public static void setWave(boolean on, @Nullable int[] colors) {
+        sWaveOn = on;
+        sWaveColors = colors;
+    }
+
+    public static boolean isWaveOn() {
+        return sWaveOn;
+    }
+
+    @Nullable
+    public static int[] getWaveColors() {
+        return sWaveColors;
+    }
     private static boolean sMiniBoundsCrop;
 
     private MiniPlayerBridge() {
@@ -413,9 +431,43 @@ public final class MiniPlayerBridge {
         }
         VideoSize size = player.getVideoSize();
         if (size.width > 0 && size.height > 0) {
-            ((AspectRatioFrameLayout) frame).setAspectRatio(
-                    size.width * size.pixelWidthHeightRatio / size.height);
+            float aspect = size.width * size.pixelWidthHeightRatio / size.height;
+            float[] crop = sCrop;
+            if (crop != null) {
+                aspect = aspect * (1f - crop[2] - crop[3]) / Math.max(0.01f, 1f - crop[0] - crop[1]);
+            }
+            ((AspectRatioFrameLayout) frame).setAspectRatio(aspect);
         }
+        // NEWTUBE(black-bars): the frame has the cropped shape; its picture (video, still) grows
+        // past it - each way by what the bars took - with the crop's middle on the frame's.
+        android.view.ViewGroup group = (android.view.ViewGroup) frame;
+        float[] crop = sCrop;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (crop == null) {
+                child.setScaleX(1f);
+                child.setScaleY(1f);
+                child.setTranslationX(0f);
+                child.setTranslationY(0f);
+                continue;
+            }
+            float sx = 1f / Math.max(0.01f, 1f - crop[2] - crop[3]);
+            float sy = 1f / Math.max(0.01f, 1f - crop[0] - crop[1]);
+            child.setPivotX(child.getWidth() / 2f);
+            child.setPivotY(child.getHeight() / 2f);
+            child.setScaleX(sx);
+            child.setScaleY(sy);
+            child.setTranslationX(-child.getWidth() * (crop[2] - crop[3]) / 2f * sx);
+            child.setTranslationY(-child.getHeight() * (crop[0] - crop[1]) / 2f * sy);
+        }
+    }
+
+    /** NEWTUBE(black-bars): the playing video's crop (top, bottom, left, right shares), or null. */
+    @Nullable
+    private static float[] sCrop;
+
+    public static void setCrop(@Nullable float[] crop) {
+        sCrop = crop;
     }
 
     /**

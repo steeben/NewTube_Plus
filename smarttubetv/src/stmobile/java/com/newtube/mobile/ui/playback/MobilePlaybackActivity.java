@@ -1141,7 +1141,7 @@ public class MobilePlaybackActivity extends MobileActivity
             int width = Math.round(config.screenWidthDp
                     * getResources().getDisplayMetrics().density);
             if (width > 0) {
-                lp.height = Math.round(width * 9f / 16f);
+                lp.height = portraitVideoHeight(width);
                 lp.weight = 0;
                 mVideoArea.setLayoutParams(lp);
             }
@@ -1187,8 +1187,9 @@ public class MobilePlaybackActivity extends MobileActivity
      */
     private void animateResizeMode(int mode) {
         ViewGroup contentFrame = mPlayerView != null ? mPlayerView.getContentFrame() : null;
-        if (contentFrame == null || contentFrame.getWidth() == 0 || getResizeMode() == mode) {
+        if (contentFrame == null || contentFrame.getWidth() == 0 || getResizeMode() == mode || mCrop != null) {
             setResizeMode(mode);
+            applyContentTransform(); // NEWTUBE(black-bars): the crop's own scale, at once
             return;
         }
         final float visualWidth = contentFrame.getWidth() * contentFrame.getScaleX();
@@ -2270,31 +2271,87 @@ public class MobilePlaybackActivity extends MobileActivity
     @Nullable
     private android.graphics.Bitmap mWaveFrame;
 
+    /** The video whose thumbnail colours the wave (WAVE_COLORS_THUMBNAIL), and those colours. */
+    @Nullable
+    private String mWaveThumbFor;
+    @Nullable
+    private int[] mWaveThumbColors;
+
     private void updateWave(@Nullable Video video) {
         boolean wave = video != null && !video.isLive
-                && (com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(this) || isMusic(video));
+                && (com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(this) || isMusic(this, video));
         mTimeBar.setWaveMode(wave);
-        if (!wave || !com.newtube.mobile.ui.common.UiPrefs.isWaveVideoColors(this)) {
-            mTimeBar.setWaveColors(null);
-            return;
+        int source = com.newtube.mobile.ui.common.UiPrefs.getWaveColorSource(this);
+        int[] colors = null;
+        if (wave && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_LIVE) {
+            colors = sampleLiveWaveColors();
+        } else if (wave && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_THUMBNAIL) {
+            colors = thumbnailWaveColors(video);
         }
+        mTimeBar.setWaveColors(colors);
+        MiniPlayerBridge.setWave(wave, colors);
+    }
+
+    /** The live picture's colours, sampled every few seconds (the last ones in between). */
+    @Nullable
+    private int[] sampleLiveWaveColors() {
         long now = android.os.SystemClock.uptimeMillis();
-        if (now - mWaveSampledAt < WAVE_SAMPLE_MS || mVideoTexture == null || !mVideoTexture.isAvailable()) {
-            return;
-        }
-        mWaveSampledAt = now;
-        try {
-            if (mWaveFrame == null) {
-                mWaveFrame = android.graphics.Bitmap.createBitmap(32, 18, android.graphics.Bitmap.Config.ARGB_8888);
+        if (now - mWaveSampledAt >= WAVE_SAMPLE_MS && mVideoTexture != null && mVideoTexture.isAvailable()) {
+            mWaveSampledAt = now;
+            try {
+                if (mWaveFrame == null) {
+                    mWaveFrame = android.graphics.Bitmap.createBitmap(32, 18, android.graphics.Bitmap.Config.ARGB_8888);
+                }
+                mVideoTexture.getBitmap(mWaveFrame);
+                int[] colors = WaveProgress.colorsFromFrame(mWaveFrame);
+                if (colors != null) {
+                    mWaveLiveColors = colors;
+                }
+            } catch (RuntimeException e) {
+                // No frame this time; the colours stay as they were.
             }
-            mVideoTexture.getBitmap(mWaveFrame);
-            int[] colors = WaveProgress.colorsFromFrame(mWaveFrame);
-            if (colors != null) {
-                mTimeBar.setWaveColors(colors);
-            }
-        } catch (RuntimeException e) {
-            // No frame this time; the colours stay as they were.
         }
+        return mWaveLiveColors;
+    }
+
+    @Nullable
+    private int[] mWaveLiveColors;
+
+    /** The thumbnail's colours: loaded once per video (small), then kept. */
+    @Nullable
+    private int[] thumbnailWaveColors(Video video) {
+        String id = video.videoId;
+        if (id != null && id.equals(mWaveThumbFor)) {
+            return mWaveThumbColors;
+        }
+        mWaveThumbFor = id;
+        mWaveThumbColors = null;
+        String url = video.cardImageUrl != null ? video.cardImageUrl : video.bgImageUrl;
+        if (url == null || isDestroyed()) {
+            return null;
+        }
+        final String forId = id;
+        com.bumptech.glide.Glide.with(this).asBitmap().load(url)
+                .override(48, 27)
+                .format(com.bumptech.glide.load.DecodeFormat.PREFER_ARGB_8888)
+                .disallowHardwareConfig()
+                .into(new com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
+                    @Override
+                    public void onResourceReady(@androidx.annotation.NonNull android.graphics.Bitmap bitmap,
+                            @Nullable com.bumptech.glide.request.transition.Transition<? super android.graphics.Bitmap> t) {
+                        if (forId != null && forId.equals(mWaveThumbFor)) {
+                            mWaveThumbColors = WaveProgress.colorsFromFrame(bitmap);
+                            if (mTimeBar != null) {
+                                updateWave(getVideo());
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onLoadCleared(@Nullable android.graphics.drawable.Drawable placeholder) {
+                    }
+                });
+        return null;
     }
 
     /**
@@ -2302,7 +2359,11 @@ public class MobilePlaybackActivity extends MobileActivity
      * goes by what does say so: opened from Music, a music item, an artist's auto-generated
      * ("- Topic") or VEVO channel, or a title marked as a song's (official audio/video, lyrics...).
      */
-    static boolean isMusic(Video video) {
+    static boolean isMusic(android.content.Context context, Video video) {
+        Boolean marked = com.newtube.mobile.ui.common.MusicMarks.get(context, video.videoId);
+        if (marked != null) {
+            return marked; // NEWTUBE(song): the user's say
+        }
         if (video.belongsToMusic()) {
             return true;
         }
@@ -2537,12 +2598,162 @@ public class MobilePlaybackActivity extends MobileActivity
             return;
         }
         LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) mVideoArea.getLayoutParams();
-        int height = Math.round(width * 9f / 16f);
+        int height = portraitVideoHeight(width);
         if (lp.height != height || lp.weight != 0) {
             lp.height = height;
             lp.weight = 0;
             mVideoArea.setLayoutParams(lp);
         }
+    }
+
+    /**
+     * The portrait video box's height: 16:9, or - NEWTUBE(black-bars) - the shape of the picture
+     * left once its black bars are cropped (a square film taller, a 2.39:1 one lower), within reason.
+     */
+    private int portraitVideoHeight(int width) {
+        BlackBars.Crop crop = mCrop;
+        if (crop == null || crop.isNone() || !(mVideoAspect > 0f)) {
+            return Math.round(width * 9f / 16f);
+        }
+        float aspect = crop.aspect(mVideoAspect);
+        float height = width / Math.max(0.1f, aspect);
+        return Math.round(Math.max(width / 2.4f, Math.min(width * 1.25f, height)));
+    }
+
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(black-bars): crop black bars burnt into the picture - looked for at the start of a
+    // video (a few frames, until one is bright enough to tell), and on request; never continuously.
+    // ---------------------------------------------------------------------------------
+
+    @Nullable
+    private BlackBars.Crop mCrop;
+    @Nullable
+    private BlackBars.Crop mCropSample;
+    @Nullable
+    private String mCropVideoId;
+    private int mCropAttempt;
+    private float mContentZoom = 1f;
+    @Nullable
+    private android.graphics.Bitmap mCropFrame;
+    private static final long[] CROP_SAMPLE_MS = {1200, 2600, 5000, 9000};
+
+    private final Runnable mCropSampler = () -> detectBlackBars(false);
+
+    /** A new video's first frame: forget the last one's crop and look at this one's. */
+    private void onFirstFrameForCrop() {
+        Video video = getVideo();
+        String id = video != null ? video.videoId : null;
+        if (id != null && id.equals(mCropVideoId)) {
+            return; // the same video (a quality switch, a seek): its crop stands
+        }
+        mCropVideoId = id;
+        mCropSample = null;
+        mCropAttempt = 0;
+        setCrop(null);
+        if (mVideoArea != null) {
+            mVideoArea.removeCallbacks(mCropSampler);
+            if (id != null && com.newtube.mobile.ui.common.UiPrefs.isBlackBarDetection(this)
+                    && (video == null || !video.isLive)) {
+                mVideoArea.postDelayed(mCropSampler, CROP_SAMPLE_MS[0]);
+            }
+        }
+    }
+
+    /**
+     * Look at the picture showing now. {@code manual}: from the gear menu - one look, applied
+     * whatever it finds, and said so. Otherwise one of the start's looks: two frames that agree.
+     */
+    private void detectBlackBars(boolean manual) {
+        if (mVideoTexture == null || !mVideoTexture.isAvailable() || !(mVideoAspect > 0f) || isFinishing()) {
+            return;
+        }
+        BlackBars.Crop found;
+        try {
+            int width = 192;
+            int height = Math.max(8, Math.round(width / mVideoAspect));
+            if (mCropFrame == null || mCropFrame.getWidth() != width || mCropFrame.getHeight() != height) {
+                mCropFrame = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888);
+            }
+            mVideoTexture.getBitmap(mCropFrame);
+            found = BlackBars.detect(mCropFrame);
+        } catch (RuntimeException e) {
+            found = null;
+        }
+        if (manual) {
+            if (mVideoArea != null) {
+                mVideoArea.removeCallbacks(mCropSampler);
+            }
+            if (found == null) {
+                android.widget.Toast.makeText(this, R.string.mobile_player_bars_unclear, android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            setCrop(found);
+            android.widget.Toast.makeText(this, found.isNone() ? R.string.mobile_player_bars_none
+                    : R.string.mobile_player_bars_cropped, android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mCropAttempt++;
+        if (found != null) {
+            if (mCropSample == null) {
+                mCropSample = found; // a second look to confirm (a dark scene is not a bar)
+            } else {
+                setCrop(mCropSample.intersect(found));
+                return; // done for this video
+            }
+        }
+        if (mCropAttempt < CROP_SAMPLE_MS.length && mVideoArea != null) {
+            mVideoArea.postDelayed(mCropSampler, CROP_SAMPLE_MS[mCropAttempt] - CROP_SAMPLE_MS[mCropAttempt - 1]);
+        } else if (mCropSample != null) {
+            setCrop(mCropSample);
+        }
+    }
+
+    private void setCrop(@Nullable BlackBars.Crop crop) {
+        if (crop != null && crop.isNone()) {
+            crop = null;
+        }
+        mCrop = crop;
+        MiniPlayerBridge.setCrop(crop != null ? crop.toArray() : null);
+        if (mWatchRoot != null && !isLandscape() && mWatchRoot.getWidth() > 0) {
+            applyPortraitVideoHeight(mWatchRoot.getWidth());
+        }
+        applyContentTransform();
+    }
+
+    /**
+     * The content frame's scale and shift: the bar minimize's zoom (mContentZoom) times the crop,
+     * which grows the picture until what is left inside the bars fits the box, centred.
+     */
+    private void applyContentTransform() {
+        View content = mPlayerView != null ? mPlayerView.getContentFrame() : null;
+        if (content == null) {
+            return;
+        }
+        float scale = 1f;
+        float tx = 0f;
+        float ty = 0f;
+        BlackBars.Crop crop = mCrop;
+        int boxW = mPlayerView.getWidth();
+        int boxH = mPlayerView.getHeight();
+        int cw = content.getWidth();
+        int ch = content.getHeight();
+        if (crop != null && boxW > 0 && boxH > 0 && cw > 0 && ch > 0) {
+            float rw = cw * (1f - crop.left - crop.right);
+            float rh = ch * (1f - crop.top - crop.bottom);
+            float fitW = boxW / Math.max(1f, rw);
+            float fitH = boxH / Math.max(1f, rh);
+            scale = getResizeMode() == androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    ? Math.max(fitW, fitH) : Math.min(fitW, fitH);
+            scale = Math.max(1f, scale);
+            tx = -cw * (crop.left - crop.right) / 2f * scale;
+            ty = -ch * (crop.top - crop.bottom) / 2f * scale;
+        }
+        content.setPivotX(cw / 2f);
+        content.setPivotY(ch / 2f);
+        content.setScaleX(scale * mContentZoom);
+        content.setScaleY(scale * mContentZoom);
+        content.setTranslationX(tx * mContentZoom);
+        content.setTranslationY(ty * mContentZoom);
     }
 
     private boolean isLandscape() {
@@ -3910,12 +4121,34 @@ public class MobilePlaybackActivity extends MobileActivity
             addMenuRow(content, sheet, R.drawable.ic_player_pip, R.string.mobile_player_pip,
                     null, false, this::enterPipFromMenu);
         }
+        // NEWTUBE(song): mark this video as a song (the wave, and whatever else is for music).
+        Video songVideo = getVideo();
+        if (songVideo != null && songVideo.videoId != null && !songVideo.isLive) {
+            addMenuRow(content, sheet, R.drawable.ic_player_music_note, R.string.mobile_player_song,
+                    stateLabel(isMusic(this, songVideo)), false, this::toggleSong);
+        }
+        // NEWTUBE(black-bars): look for black bars again, on the picture showing now.
+        addMenuRow(content, sheet, R.drawable.ic_player_crop, R.string.mobile_player_detect_bars,
+                null, false, () -> detectBlackBars(true));
         addMenuRow(content, sheet, R.drawable.ic_mobile_settings, R.string.mobile_menu_more,
                 null, true, this::openPlayerMoreMenu);
 
         sheet.setContentView(content);
         sheet.setOnDismissListener(d -> armAutoHide());
         showPlayerSheet(sheet);
+    }
+
+    /** NEWTUBE(song): flip this video's song mark. */
+    private void toggleSong() {
+        Video video = getVideo();
+        if (video == null || video.videoId == null) {
+            return;
+        }
+        boolean song = !isMusic(this, video);
+        com.newtube.mobile.ui.common.MusicMarks.set(this, video.videoId, song);
+        updateWave(video);
+        android.widget.Toast.makeText(this, song ? R.string.mobile_player_song_marked
+                : R.string.mobile_player_song_unmarked, android.widget.Toast.LENGTH_SHORT).show();
     }
 
     /** The gear sheet's "More" level: the long tail of SmartTube player actions. */
@@ -4345,6 +4578,11 @@ public class MobilePlaybackActivity extends MobileActivity
 
     private final Player.Listener mUiPlayerListener = new Player.Listener() {
         @Override
+        public void onRenderedFirstFrame() {
+            onFirstFrameForCrop(); // NEWTUBE(black-bars)
+        }
+
+        @Override
         public void onVideoSizeChanged(VideoSize videoSize) {
             // NEWTUBE(issue #9): the fullscreen controls follow this video's shape (controlsStrip).
             // An unknown size keeps the last one, as the content frame does (DoubleTapPlayerViewImpl).
@@ -4495,6 +4733,18 @@ public class MobilePlaybackActivity extends MobileActivity
     /** Build the code-managed video texture + still inside the PlayerView's content frame. */
     private void setupVideoSurface() {
         ViewGroup contentFrame = mPlayerView.getContentFrame();
+
+        // NEWTUBE(black-bars): the crop follows the box and the frame (rotation, resize modes).
+        contentFrame.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol || b - t != ob - ot) {
+                applyContentTransform();
+            }
+        });
+        mPlayerView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l != or - ol || b - t != ob - ot) {
+                applyContentTransform();
+            }
+        });
 
         mVideoTexture = new TextureView(this);
         // NEWTUBE(texture-opaque): a frame with alpha 0 (seen from the emulator's VP9 decoder
@@ -5824,8 +6074,8 @@ public class MobilePlaybackActivity extends MobileActivity
         if (f > 0f && content.getWidth() > 0 && mVideoArea != null) {
             zoom = 1f + (Math.max(1f, mVideoArea.getWidth() / (float) content.getWidth()) - 1f) * f;
         }
-        content.setScaleX(zoom);
-        content.setScaleY(zoom);
+        mContentZoom = zoom;
+        applyContentTransform(); // NEWTUBE(black-bars): with the crop
     }
 
     /** See {@link #mBarChrome}: a fresh mini player, styled like the host's, without its video. */

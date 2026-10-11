@@ -433,6 +433,7 @@ public final class MobileMiniPlayerController {
         mViews.setHasNext(MiniPlayerBridge.hasNext());
         // NEWTUBE(accent): the progress line in the accent, which may have changed since.
         mViews.updateProgressColors();
+        mViews.setWave(MiniPlayerBridge.isWaveOn(), MiniPlayerBridge.getWaveColors()); // NEWTUBE(wave)
 
         mEntryAnimating = animateFromPlayer;
         mTextureHasFrame = false;
@@ -745,6 +746,7 @@ public final class MobileMiniPlayerController {
             mProgress.setProgress((int) (player.getCurrentPosition() * 1000 / duration));
         }
         updatePlayPause(player);
+        mViews.setWave(MiniPlayerBridge.isWaveOn(), MiniPlayerBridge.getWaveColors()); // NEWTUBE(wave)
         updateText(); // NEWTUBE(mini-style): an autoplayed next video
         mViews.setHasNext(MiniPlayerBridge.hasNext()); // NEWTUBE(mini-next): and its place in the list
         MiniPlayerBridge.fitToVideo(mFrame); // an autoplayed next video may have another shape

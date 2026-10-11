@@ -65,10 +65,15 @@ final class PlayerPages {
                 context.getString(R.string.mobile_settings_wave_always_summary),
                 () -> com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(context),
                 on -> com.newtube.mobile.ui.common.UiPrefs.setWaveAlways(context, on)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_colors),
-                context.getString(R.string.mobile_settings_wave_colors_summary),
-                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveVideoColors(context),
-                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveVideoColors(context, on)));
+        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_wave_colors))
+                .option(context.getString(R.string.mobile_settings_wave_colors_accent),
+                        com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_ACCENT)
+                .option(context.getString(R.string.mobile_settings_wave_colors_live),
+                        com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_LIVE)
+                .option(context.getString(R.string.mobile_settings_wave_colors_thumbnail),
+                        com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_THUMBNAIL)
+                .bind(() -> com.newtube.mobile.ui.common.UiPrefs.getWaveColorSource(context),
+                        source -> com.newtube.mobile.ui.common.UiPrefs.setWaveColorSource(context, source)));
     }
 
     static SettingsRow miniPlayerStyleRow(Context context) {
@@ -200,6 +205,13 @@ final class PlayerPages {
                 .enabledWhen(() -> PlayerGesturePrefs.isSpeedSwipeOn(context)));
 
         addProgressBarRows(context, rows);
+
+        // NEWTUBE(black-bars)
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_picture)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_black_bars),
+                context.getString(R.string.mobile_settings_black_bars_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isBlackBarDetection(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setBlackBarDetection(context, on)));
 
         // NEWTUBE(mini-style): how a minimized video docks (MiniPlayerStyle); applies to the next
         // minimize, and to a mini player already docked when its screen comes back.

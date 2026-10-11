@@ -27,8 +27,20 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
     private int mAccent;
     private boolean mLight;
     private boolean mHasColors;
+    // NEWTUBE(wave): the seek bar's wave, smaller (the video-background bar only).
+    private final float mDensity;
+    @androidx.annotation.Nullable
+    private WaveProgress mWave;
+    private boolean mWaveOn;
+    @androidx.annotation.Nullable
+    private int[] mWaveColors;
+    private int mLineColor;
+    private long mLevelChangedAt;
+    private final long mEpoch = android.os.SystemClock.uptimeMillis();
+    private static final long WAVE_MOVING_MS = 4000;
 
     MiniProgressDrawable(float density) {
+        mDensity = density;
         mLineHeight = 2 * density;
         setColors(UiPrefs.DEFAULT_ACCENT, 0x33FFFFFF, false);
     }
@@ -42,12 +54,27 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
         mHasColors = true;
         mAccent = accent;
         mLight = light;
-        mPlayed.setShader(PlayerTimeBar.trailShader(accent, light));
+        setLineColor(accent);
         invalidateSelf();
+    }
+
+    private void setLineColor(int color) {
+        mLineColor = color;
+        mPlayed.setShader(PlayerTimeBar.trailShader(color, mLight));
+    }
+
+    /** NEWTUBE(wave): show the wave over the played part; {@code colors} null for the accent's. */
+    void setWave(boolean on, @androidx.annotation.Nullable int[] colors) {
+        if (on != mWaveOn || colors != mWaveColors) {
+            mWaveOn = on;
+            mWaveColors = colors;
+            invalidateSelf();
+        }
     }
 
     @Override
     protected boolean onLevelChange(int level) {
+        mLevelChangedAt = android.os.SystemClock.uptimeMillis();
         invalidateSelf();
         return true;
     }
@@ -64,6 +91,29 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
         float x = b.left + b.width() * (getLevel() / 10000f);
         if (x <= b.left) {
             return;
+        }
+        long now = android.os.SystemClock.uptimeMillis();
+        boolean blending = false;
+        int lineColor = mAccent;
+        if (mWaveOn) {
+            if (mWave == null) {
+                mWave = new WaveProgress(mDensity);
+            }
+            mWave.setColors(mWaveColors != null ? mWaveColors : WaveProgress.accentColors(mAccent), now);
+            blending = mWave.blending(now);
+            if (mWaveColors != null) {
+                lineColor = mWave.currentMain();
+            }
+        }
+        if (lineColor != mLineColor) {
+            setLineColor(lineColor);
+        }
+        if (mWaveOn && mWave != null) {
+            float amplitude = Math.min(7f * mDensity, b.height() - mLineHeight);
+            mWave.drawWaves(canvas, b.left, x, top, amplitude, (now - mEpoch) / 1000f);
+            if (blending || now - mLevelChangedAt < WAVE_MOVING_MS) {
+                invalidateSelf(); // the humps drift while it plays
+            }
         }
         // The trail's gradient spans the played part: the full accent at the tip.
         mMatrix.setScale(Math.max(1f, x - b.left), 1f);

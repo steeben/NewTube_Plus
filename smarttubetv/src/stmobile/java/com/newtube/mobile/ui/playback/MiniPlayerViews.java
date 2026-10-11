@@ -495,6 +495,11 @@ final class MiniPlayerViews {
     }
 
     /** The progress line in the accent (which may have changed) over this style's track. */
+    /** NEWTUBE(wave): the player's wave on the line - the video-background bar only. */
+    void setWave(boolean on, @Nullable int[] colors) {
+        mProgressDrawable.setWave(on && style == MiniPlayerStyle.BAR_VIDEO, colors);
+    }
+
     void updateProgressColors() {
         Context context = card.getContext();
         mProgressDrawable.setColors(MiniPlayerStyle.accent(context), ContextCompat.getColor(context,

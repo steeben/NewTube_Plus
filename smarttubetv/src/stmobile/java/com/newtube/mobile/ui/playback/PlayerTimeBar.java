@@ -81,7 +81,11 @@ public class PlayerTimeBar extends View implements TimeBar {
     private boolean mPlayedLight;
 
     private void applyAccent() {
-        int accent = com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext());
+        applyAccent(com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext()));
+    }
+
+    /** NEWTUBE(wave): the bar in {@code accent} - the user's, or the video's main colour. */
+    private void applyAccent(int accent) {
         boolean light = com.newtube.mobile.ui.common.ThemeMode.isLight(getContext());
         mPlayedColor = accent;
         mPlayedLight = light;
@@ -518,9 +522,24 @@ public class PlayerTimeBar extends View implements TimeBar {
         float bufferedX = hasDuration ? Math.max(playedX, xFor(mBufferedPosition, left, right)) : left;
         int restAlpha = Math.round(255 * mShown);
 
-        if (com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext()) != mPlayedColor
+        // NEWTUBE(wave): the wave's colours first - from the video, the bar takes their main one.
+        boolean wave = mWaveOn && hasDuration;
+        long now = SystemClock.uptimeMillis();
+        boolean blending = false;
+        int barColor = com.newtube.mobile.ui.common.UiPrefs.getAccent(getContext());
+        if (wave) {
+            if (mWave == null) {
+                mWave = new WaveProgress(mDensity);
+            }
+            mWave.setColors(mWaveColors != null ? mWaveColors : WaveProgress.accentColors(barColor), now);
+            blending = mWave.blending(now);
+            if (mWaveColors != null) {
+                barColor = mWave.currentMain();
+            }
+        }
+        if (barColor != mPlayedColor
                 || com.newtube.mobile.ui.common.ThemeMode.isLight(getContext()) != mPlayedLight) {
-            applyAccent(); // NEWTUBE(accent): changed in Settings while this video played
+            applyAccent(barColor); // NEWTUBE(accent): changed in Settings while this video played
         }
         // The trail's gradient spans the played part: accent at the current time.
         mTailMatrix.setScale(Math.max(1f, playedX - left), 1f);
@@ -574,20 +593,7 @@ public class PlayerTimeBar extends View implements TimeBar {
         }
 
         // NEWTUBE(wave): the humps over the played part, rising with the controls.
-        boolean wave = mWaveOn && hasDuration;
         if (wave) {
-            long now = SystemClock.uptimeMillis();
-            if (mWave == null) {
-                mWave = new WaveProgress(mDensity);
-            }
-            int accent = mPlayedColor;
-            if (mWaveColors != null) {
-                mWave.setColors(mWaveColors, now);
-            } else {
-                mWave.setColors(WaveProgress.accentColors(accent), now);
-            }
-            mWaveAccent = accent;
-            boolean blending = mWave.blending(now);
             float amplitude = dp(WAVE_DP) * mShown * (1f + 0.25f * mDrag);
             mWave.drawWaves(canvas, left, playedX, top, amplitude, (now - mWaveEpoch) / 1000f);
             boolean moving = now - mPositionMovedAt < WAVE_MOVING_MS || mScrubbing;
