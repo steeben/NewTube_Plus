@@ -386,9 +386,8 @@ public final class FeedAutoplay {
 
         // The player's own seek bar, small: a line with its dot, and the dot can be dragged.
         mLine = new PlayerTimeBar(mContext);
-        // Along the thumbnail's bottom, with room below the line for the whole dot.
+        // On the thumbnail's bottom edge (the dot may hang over the title below).
         mLine.setTrackAtBottom(true);
-        mLine.setPadding(0, 0, 0, Math.round(5 * density));
         mLine.setShown(true, false);
         mLine.setAlpha(0f);
         mLine.addListener(new androidx.media3.ui.TimeBar.OnScrubListener() {
@@ -409,9 +408,22 @@ public final class FeedAutoplay {
                 }
             }
         });
-        FrameLayout.LayoutParams lineParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                Math.round(24 * density), Gravity.BOTTOM);
-        frame.addView(mLine, lineParams);
+        // Beside the thumbnail's frame, not in it: the frame clips to its rounded corners, which
+        // would cut the dot in half. Its bottom on the frame's bottom, drawn over the frame.
+        ViewGroup card = frame.getParent() instanceof ViewGroup ? (ViewGroup) frame.getParent() : frame;
+        int barHeight = Math.round(20 * density);
+        if (card instanceof androidx.constraintlayout.widget.ConstraintLayout && frame.getId() != View.NO_ID) {
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lineParams =
+                    new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, barHeight);
+            lineParams.startToStart = frame.getId();
+            lineParams.endToEnd = frame.getId();
+            lineParams.bottomToBottom = frame.getId();
+            card.addView(mLine, lineParams);
+            mLine.setTranslationZ(frame.getElevation() + frame.getTranslationZ() + 1f);
+        } else {
+            frame.addView(mLine, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    barHeight, Gravity.BOTTOM));
+        }
 
         mSpeaker = new ImageButton(mContext);
         mSpeaker.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
@@ -484,8 +496,8 @@ public final class FeedAutoplay {
         ViewGroup frame = mFrame;
         if (frame != null) {
             for (View view : new View[] {mTexture, mSpeaker, mLine}) {
-                if (view != null && view.getParent() == frame) {
-                    frame.removeView(view);
+                if (view != null && view.getParent() instanceof ViewGroup) {
+                    ((ViewGroup) view.getParent()).removeView(view);
                 }
             }
             View watch = frame.findViewById(R.id.video_watch_progress);

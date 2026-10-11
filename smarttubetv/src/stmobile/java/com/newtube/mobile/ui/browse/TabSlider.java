@@ -302,12 +302,24 @@ final class TabSlider {
         }
     }
 
+    /** The page under a landed picture moves (a scroll): the picture goes at once. */
+    void dropPicture() {
+        ImageView ghost = mFading;
+        if (ghost != null) {
+            mFading = null;
+            mRoot.removeView(ghost);
+            if (mGhost == null) {
+                mHost.onSlideFrame(null);
+            }
+        }
+    }
+
     /** The picture goes once the real page under it is there (not the last tab's cards). */
     private void fadeWhenReady(ImageView ghost, long since) {
         if (mFading != ghost) {
             return;
         }
-        if (!mHost.pageReady() && android.os.SystemClock.uptimeMillis() - since < 800) {
+        if (!mHost.pageReady() && android.os.SystemClock.uptimeMillis() - since < 1500) {
             ghost.postOnAnimation(() -> fadeWhenReady(ghost, since));
             return;
         }

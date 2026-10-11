@@ -2653,6 +2653,25 @@ public class MobilePlaybackActivity extends MobileActivity
     private int mBoxAnimHeight;
     private int mBoxAnimWidth;
 
+    /** A new video: 16:9 and no crop until its own size (and bars) are known. */
+    private void resetVideoShape() {
+        if (mCropAnimator != null) {
+            mCropAnimator.cancel();
+            mCropAnimator = null;
+        }
+        mCrop = null;
+        mCropShown = null;
+        mCropFraction = 0f;
+        mCropVideoId = null;
+        MiniPlayerBridge.setCrop(null);
+        mVideoAspect = 0f;
+        if (mPlayerView != null && mPlayerView.getContentFrame() instanceof androidx.media3.ui.AspectRatioFrameLayout) {
+            ((androidx.media3.ui.AspectRatioFrameLayout) mPlayerView.getContentFrame()).setAspectRatio(16f / 9f);
+        }
+        applyContentTransform();
+        animateBox();
+    }
+
     /** Ease the portrait box to its shape now (targetBoxHeight) instead of jumping. */
     private void animateBox() {
         float aspect = shownAspect();
@@ -4890,7 +4909,9 @@ public class MobilePlaybackActivity extends MobileActivity
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         mVideoStill = new ImageView(this);
-        mVideoStill.setScaleType(ImageView.ScaleType.FIT_XY);
+        // NEWTUBE(black-bars): CENTER_CROP, not FIT_XY - the still is a 16:9 thumbnail, the frame
+        // the video's own shape (a square video's thumbnail has bars at its sides: they go).
+        mVideoStill.setScaleType(ImageView.ScaleType.CENTER_CROP);
         mVideoStill.setBackgroundColor(Color.BLACK);
         mVideoStill.setVisibility(View.GONE);
         contentFrame.addView(mVideoStill, 1, new FrameLayout.LayoutParams(
@@ -9717,6 +9738,7 @@ public class MobilePlaybackActivity extends MobileActivity
         if (item != null && item.videoId != null) {
             SessionWarmup.onPlaybackRequested();
             if (!Helpers.equals(item.videoId, mWatchVideoId)) {
+                resetVideoShape(); // NEWTUBE(black-bars): not the last video's shape or crop
                 cancelClose(); // NEWTUBE(motion): a video picked while Back was closing this player
                 // NEWTUBE(motion): or while a host's X was closing its card - this session goes on.
                 MiniPlayerBridge.cancelClosing();

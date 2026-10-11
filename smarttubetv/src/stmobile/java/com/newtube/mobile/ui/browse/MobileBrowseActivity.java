@@ -675,7 +675,9 @@ public class MobileBrowseActivity extends MobileActivity
             return;
         }
         float t = mUnderMix;
-        int fadeTop = Math.round(mNavFadePx * (1f - t));
+        // The soft top edge goes at once when the video bar arrives (eased away, it fogged the
+        // bar's lower half for a moment); it comes back eased when the bar leaves.
+        int fadeTop = mUnderTarget >= 1f ? 0 : Math.round(mNavFadePx * (1f - t));
         ViewGroup.LayoutParams glassParams = mNavGlass.getLayoutParams();
         int glassHeight = mBottomNav.getHeight() + fadeTop;
         if (mBottomNav.getHeight() > 0 && glassParams.height != glassHeight) {
@@ -759,6 +761,15 @@ public class MobileBrowseActivity extends MobileActivity
         if (mContentGrid == null) {
             return;
         }
+        // NEWTUBE(tab-slide): a scroll under a slide's last picture takes it away at once.
+        mContentGrid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@androidx.annotation.NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (dy != 0 && mTabSlider != null && recyclerView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    mTabSlider.dropPicture();
+                }
+            }
+        });
         mAutoplay = new com.newtube.mobile.ui.playback.FeedAutoplay(this, mContentGrid, () ->
                 !mYouShowing
                         && mContentGrid.getVisibility() == View.VISIBLE
@@ -789,7 +800,18 @@ public class MobileBrowseActivity extends MobileActivity
 
             @Override
             public boolean pageReady() {
-                return !mSectionSwapPending;
+                if (mSectionSwapPending) {
+                    return false;
+                }
+                // The cards on screen show their thumbnails (not the empty card a moment before).
+                for (int i = 0; i < mContentGrid.getChildCount(); i++) {
+                    RecyclerView.ViewHolder holder = mContentGrid.getChildViewHolder(mContentGrid.getChildAt(i));
+                    if (holder instanceof VideoCardAdapter.VideoViewHolder
+                            && !((VideoCardAdapter.VideoViewHolder) holder).isThumbnailSettled()) {
+                        return false;
+                    }
+                }
+                return true;
             }
 
             @Override

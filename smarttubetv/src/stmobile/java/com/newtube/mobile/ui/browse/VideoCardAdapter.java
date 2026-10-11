@@ -489,7 +489,16 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             return ClickbaitRemover.updateThumbnail(video, MainUIData.instance(context).getThumbQuality());
         }
 
+        /** NEWTUBE(tab-slide): when this card's thumbnail was put up (0: not yet). */
+        private long mThumbReadyAt;
+
+        /** The thumbnail is up and its fade-in done (a slide's picture may give way to it). */
+        public boolean isThumbnailSettled() {
+            return mThumbReadyAt > 0 && android.os.SystemClock.uptimeMillis() - mThumbReadyAt > 200;
+        }
+
         private void bindThumbnail(Context context, Video video) {
+            mThumbReadyAt = 0;
             String thumbnailUrl = thumbnailUrl(context, video);
             mBoundThumbUrl = thumbnailUrl;
 
@@ -535,6 +544,8 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
                     public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model,
                             com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target,
                             com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                        mThumbReadyAt = android.os.SystemClock.uptimeMillis()
+                                - (dataSource == com.bumptech.glide.load.DataSource.MEMORY_CACHE ? 1000 : 0);
                         mBadge.post(mBadge::invalidate);
                         mBadge.postDelayed(mBadge::invalidate, 200);
                         return false;
