@@ -13,3 +13,4 @@ This is a debug-signed build, so Play Protect may warn you; it installs alongsid
 - Autoplay previews under feed videos, with a speaker toggle
 - Black-bar detection and crop, plus a manual "Detect black bars" / "Undo crop" in the gear menu
 - Smooth mini player, tab scroll memory, new app icon and splash
+- Build of commit fd41b96

@@ -1,13 +1,11 @@
 name: Fork release
 
-# Run from the Actions tab: builds the APKs and attaches them to a GitHub release.
+# Pushing a change to RELEASE_NOTES.md on test-build builds the APKs and attaches them to a GitHub release.
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag"
-        default: "v1.0"
+  push:
+    branches: [test-build]
+    paths: [RELEASE_NOTES.md]
 
 permissions:
   contents: write
@@ -38,5 +36,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l smarttubetv/build/outputs/renamed_apks/stmobileDebug/
-          gh release create "${{ inputs.tag }}" --target "$GITHUB_SHA" smarttubetv/build/outputs/renamed_apks/stmobileDebug/*.apk \
+          gh release create v1.0 --target "$GITHUB_SHA" smarttubetv/build/outputs/renamed_apks/stmobileDebug/*.apk \
             --repo "$GITHUB_REPOSITORY" --title "NewTube+ 1.0" --notes-file RELEASE_NOTES.md
