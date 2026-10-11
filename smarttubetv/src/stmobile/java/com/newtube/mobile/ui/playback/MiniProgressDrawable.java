@@ -40,6 +40,17 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
     /** The humps' height, 0-1: they rise with a minimize (the morph's own line). */
     private float mWaveScale = 1f;
 
+    private boolean mPlaying = true;
+    private final WaveProgress.Level mLevel = new WaveProgress.Level();
+
+    /** NEWTUBE(wave): paused - the humps settle down; playing - they rise again. */
+    void setPlaying(boolean playing) {
+        if (mPlaying != playing) {
+            mPlaying = playing;
+            invalidateSelf();
+        }
+    }
+
     void setWaveScale(float scale) {
         if (scale != mWaveScale) {
             mWaveScale = scale;
@@ -122,9 +133,10 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
             setLineColor(lineColor);
         }
         if (mWaveOn && mWave != null) {
-            float amplitude = Math.min(7f * mDensity, b.height() - mLineHeight) * mWaveScale;
+            boolean settling = mLevel.step(mPlaying, now);
+            float amplitude = Math.min(7f * mDensity, b.height() - mLineHeight) * mWaveScale * mLevel.value();
             mWave.drawWaves(canvas, b.left, x, top, amplitude, (now - mEpoch) / 1000f);
-            if (blending || now - mLevelChangedAt < WAVE_MOVING_MS) {
+            if (blending || mPlaying || settling) {
                 invalidateSelf(); // the humps drift while it plays
             }
         }

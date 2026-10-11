@@ -2718,7 +2718,8 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mContentZoom = 1f;
     @Nullable
     private android.graphics.Bitmap mCropFrame;
-    private static final long[] CROP_SAMPLE_MS = {1200, 2600, 5000, 9000};
+    /** The looks at a new video's picture: across its first 2.5 s (bars only on all of them count). */
+    private static final long[] CROP_SAMPLE_MS = {500, 1100, 1800, 2500};
 
     private final Runnable mCropSampler = () -> detectBlackBars(false);
 
@@ -2777,12 +2778,8 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         mCropAttempt++;
         if (found != null) {
-            if (mCropSample == null) {
-                mCropSample = found; // a second look to confirm (a dark scene is not a bar)
-            } else {
-                setCrop(mCropSample.intersect(found));
-                return; // done for this video
-            }
+            // Only what every look agrees on is a bar (a dark sky in one frame is not).
+            mCropSample = mCropSample == null ? found : mCropSample.intersect(found);
         }
         if (mCropAttempt < CROP_SAMPLE_MS.length && mVideoArea != null) {
             mVideoArea.postDelayed(mCropSampler, CROP_SAMPLE_MS[mCropAttempt] - CROP_SAMPLE_MS[mCropAttempt - 1]);
@@ -4253,9 +4250,15 @@ public class MobilePlaybackActivity extends MobileActivity
             addMenuRow(content, sheet, R.drawable.ic_player_music_note, R.string.mobile_player_song,
                     stateLabel(isMusic(this, songVideo)), false, this::toggleSong);
         }
-        // NEWTUBE(black-bars): look for black bars again, on the picture showing now.
-        addMenuRow(content, sheet, R.drawable.ic_player_crop, R.string.mobile_player_detect_bars,
-                null, false, () -> detectBlackBars(true));
+        // NEWTUBE(black-bars): look for black bars again, on the picture showing now - or, with a
+        // crop on, take it off.
+        if (mCrop != null) {
+            addMenuRow(content, sheet, R.drawable.ic_player_crop, R.string.mobile_player_undo_crop,
+                    null, false, () -> setCrop(null));
+        } else {
+            addMenuRow(content, sheet, R.drawable.ic_player_crop, R.string.mobile_player_detect_bars,
+                    null, false, () -> detectBlackBars(true));
+        }
         addMenuRow(content, sheet, R.drawable.ic_mobile_settings, R.string.mobile_menu_more,
                 null, true, this::openPlayerMoreMenu);
 
@@ -4733,6 +4736,10 @@ public class MobilePlaybackActivity extends MobileActivity
         }
 
         private void handleUiStateChange(boolean playWhenReady, int playbackState) {
+            if (mTimeBar != null) {
+                // NEWTUBE(wave): the humps settle while paused (or stalled), rise when it plays.
+                mTimeBar.setPlaying(playWhenReady && playbackState == Player.STATE_READY);
+            }
             switch (playbackState) {
                 case Player.STATE_BUFFERING:
                     showProgressBar(true);
@@ -6039,6 +6046,7 @@ public class MobilePlaybackActivity extends MobileActivity
             mMorphLineDrawable.setWave(MiniPlayerBridge.isWaveOn()
                     && MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO, MiniPlayerBridge.getWaveColors());
             mMorphLineDrawable.setWaveScale(0f);
+            mMorphLineDrawable.setPlaying(mPlayer != null && mPlayer.getPlayWhenReady());
             if (mPlayer != null && mPlayer.getDuration() > 0) {
                 mMorphLineDrawable.setLevel((int) (mPlayer.getCurrentPosition() * 10000L / mPlayer.getDuration()));
             }

@@ -524,6 +524,7 @@ final class MiniPlayerViews {
     /** Show play/pause's state: the pause icon while it plays. */
     void setPlaying(boolean playing) {
         mPlaying = playing;
+        mProgressDrawable.setPlaying(playing); // NEWTUBE(wave)
         if (style == MiniPlayerStyle.BAR_VIDEO && mPlayIcon != null) {
             mPlayIcon.setIcon(icon(card.getContext(), playing));
             if (playPause.getDrawable() != mPlayIcon) {

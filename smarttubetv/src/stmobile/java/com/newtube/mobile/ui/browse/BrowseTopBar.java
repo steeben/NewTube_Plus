@@ -34,10 +34,6 @@ final class BrowseTopBar {
     private final com.newtube.mobile.ui.common.LogoTint.Listener mTintListener = color -> blendLogo(color);
 
     private void blendLogo(int color) {
-        android.graphics.drawable.GradientDrawable circle = mPlayCircle;
-        if (circle == null) {
-            return;
-        }
         int to = color != 0 ? color : com.newtube.mobile.ui.common.UiPrefs.getAccent(mTitle.getContext());
         if (mTintAnimator != null) {
             mTintAnimator.cancel();
@@ -48,11 +44,7 @@ final class BrowseTopBar {
         }
         mTintAnimator = android.animation.ValueAnimator.ofArgb(from, to);
         mTintAnimator.setDuration(600);
-        mTintAnimator.addUpdateListener(a -> {
-            mCircleColor = (int) a.getAnimatedValue();
-            circle.setColor(mCircleColor);
-            mTitle.invalidate();
-        });
+        mTintAnimator.addUpdateListener(a -> setLogoColor((int) a.getAnimatedValue()));
         mTintAnimator.start();
     }
 
@@ -98,9 +90,51 @@ final class BrowseTopBar {
                 String text = com.newtube.mobile.ui.common.UiPrefs.getHeaderText(context);
                 return text != null && !text.trim().isEmpty() ? text.trim() : context.getString(R.string.app_name);
             }
-            default:
-                return context.getString(R.string.app_name);
+            default: {
+                // NEWTUBE(logo-tint): the "+" of NewTube+ in the logo's gradient.
+                String name = context.getString(R.string.app_name);
+                if (name.endsWith("+")) {
+                    android.text.SpannableString text = new android.text.SpannableString(name);
+                    text.setSpan(mPlusSpan, name.length() - 1, name.length(),
+                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    return text;
+                }
+                return name;
+            }
         }
+    }
+
+    /** The logo's gradient for {@code base}: the colour, getting subtly brighter. */
+    static int[] logoGradient(int base) {
+        return new int[] {base | 0xFF000000,
+                androidx.core.graphics.ColorUtils.blendARGB(base, 0xFFFFFFFF, 0.3f) | 0xFF000000};
+    }
+
+    /** The wordmark's "+" in the logo's gradient (brighter at the top). */
+    private static final class PlusSpan extends android.text.style.CharacterStyle
+            implements android.text.style.UpdateAppearance {
+        int base = com.newtube.mobile.ui.common.UiPrefs.DEFAULT_ACCENT;
+
+        @Override
+        public void updateDrawState(android.text.TextPaint paint) {
+            int[] colors = logoGradient(base);
+            float height = paint.descent() - paint.ascent();
+            paint.setColor(colors[0]);
+            paint.setShader(new android.graphics.LinearGradient(0f, 0f, 0f, height,
+                    colors[1], colors[0], android.graphics.Shader.TileMode.CLAMP));
+        }
+    }
+
+    private final PlusSpan mPlusSpan = new PlusSpan();
+
+    /** The logo and the "+" in {@code color}'s gradient. */
+    private void setLogoColor(int color) {
+        mCircleColor = color;
+        if (mPlayCircle != null) {
+            mPlayCircle.setColors(logoGradient(color));
+        }
+        mPlusSpan.base = color;
+        mTitle.invalidate();
     }
 
     /**
@@ -147,8 +181,7 @@ final class BrowseTopBar {
                         mPlayCircle = (android.graphics.drawable.GradientDrawable)
                                 ((android.graphics.drawable.LayerDrawable) mark).getDrawable(0);
                         int tint = com.newtube.mobile.ui.common.LogoTint.get();
-                        mCircleColor = tint != 0 ? tint : com.newtube.mobile.ui.common.UiPrefs.getAccent(context);
-                        mPlayCircle.setColor(mCircleColor);
+                        setLogoColor(tint != 0 ? tint : com.newtube.mobile.ui.common.UiPrefs.getAccent(context));
                     }
                     break;
                 default:
@@ -160,6 +193,10 @@ final class BrowseTopBar {
             mark.setBounds(0, 0, size, size);
         }
         mTitle.setCompoundDrawablesRelative(mark, null, null, null);
+        int tint = com.newtube.mobile.ui.common.LogoTint.get(); // NEWTUBE(logo-tint): the "+" too
+        if (mTintAnimator == null || !mTintAnimator.isRunning()) {
+            setLogoColor(tint != 0 ? tint : com.newtube.mobile.ui.common.UiPrefs.getAccent(context));
+        }
         CharSequence text = mTitle.getText();
         mTitle.setCompoundDrawablePadding(text != null && text.length() > 0 ? Math.round(8 * density) : 0);
     }
@@ -168,7 +205,8 @@ final class BrowseTopBar {
     static android.graphics.drawable.Drawable playLogo(android.content.Context context) {
         android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
         circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        circle.setColor(com.newtube.mobile.ui.common.UiPrefs.getAccent(context));
+        circle.setOrientation(android.graphics.drawable.GradientDrawable.Orientation.BL_TR);
+        circle.setColors(logoGradient(com.newtube.mobile.ui.common.UiPrefs.getAccent(context)));
         android.graphics.drawable.Drawable glyph = androidx.core.content.ContextCompat.getDrawable(context,
                 R.drawable.ic_logo_play_glyph);
         return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[] {circle, glyph});

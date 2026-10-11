@@ -572,23 +572,33 @@ public class MobileBrowseActivity extends MobileActivity
      * NEWTUBE(frosted): what the glass bars blur, bottom to top: the page's views that are showing,
      * then a tab slide's pictures - each where it is on screen right now.
      */
-    private final com.newtube.mobile.ui.common.BackdropBlurDrawable.Layers mGlassLayers = out -> {
-        // The You panel covers the feed only between the bars: under the glass, the feed beneath it
-        // must not show (except while a slide moves them apart).
-        boolean youCovers = mYouShowing && mYouPanel != null && mYouPanel.getVisibility() == View.VISIBLE
-                && (this.mTabSlider == null || !this.mTabSlider.isBusy());
-        for (View view : new View[] {mContentSwipe, mFeedSkeleton, mErrorContainer, mYouPanel}) {
-            if (view != null && view.getVisibility() == View.VISIBLE && (!youCovers || view == mYouPanel)) {
-                out.add(view);
+    private final com.newtube.mobile.ui.common.BackdropBlurDrawable.Layers mGlassLayers =
+            new com.newtube.mobile.ui.common.BackdropBlurDrawable.Layers() {
+        @Override
+        public void collect(List<View> out) {
+            // The You panel covers the feed only between the bars: under the glass, the feed beneath it
+            // must not show (except while a slide moves them apart).
+            boolean youCovers = mYouShowing && mYouPanel != null && mYouPanel.getVisibility() == View.VISIBLE
+                    && (MobileBrowseActivity.this.mTabSlider == null || !MobileBrowseActivity.this.mTabSlider.isBusy());
+            for (View view : new View[] {mContentSwipe, mFeedSkeleton, mErrorContainer, mYouPanel}) {
+                if (view != null && view.getVisibility() == View.VISIBLE && (!youCovers || view == mYouPanel)) {
+                    out.add(view);
+                }
+            }
+            TabSlider slider = MobileBrowseActivity.this.mTabSlider;
+            if (slider != null) {
+                slider.collectPictures(out);
+            }
+            View mini = MobileBrowseActivity.this.mMiniUnder; // NEWTUBE(mini-underlap): the video bar, behind the navigation
+            if (mini != null) {
+                out.add(mini);
             }
         }
-        TabSlider slider = this.mTabSlider; // declared further down
-        if (slider != null) {
-            slider.collectPictures(out);
-        }
-        View mini = this.mMiniUnder; // NEWTUBE(mini-underlap): the video bar, behind the navigation
-        if (mini != null) {
-            out.add(mini);
+
+        @Override
+        public float alphaOf(View layer) {
+            // NEWTUBE(mini-underlap): the video bar eases in under the navigation's glass.
+            return layer == MobileBrowseActivity.this.mMiniUnder ? MobileBrowseActivity.this.mUnderMix : 1f;
         }
     };
 
@@ -631,22 +641,56 @@ public class MobileBrowseActivity extends MobileActivity
         } else if (!under && miniAt < glassAt) {
             mini.bringToFront();
         }
+        float target = under ? 1f : 0f;
+        if (target != mUnderTarget) {
+            mUnderTarget = target;
+            if (mUnderAnimator != null) {
+                mUnderAnimator.cancel();
+            }
+            mUnderAnimator = android.animation.ValueAnimator.ofFloat(mUnderMix, target);
+            mUnderAnimator.setDuration(450);
+            mUnderAnimator.setInterpolator(com.newtube.mobile.ui.common.Motion.STANDARD);
+            mUnderAnimator.addUpdateListener(a -> {
+                mUnderMix = (float) a.getAnimatedValue();
+                applyUnderMix();
+            });
+            mUnderAnimator.start();
+        } else if (mUnderAnimator == null || !mUnderAnimator.isRunning()) {
+            applyUnderMix();
+        }
+    }
+
+    /**
+     * NEWTUBE(mini-underlap): how far the navigation's glass has turned to the video bar's (0-1):
+     * the video under it eases in, the glass gets lighter and less blurred, its soft top edge goes.
+     */
+    private float mUnderMix;
+    private float mUnderTarget = -1f;
+    @Nullable
+    private android.animation.ValueAnimator mUnderAnimator;
+    private int mAppliedNavFade = -1;
+
+    private void applyUnderMix() {
+        if (mNavGlass == null || mBottomNav == null) {
+            return;
+        }
+        float t = mUnderMix;
+        int fadeTop = Math.round(mNavFadePx * (1f - t));
         ViewGroup.LayoutParams glassParams = mNavGlass.getLayoutParams();
-        int glassHeight = mBottomNav.getHeight() + (under ? 0 : mNavFadePx);
+        int glassHeight = mBottomNav.getHeight() + fadeTop;
         if (mBottomNav.getHeight() > 0 && glassParams.height != glassHeight) {
             glassParams.height = glassHeight;
             mNavGlass.setLayoutParams(glassParams);
         }
         if (mNavGlassDrawable != null) {
-            int fadeTop = under ? 0 : mNavFadePx;
             if (fadeTop != mAppliedNavFade) {
                 mAppliedNavFade = fadeTop;
                 mNavGlassDrawable.setFadeTop(fadeTop);
             }
+            mNavGlassDrawable.setLightness(1f - 0.45f * t, 1f - 0.4f * t);
         }
+        mNavGlass.invalidate();
     }
-
-    private int mAppliedNavFade = -1;
 
     /** NEWTUBE(frosted): the glass is drawn again (what is under it moved). */
     private void invalidateGlass() {
@@ -910,6 +954,9 @@ public class MobileBrowseActivity extends MobileActivity
                 || mContentSwipe.isRefreshing() || (mSectionFromYou && !mYouShowing)) {
             return false;
         }
+        if (com.newtube.mobile.ui.playback.FeedAutoplay.hitsControls(x, y)) {
+            return false; // NEWTUBE(autoplay): the preview's seek bar takes the sideways drag
+        }
         View root = findViewById(R.id.mobile_browse_root);
         int[] at = new int[2];
         root.getLocationInWindow(at);
@@ -998,7 +1045,7 @@ public class MobileBrowseActivity extends MobileActivity
         navGlass.setBackground(mNavGlassDrawable);
         mBottomNav.setBackground(null);
         mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            int height = b - t + (mMiniUnder != null ? 0 : fade);
+            int height = b - t + (mAppliedNavFade >= 0 ? mAppliedNavFade : fade);
             if (navGlassParams.height != height) {
                 navGlassParams.height = height;
                 navGlass.setLayoutParams(navGlassParams);

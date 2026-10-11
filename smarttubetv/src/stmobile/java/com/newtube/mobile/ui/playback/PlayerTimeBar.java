@@ -146,6 +146,17 @@ public class PlayerTimeBar extends View implements TimeBar {
 
     private boolean mWaveHumps = true;
 
+    private boolean mPlaying = true;
+    private final WaveProgress.Level mWaveLevel = new WaveProgress.Level();
+
+    /** NEWTUBE(wave): playing - the humps up; paused - they settle down (eased). */
+    public void setPlaying(boolean playing) {
+        if (mPlaying != playing) {
+            mPlaying = playing;
+            invalidate();
+        }
+    }
+
     public boolean isWaveMode() {
         return mWaveOn;
     }
@@ -604,10 +615,11 @@ public class PlayerTimeBar extends View implements TimeBar {
 
         // NEWTUBE(wave): the humps over the played part, rising with the controls.
         if (wave && mWaveHumps) {
-            float amplitude = dp(WAVE_DP) * mShown * (1f + 0.25f * mDrag);
+            boolean settling = mWaveLevel.step(mPlaying || mScrubbing, now);
+            float amplitude = dp(WAVE_DP) * mShown * (1f + 0.25f * mDrag) * mWaveLevel.value();
             mWave.drawWaves(canvas, left, playedX, top, amplitude, (now - mWaveEpoch) / 1000f);
-            boolean moving = now - mPositionMovedAt < WAVE_MOVING_MS || mScrubbing;
-            if (amplitude > 0.5f && (moving || blending) && isShown()) {
+            boolean moving = mPlaying || mScrubbing || settling;
+            if (mShown > 0f && (moving || blending) && isShown()) {
                 postInvalidateOnAnimation();
             }
         }

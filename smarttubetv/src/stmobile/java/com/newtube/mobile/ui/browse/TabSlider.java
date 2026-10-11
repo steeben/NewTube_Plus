@@ -311,19 +311,18 @@ final class TabSlider {
             ghost.postOnAnimation(() -> fadeWhenReady(ghost, since));
             return;
         }
-        {
-            ghost.animate().alpha(0f).setStartDelay(60).setDuration(160)
-                    .setUpdateListener(a -> mHost.onSlideFrame(ghost))
-                    .withEndAction(() -> {
-                        mRoot.removeView(ghost);
-                        if (mFading == ghost) {
-                            mFading = null;
-                            if (mGhost == null) {
-                                mHost.onSlideFrame(null);
-                            }
-                        }
-                    }).start();
-        }
+        // No cross-fade: two pictures of the same page blended for a moment showed as a flicker
+        // (each translucent part - a time badge - drawn twice, darker). The real page is drawn
+        // first (two frames), then the picture goes in one frame.
+        ghost.postOnAnimation(() -> ghost.postOnAnimation(() -> {
+            mRoot.removeView(ghost);
+            if (mFading == ghost) {
+                mFading = null;
+                if (mGhost == null) {
+                    mHost.onSlideFrame(null);
+                }
+            }
+        }));
     }
 
     /** A new slide, while one is still going: the old one ends where it was heading. */

@@ -386,7 +386,9 @@ public final class FeedAutoplay {
 
         // The player's own seek bar, small: a line with its dot, and the dot can be dragged.
         mLine = new PlayerTimeBar(mContext);
-        mLine.setTrackAtBottom(false);
+        // Along the thumbnail's bottom, with room below the line for the whole dot.
+        mLine.setTrackAtBottom(true);
+        mLine.setPadding(0, 0, 0, Math.round(5 * density));
         mLine.setShown(true, false);
         mLine.setAlpha(0f);
         mLine.addListener(new androidx.media3.ui.TimeBar.OnScrubListener() {
@@ -408,8 +410,7 @@ public final class FeedAutoplay {
             }
         });
         FrameLayout.LayoutParams lineParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                Math.round(22 * density), Gravity.BOTTOM);
-        lineParams.bottomMargin = Math.round(2 * density);
+                Math.round(24 * density), Gravity.BOTTOM);
         frame.addView(mLine, lineParams);
 
         mSpeaker = new ImageButton(mContext);
@@ -512,6 +513,30 @@ public final class FeedAutoplay {
     private static boolean isAncestor(View ancestor, View view) {
         for (View v = view; v != null; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
             if (v == ancestor) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The preview's seek bar or speaker is under ({@code rawX}, {@code rawY}) (screen px): the
+     * screen's own gestures (the tab swipe) leave that touch to them.
+     */
+    public static boolean hitsControls(float rawX, float rawY) {
+        FeedAutoplay autoplay = sCurrent.get();
+        if (autoplay == null || !autoplay.mShown) {
+            return false;
+        }
+        int[] at = new int[2];
+        for (View view : new View[] {autoplay.mLine, autoplay.mSpeaker}) {
+            if (view == null || !view.isShown()) {
+                continue;
+            }
+            view.getLocationOnScreen(at);
+            float slop = view == autoplay.mLine ? 12 * view.getResources().getDisplayMetrics().density : 0f;
+            if (rawX >= at[0] && rawX <= at[0] + view.getWidth()
+                    && rawY >= at[1] - slop && rawY <= at[1] + view.getHeight() + slop) {
                 return true;
             }
         }

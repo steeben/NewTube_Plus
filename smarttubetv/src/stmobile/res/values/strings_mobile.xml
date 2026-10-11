@@ -555,12 +555,13 @@
     <string name="mobile_autoplay_mute">Mute</string>
     <string name="mobile_autoplay_unmute">Unmute</string>
     <string name="mobile_player_detect_bars">Detect black bars</string>
+    <string name="mobile_player_undo_crop">Undo crop</string>
     <string name="mobile_player_bars_cropped">Black bars cropped</string>
     <string name="mobile_player_bars_none">No black bars found</string>
     <string name="mobile_player_bars_unclear">The picture is too dark to tell. Try again on a brighter scene</string>
     <string name="mobile_settings_picture">Picture</string>
     <string name="mobile_settings_black_bars">Detect black bars automatically</string>
-    <string name="mobile_settings_black_bars_summary">Crops letterboxing and pillarboxing that is part of the video, and fits the player to what is left. It only checks at the start of each video, not continuously. Off: use Detect black bars in the player\'s settings when a video has them. The player always takes the video\'s own shape</string>
+    <string name="mobile_settings_black_bars_summary">Crops letterboxing and pillarboxing that is part of the video, and fits the player to what is left. It only looks during the first 2.5 seconds of each video, not continuously. Detect black bars (and Undo crop) in the player\'s settings works either way. The player always takes the video\'s own shape</string>
     <string name="mobile_player_song_marked">Marked as a song</string>
     <string name="mobile_player_song_unmarked">Not marked as a song</string>
 </resources>

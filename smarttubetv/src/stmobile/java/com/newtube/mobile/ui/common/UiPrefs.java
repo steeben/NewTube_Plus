@@ -183,7 +183,7 @@ public final class UiPrefs {
     private static final String KEY_BLACK_BARS = "detect_black_bars";
 
     public static boolean isBlackBarDetection(Context context) {
-        return prefs(context).getBoolean(KEY_BLACK_BARS, false);
+        return prefs(context).getBoolean(KEY_BLACK_BARS, true);
     }
 
     public static void setBlackBarDetection(Context context, boolean on) {

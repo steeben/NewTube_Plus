@@ -263,4 +263,33 @@ final class WaveProgress {
         }
         return picked;
     }
+
+    /**
+     * NEWTUBE(wave): the humps' height while playing (1) or paused (0), eased - they settle down
+     * when the video pauses and rise again when it plays.
+     */
+    static final class Level {
+        private float mValue = 1f;
+        private long mAt;
+
+        /** Step toward playing/paused; true while still moving. */
+        boolean step(boolean playing, long now) {
+            float target = playing ? 1f : 0f;
+            long dt = mAt == 0 ? 16 : Math.min(100, now - mAt);
+            mAt = now;
+            if (mValue == target) {
+                return false;
+            }
+            float k = Math.min(1f, dt / 260f);
+            mValue += (target - mValue) * k;
+            if (Math.abs(target - mValue) < 0.01f) {
+                mValue = target;
+            }
+            return true;
+        }
+
+        float value() {
+            return mValue * mValue * (3f - 2f * mValue);
+        }
+    }
 }

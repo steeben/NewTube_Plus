@@ -81,6 +81,26 @@ public final class BackdropBlurDrawable extends Drawable {
      */
     public interface Layers {
         void collect(java.util.List<View> out);
+
+        /** How much of {@code layer} the glass shows (0-1): a layer easing in under it. */
+        default float alphaOf(View layer) {
+            return 1f;
+        }
+    }
+
+    /**
+     * NEWTUBE(mini-underlap): a lighter glass - its tint and blur times these (0-1) - over a video
+     * that should show through a little more (the video bar under the navigation).
+     */
+    private float mTintScale = 1f;
+    private float mBlurScale = 1f;
+
+    public void setLightness(float tintScale, float blurScale) {
+        if (tintScale != mTintScale || blurScale != mBlurScale) {
+            mTintScale = tintScale;
+            mBlurScale = blurScale;
+            invalidateSelf();
+        }
     }
 
     @Nullable
@@ -163,7 +183,8 @@ public final class BackdropBlurDrawable extends Drawable {
                 mLayerViews.clear();
                 mLayers.collect(mLayerViews);
                 mHost.getLocationInWindow(mHostOffset);
-                Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mHostOffset, mPageColor, mBlurPx, mAlpha);
+                Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mLayers, mHostOffset, mPageColor,
+                        Math.max(1f, mBlurPx * mBlurScale), mAlpha);
                 mLayerViews.clear();
             }
             drawTint(canvas, bounds);
@@ -190,7 +211,7 @@ public final class BackdropBlurDrawable extends Drawable {
 
     private void drawTint(Canvas canvas, Rect bounds) {
         int tintAlpha = mTint.getAlpha();
-        mTint.setAlpha(Math.round(tintAlpha * mAlpha / 255f));
+        mTint.setAlpha(Math.round(tintAlpha * mAlpha / 255f * mTintScale));
         canvas.drawRect(bounds, mTint);
         mTint.setAlpha(tintAlpha);
     }
@@ -203,7 +224,7 @@ public final class BackdropBlurDrawable extends Drawable {
         }
 
         static void drawLayers(Object nodeObject, Canvas canvas, Rect bounds, java.util.List<View> layers,
-                               int[] hostOffset, int pageColor, float blurPx, int alpha) {
+                               Layers source, int[] hostOffset, int pageColor, float blurPx, int alpha) {
             RenderNode node = (RenderNode) nodeObject;
             int width = bounds.width();
             int height = bounds.height();
@@ -214,7 +235,7 @@ public final class BackdropBlurDrawable extends Drawable {
                 recording.drawColor(pageColor);
                 for (int i = 0; i < layers.size(); i++) {
                     View layer = layers.get(i);
-                    float layerAlpha = Math.max(0f, Math.min(1f, layer.getAlpha()));
+                    float layerAlpha = Math.max(0f, Math.min(1f, layer.getAlpha() * source.alphaOf(layer)));
                     if (layerAlpha <= 0f || layer.getWidth() <= 0 || layer.getHeight() <= 0
                             || !layer.isAttachedToWindow()) {
                         continue;
