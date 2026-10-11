@@ -575,8 +575,9 @@ public class MobileBrowseActivity extends MobileActivity
                 out.add(view);
             }
         }
-        if (mTabSlider != null) {
-            mTabSlider.collectPictures(out);
+        TabSlider slider = this.mTabSlider; // declared further down
+        if (slider != null) {
+            slider.collectPictures(out);
         }
     };
 
