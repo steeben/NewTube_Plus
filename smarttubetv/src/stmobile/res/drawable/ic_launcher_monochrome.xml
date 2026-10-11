@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Themed-icon (API 33+) monochrome layer: the NewTube arch mark as a single
-     silhouette the launcher tints. Same geometry as the foreground. -->
+<!-- Themed-icon (API 33+) monochrome layer: the Play logo as one silhouette (the circle with the
+     triangle cut out) for the launcher to tint. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="5"
-        android:strokeLineJoin="round"
-        android:strokeLineCap="round"
-        android:pathData="M32,76 L32,53 A22,22 0 0 1 76,53 L76,76 L63,76 L63,53 A9,9 0 0 0 45,53 L45,76 Z" />
+    <group
+        android:scaleX="2.5"
+        android:scaleY="2.5"
+        android:translateX="24"
+        android:translateY="24">
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M0,12a12,12 0 1,0 24,0a12,12 0 1,0 -24,0 M9,8.4C9,7.62 9.85,7.14 10.52,7.54L16.62,11.14C17.28,11.53 17.28,12.47 16.62,12.86L10.52,16.46C9.85,16.86 9,16.38 9,15.6Z" />
+    </group>
 </vector>

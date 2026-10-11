@@ -572,8 +572,12 @@ public class MobileBrowseActivity extends MobileActivity
      * then a tab slide's pictures - each where it is on screen right now.
      */
     private final com.newtube.mobile.ui.common.BackdropBlurDrawable.Layers mGlassLayers = out -> {
+        // The You panel covers the feed only between the bars: under the glass, the feed beneath it
+        // must not show (except while a slide moves them apart).
+        boolean youCovers = mYouShowing && mYouPanel != null && mYouPanel.getVisibility() == View.VISIBLE
+                && (this.mTabSlider == null || !this.mTabSlider.isBusy());
         for (View view : new View[] {mContentSwipe, mFeedSkeleton, mErrorContainer, mYouPanel}) {
-            if (view != null && view.getVisibility() == View.VISIBLE) {
+            if (view != null && view.getVisibility() == View.VISIBLE && (!youCovers || view == mYouPanel)) {
                 out.add(view);
             }
         }
@@ -1112,6 +1116,12 @@ public class MobileBrowseActivity extends MobileActivity
             if (item.getItemId() != YOU_ITEM_ID && mContentGrid != null
                     && mContentGrid.getVisibility() == View.VISIBLE && mContentGrid.canScrollVertically(-1)) {
                 smoothScrollGridToTop();
+            } else if (item.getItemId() != YOU_ITEM_ID && mPresenter != null && !mYouShowing) {
+                // NEWTUBE(tab-memory): at the top already - a reload, as a pull would do.
+                mHoldSectionId = -1;
+                mSessionLists.remove(mCurrentSectionId);
+                mContentSwipe.setRefreshing(true);
+                mPresenter.refresh(false);
             } else {
                 onNavItemChosen(item.getItemId());
             }
@@ -1121,6 +1131,10 @@ public class MobileBrowseActivity extends MobileActivity
     private void onNavItemChosen(int itemId) {
         if (itemId == YOU_ITEM_ID) {
             showYouPanel();
+        } else if (mYouShowing && !mSectionFromYou && itemId - ITEM_ID_OFFSET == mCurrentSectionId
+                && !mCurrentVideos.isEmpty()) {
+            // NEWTUBE(tab-memory): back from You to the tab under it - it is still there, as left.
+            hideYouPanel();
         } else {
             mSectionFromYou = false;
             hideYouPanel();
@@ -1439,14 +1453,10 @@ public class MobileBrowseActivity extends MobileActivity
             chevron.setBounds(0, 0, size, size);
             chevron.setTint(getColorInt(R.color.mobile_color_on_surface));
         }
-        // The caret, just right of the word: down while the rows are folded away, up while they show.
+        // The caret: down while the rows are folded away, up while they show.
         TurnDrawable turn = new TurnDrawable(chevron);
+        // At the row's far end (the label spans the width).
         label.setCompoundDrawablesRelative(null, null, turn, null);
-        ViewGroup.LayoutParams labelParams = label.getLayoutParams();
-        if (labelParams != null) {
-            labelParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
-            label.setLayoutParams(labelParams);
-        }
         label.setCompoundDrawablePadding(Math.round(4 * getResources().getDisplayMetrics().density));
         label.setGravity(android.view.Gravity.CENTER_VERTICAL);
         android.util.TypedValue ripple = new android.util.TypedValue();

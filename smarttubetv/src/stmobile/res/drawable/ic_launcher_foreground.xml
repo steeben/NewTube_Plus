@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  NewTube adaptive-icon foreground (stmobile flavor).
-
-  The NewTube "arch" mark: a lowercase-n arch (which also reads as a
-  tunnel/tube), white, optically centred inside the 66x66 adaptive safe zone (nudged 2 units up: the arch is bottom-heavy, so geometric centring reads low)
-  (viewport 108, safe area ~21..87) so no launcher mask clips it.
-  The stroke matches the fill and only softens the corners.
-  Deliberately NOT a play triangle — see docs/gtm + legal notes.
--->
+<!-- NewTube+ adaptive-icon foreground: the Play logo of the top bar (BrowseTopBar.playLogo) - a
+     white play triangle on a red circle - inside the 66dp safe zone (viewport 108). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="5"
-        android:strokeLineJoin="round"
-        android:strokeLineCap="round"
-        android:pathData="M32,76 L32,53 A22,22 0 0 1 76,53 L76,76 L63,76 L63,53 A9,9 0 0 0 45,53 L45,76 Z" />
+    <group
+        android:scaleX="2.5"
+        android:scaleY="2.5"
+        android:translateX="24"
+        android:translateY="24">
+        <path
+            android:fillColor="#FF0033"
+            android:pathData="M0,12a12,12 0 1,0 24,0a12,12 0 1,0 -24,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M9,8.4C9,7.62 9.85,7.14 10.52,7.54L16.62,11.14C17.28,11.53 17.28,12.47 16.62,12.86L10.52,16.46C9.85,16.86 9,16.38 9,15.6Z"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineJoin="round"
+            android:strokeWidth="0.6" />
+    </group>
 </vector>

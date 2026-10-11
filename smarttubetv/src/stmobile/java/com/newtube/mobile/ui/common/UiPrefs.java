@@ -179,6 +179,18 @@ public final class UiPrefs {
         notifyChanged();
     }
 
+    // NEWTUBE(wave): off - the colours on the bar only, no humps.
+    private static final String KEY_WAVE_HUMPS = "wave_progress_humps";
+
+    public static boolean isWaveHumps(Context context) {
+        return prefs(context).getBoolean(KEY_WAVE_HUMPS, true);
+    }
+
+    public static void setWaveHumps(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_WAVE_HUMPS, on).apply();
+        notifyChanged();
+    }
+
     /** Where the wave (and, with it, the bar) takes its colours from. */
     public static final int WAVE_COLORS_ACCENT = 0;
     public static final int WAVE_COLORS_LIVE = 1;

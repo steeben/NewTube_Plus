@@ -65,6 +65,10 @@ final class PlayerPages {
                 context.getString(R.string.mobile_settings_wave_always_summary),
                 () -> com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(context),
                 on -> com.newtube.mobile.ui.common.UiPrefs.setWaveAlways(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_humps),
+                context.getString(R.string.mobile_settings_wave_humps_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveHumps(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveHumps(context, on)));
         rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_wave_colors))
                 .option(context.getString(R.string.mobile_settings_wave_colors_accent),
                         com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_ACCENT)

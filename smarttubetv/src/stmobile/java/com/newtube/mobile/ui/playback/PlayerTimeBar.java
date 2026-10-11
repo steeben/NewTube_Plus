@@ -136,6 +136,16 @@ public class PlayerTimeBar extends View implements TimeBar {
         }
     }
 
+    /** NEWTUBE(wave): false - the wave's colours on the bar, without the humps. */
+    public void setWaveHumps(boolean humps) {
+        if (mWaveHumps != humps) {
+            mWaveHumps = humps;
+            invalidate();
+        }
+    }
+
+    private boolean mWaveHumps = true;
+
     public boolean isWaveMode() {
         return mWaveOn;
     }
@@ -593,7 +603,7 @@ public class PlayerTimeBar extends View implements TimeBar {
         }
 
         // NEWTUBE(wave): the humps over the played part, rising with the controls.
-        if (wave) {
+        if (wave && mWaveHumps) {
             float amplitude = dp(WAVE_DP) * mShown * (1f + 0.25f * mDrag);
             mWave.drawWaves(canvas, left, playedX, top, amplitude, (now - mWaveEpoch) / 1000f);
             boolean moving = now - mPositionMovedAt < WAVE_MOVING_MS || mScrubbing;
@@ -608,7 +618,7 @@ public class PlayerTimeBar extends View implements TimeBar {
             float restRadius = dp(SCRUBBER_DP) / 2f;
             float cx = Math.max(left + restRadius, Math.min(right - restRadius, playedX));
             float cy = (top + bottom) / 2f;
-            if (wave && mWave != null) {
+            if (wave && mWaveHumps && mWave != null) {
                 mWave.drawThumb(canvas, cx, cy, radius * 1.15f);
             } else {
                 canvas.drawCircle(cx, cy, radius, mScrubberPaint);

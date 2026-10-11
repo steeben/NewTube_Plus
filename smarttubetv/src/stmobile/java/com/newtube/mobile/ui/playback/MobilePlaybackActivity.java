@@ -2281,6 +2281,7 @@ public class MobilePlaybackActivity extends MobileActivity
         boolean wave = video != null && !video.isLive
                 && (com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(this) || isMusic(this, video));
         mTimeBar.setWaveMode(wave);
+        mTimeBar.setWaveHumps(com.newtube.mobile.ui.common.UiPrefs.isWaveHumps(this));
         int source = com.newtube.mobile.ui.common.UiPrefs.getWaveColorSource(this);
         int[] colors = null;
         if (wave && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_LIVE) {
@@ -5903,6 +5904,8 @@ public class MobilePlaybackActivity extends MobileActivity
             mMorphLineDrawable = new MiniProgressDrawable(density);
             mMorphLineDrawable.setColors(MiniPlayerStyle.accent(this), getResources().getColor(
                     R.color.mobile_color_progress_track), com.newtube.mobile.ui.common.ThemeMode.isLight(this));
+            // The video's colours, when the bar has them (it keeps them all the way down).
+            mMorphLineDrawable.setWave(false, MiniPlayerBridge.isWaveOn() ? MiniPlayerBridge.getWaveColors() : null);
             if (mPlayer != null && mPlayer.getDuration() > 0) {
                 mMorphLineDrawable.setLevel((int) (mPlayer.getCurrentPosition() * 10000L / mPlayer.getDuration()));
             }
@@ -6106,6 +6109,8 @@ public class MobilePlaybackActivity extends MobileActivity
             card.setFocusable(false);
             card.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
             chrome.frame.setVisibility(View.INVISIBLE); // the video is ours, moving under or behind it
+            // NEWTUBE(mini-progress): one line only - the one riding the video (mMorphLine).
+            chrome.progress.setVisibility(View.INVISIBLE);
             if (chrome.frame instanceof androidx.media3.ui.AspectRatioFrameLayout) {
                 ((androidx.media3.ui.AspectRatioFrameLayout) chrome.frame).setAspectRatio(16f / 9f);
             }

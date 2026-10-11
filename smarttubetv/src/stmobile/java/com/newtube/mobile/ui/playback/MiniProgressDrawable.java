@@ -64,6 +64,10 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
     }
 
     /** NEWTUBE(wave): show the wave over the played part; {@code colors} null for the accent's. */
+    /**
+     * NEWTUBE(wave): show the wave over the played part ({@code on}); {@code colors}, when not
+     * null, colour the line (the video's) - with or without the wave.
+     */
     void setWave(boolean on, @androidx.annotation.Nullable int[] colors) {
         if (on != mWaveOn || colors != mWaveColors) {
             mWaveOn = on;
@@ -94,7 +98,7 @@ final class MiniProgressDrawable extends android.graphics.drawable.Drawable {
         }
         long now = android.os.SystemClock.uptimeMillis();
         boolean blending = false;
-        int lineColor = mAccent;
+        int lineColor = mWaveColors != null ? mWaveColors[0] | 0xFF000000 : mAccent;
         if (mWaveOn) {
             if (mWave == null) {
                 mWave = new WaveProgress(mDensity);
