@@ -498,8 +498,16 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
         }
 
         private void bindThumbnail(Context context, Video video) {
-            mThumbReadyAt = 0;
             String thumbnailUrl = thumbnailUrl(context, video);
+            // NEWTUBE(tab-slide): the same picture already up (a rebind after a refetch, a tab
+            // shown again) - leave it. Loading it again blanked the card for a moment (from the
+            // disk cache, a fade in), the flicker after changing tabs.
+            boolean still = com.newtube.mobile.ui.playback.FeedAutoplay.takeStill(mThumbnail);
+            if (!still && thumbnailUrl != null && thumbnailUrl.equals(mBoundThumbUrl) && mThumbnail.getDrawable() != null
+                    && mThumbReadyAt > 0) {
+                return;
+            }
+            mThumbReadyAt = 0;
             mBoundThumbUrl = thumbnailUrl;
 
             int w = thumbWidth(context);

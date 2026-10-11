@@ -2659,15 +2659,14 @@ public class MobilePlaybackActivity extends MobileActivity
             mCropAnimator.cancel();
             mCropAnimator = null;
         }
+        // Only the crop: the shape (mVideoAspect, the frame's) follows the player's own size
+        // reports - forcing 16:9 here stretched a 4:3 video handed back from the mini player,
+        // whose size is not reported again.
         mCrop = null;
         mCropShown = null;
         mCropFraction = 0f;
         mCropVideoId = null;
         MiniPlayerBridge.setCrop(null);
-        mVideoAspect = 0f;
-        if (mPlayerView != null && mPlayerView.getContentFrame() instanceof androidx.media3.ui.AspectRatioFrameLayout) {
-            ((androidx.media3.ui.AspectRatioFrameLayout) mPlayerView.getContentFrame()).setAspectRatio(16f / 9f);
-        }
         applyContentTransform();
         animateBox();
     }

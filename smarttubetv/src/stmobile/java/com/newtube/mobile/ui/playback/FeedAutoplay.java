@@ -411,7 +411,12 @@ public final class FeedAutoplay {
         // Beside the thumbnail's frame, not in it: the frame clips to its rounded corners, which
         // would cut the dot in half. Its bottom on the frame's bottom, drawn over the frame.
         ViewGroup card = frame.getParent() instanceof ViewGroup ? (ViewGroup) frame.getParent() : frame;
-        int barHeight = Math.round(20 * density);
+        // Taller than the bar by the dot's lower half, and moved down by as much: the line stays on
+        // the thumbnail's edge and the whole dot is inside the view (nothing clips it).
+        int below = Math.round(8 * density);
+        int barHeight = Math.round(20 * density) + below;
+        mLine.setPadding(0, 0, 0, below);
+        mLine.setTranslationY(below);
         if (card instanceof androidx.constraintlayout.widget.ConstraintLayout && frame.getId() != View.NO_ID) {
             androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lineParams =
                     new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, barHeight);
@@ -535,6 +540,14 @@ public final class FeedAutoplay {
      * The preview's seek bar or speaker is under ({@code rawX}, {@code rawY}) (screen px): the
      * screen's own gestures (the tab swipe) leave that touch to them.
      */
+    /** Thumbnails showing a preview's frame instead of their picture (to be loaded again). */
+    private static final java.util.WeakHashMap<ImageView, Boolean> sStills = new java.util.WeakHashMap<>();
+
+    /** True (once) if {@code thumbnail} shows a preview's frame: its card loads its picture again. */
+    public static boolean takeStill(ImageView thumbnail) {
+        return sStills.remove(thumbnail) != null;
+    }
+
     public static boolean hitsControls(float rawX, float rawY) {
         FeedAutoplay autoplay = sCurrent.get();
         if (autoplay == null || !autoplay.mShown) {
@@ -576,6 +589,7 @@ public final class FeedAutoplay {
                 Bitmap still = autoplay.mTexture.getBitmap();
                 if (still != null) {
                     thumbnail.setImageBitmap(still);
+                    sStills.put(thumbnail, Boolean.TRUE);
                 }
             } catch (RuntimeException ignored) {
                 // the thumbnail stays the thumbnail
