@@ -2623,6 +2623,13 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mBoxAnimator != null && mBoxAnimWidth == width) {
             return mBoxAnimHeight; // easing to its new shape
         }
+        // While the box morphs (opening from a card, minimizing, expanding) its shape holds still:
+        // a new shape mid-morph made the open jump. It eases in once the morph is done.
+        if (mMorphFraction != 0f && mVideoArea != null && mVideoArea.getLayoutParams().height > 0
+                && mBoxAnimWidth == width) {
+            return mVideoArea.getLayoutParams().height;
+        }
+        mBoxAnimWidth = width;
         return targetBoxHeight(width);
     }
 
@@ -2659,9 +2666,9 @@ public class MobilePlaybackActivity extends MobileActivity
             mCropAnimator.cancel();
             mCropAnimator = null;
         }
-        // Only the crop: the shape (mVideoAspect, the frame's) follows the player's own size
-        // reports - forcing 16:9 here stretched a 4:3 video handed back from the mini player,
-        // whose size is not reported again.
+        // The crop, and the box's shape (16:9 until this video's size is reported - the card it
+        // opens from is 16:9). Not the content frame's shape: forcing that stretched the picture.
+        mVideoAspect = 0f;
         mCrop = null;
         mCropShown = null;
         mCropFraction = 0f;
@@ -6625,6 +6632,9 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mAmbient != null && !isFinishing()) {
             mAmbientWaitsForPage = false;
             mAmbient.showBand(); // NEWTUBE(ambient): the page is open again
+        }
+        if (!isFinishing()) {
+            animateBox(); // NEWTUBE(black-bars): a shape held back during the morph eases in now
         }
     }
 

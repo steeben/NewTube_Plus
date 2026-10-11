@@ -417,6 +417,20 @@ public final class FeedAutoplay {
         int barHeight = Math.round(20 * density) + below;
         mLine.setPadding(0, 0, 0, below);
         mLine.setTranslationY(below);
+        // The line keeps to the thumbnail's rounded shape; the dot may go past it.
+        final int belowPx = below;
+        mLine.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (!(v instanceof PlayerTimeBar)) {
+                return;
+            }
+            float radius = frame instanceof com.google.android.material.card.MaterialCardView
+                    ? ((com.google.android.material.card.MaterialCardView) frame).getRadius() : 0f;
+            float bottom = (b - t) - belowPx;
+            android.graphics.Path clip = new android.graphics.Path();
+            clip.addRoundRect(0f, bottom - frame.getHeight(), r - l, bottom, radius, radius,
+                    android.graphics.Path.Direction.CW);
+            ((PlayerTimeBar) v).setTrackClip(clip);
+        });
         if (card instanceof androidx.constraintlayout.widget.ConstraintLayout && frame.getId() != View.NO_ID) {
             androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lineParams =
                     new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, barHeight);

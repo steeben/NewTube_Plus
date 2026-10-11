@@ -157,6 +157,15 @@ public class PlayerTimeBar extends View implements TimeBar {
         }
     }
 
+    @Nullable
+    private android.graphics.Path mTrackClip;
+
+    /** NEWTUBE(autoplay): keep the track (not the dot) inside {@code clip} (view px); null: none. */
+    public void setTrackClip(@Nullable android.graphics.Path clip) {
+        mTrackClip = clip;
+        invalidate();
+    }
+
     public boolean isWaveMode() {
         return mWaveOn;
     }
@@ -567,6 +576,11 @@ public class PlayerTimeBar extends View implements TimeBar {
         mTailMatrix.postTranslate(left, 0f);
         mPlayedPaint.getShader().setLocalMatrix(mTailMatrix);
 
+        // NEWTUBE(autoplay): the track within a shape (a rounded thumbnail's); the dot is not.
+        int trackSave = mTrackClip != null ? canvas.save() : -1;
+        if (mTrackClip != null) {
+            canvas.clipPath(mTrackClip);
+        }
         // The track, one piece per chapter: played, buffered, then the rest.
         int chapters = hasDuration ? mChapterStarts.length : 0;
         for (int i = 0; i <= chapters; i++) {
@@ -622,6 +636,10 @@ public class PlayerTimeBar extends View implements TimeBar {
             if (mShown > 0f && (moving || blending) && isShown()) {
                 postInvalidateOnAnimation();
             }
+        }
+
+        if (trackSave >= 0) {
+            canvas.restoreToCount(trackSave);
         }
 
         // The dot grows in with the controls and a little more under the finger.
