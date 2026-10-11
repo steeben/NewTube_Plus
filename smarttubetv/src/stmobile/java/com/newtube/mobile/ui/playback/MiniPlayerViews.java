@@ -102,8 +102,21 @@ final class MiniPlayerViews {
     private int[] mFrostScratch;
     private final Rect mFrostSource = new Rect();
 
+    /** NEWTUBE(mini-underlap): px the video bar reaches below its bar, behind the host's navigation. */
+    private int mUnderlapPx;
+    private final int mOrigBottomToTop;
+    private final int mOrigBottomToBottom;
+
     MiniPlayerViews(View card) {
         this.card = card;
+        ViewGroup.LayoutParams original = card.getLayoutParams();
+        if (original instanceof ConstraintLayout.LayoutParams) {
+            mOrigBottomToTop = ((ConstraintLayout.LayoutParams) original).bottomToTop;
+            mOrigBottomToBottom = ((ConstraintLayout.LayoutParams) original).bottomToBottom;
+        } else {
+            mOrigBottomToTop = ConstraintLayout.LayoutParams.UNSET;
+            mOrigBottomToBottom = ConstraintLayout.LayoutParams.UNSET;
+        }
         frame = card.findViewById(R.id.mobile_mini_player_frame);
         freeze = card.findViewById(R.id.mobile_mini_freeze);
         playPause = card.findViewById(R.id.mobile_mini_play_pause);
@@ -157,6 +170,31 @@ final class MiniPlayerViews {
         }
     }
 
+    /** NEWTUBE(mini-underlap): see {@link #mUnderlapPx}; lays the card out again when it changes. */
+    void setUnderlapPx(int px) {
+        px = Math.max(0, px);
+        if (px == mUnderlapPx) {
+            return;
+        }
+        mUnderlapPx = px;
+        if (style >= 0) {
+            applyStyle(style, cardLeft);
+        }
+    }
+
+    /** The part of the card under the host's navigation now (0 unless the video bar reaches there). */
+    int underlapPx() {
+        return style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx : 0;
+    }
+
+    private static void setBottomMargin(View view, int px) {
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (params instanceof ViewGroup.MarginLayoutParams && ((ViewGroup.MarginLayoutParams) params).bottomMargin != px) {
+            ((ViewGroup.MarginLayoutParams) params).bottomMargin = px;
+            view.setLayoutParams(params);
+        }
+    }
+
     /** Lay the card and its children out for {@code style}, docked left or right if it is the card. */
     void applyStyle(int style, boolean cardLeft) {
         this.style = style;
@@ -178,7 +216,8 @@ final class MiniPlayerViews {
             int margin = bar ? 0 : px(MiniPlayerStyle.CARD_MARGIN_DP, density);
             int startMargin = !bar && cardLeft ? margin : 0;
             int endMargin = !bar && !cardLeft ? margin : 0;
-            margins.height = bar ? barHeight : px(MiniPlayerStyle.CARD_HEIGHT_DP, density);
+            int under = style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx : 0;
+            margins.height = bar ? barHeight + under : px(MiniPlayerStyle.CARD_HEIGHT_DP, density);
             margins.width = bar ? ViewGroup.LayoutParams.MATCH_PARENT : px(MiniPlayerStyle.CARD_WIDTH_DP, density);
             margins.leftMargin = startMargin;
             margins.rightMargin = endMargin;
@@ -194,6 +233,14 @@ final class MiniPlayerViews {
                         ? ConstraintLayout.LayoutParams.PARENT_ID : ConstraintLayout.LayoutParams.UNSET;
                 constraints.endToEnd = bar || !cardLeft
                         ? ConstraintLayout.LayoutParams.PARENT_ID : ConstraintLayout.LayoutParams.UNSET;
+                // NEWTUBE(mini-underlap): down to the screen's bottom, behind the navigation.
+                if (under > 0) {
+                    constraints.bottomToTop = ConstraintLayout.LayoutParams.UNSET;
+                    constraints.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID;
+                } else {
+                    constraints.bottomToTop = mOrigBottomToTop;
+                    constraints.bottomToBottom = mOrigBottomToBottom;
+                }
                 constraints.validate();
             } else if (params instanceof FrameLayout.LayoutParams) {
                 ((FrameLayout.LayoutParams) params).gravity = bar ? Gravity.BOTTOM
@@ -224,11 +271,18 @@ final class MiniPlayerViews {
             frameParams.width = thumbWidth;
             frameParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        } else if (style == MiniPlayerStyle.BAR_VIDEO && mUnderlapPx > 0) {
+            // Centred on the bar (not on the bar and what is under the navigation), so the bar
+            // shows the same band of the video as the minimize landed on.
+            frameParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            frameParams.height = barHeight + 2 * mUnderlapPx;
+            frameParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
         } else {
             frameParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.gravity = Gravity.CENTER;
         }
+        frameParams.topMargin = style == MiniPlayerStyle.BAR_VIDEO ? -mUnderlapPx : 0;
         frame.setLayoutParams(frameParams);
         if (frame instanceof AspectRatioFrameLayout) {
             ((AspectRatioFrameLayout) frame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
@@ -387,6 +441,13 @@ final class MiniPlayerViews {
             flash.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
         }
         flash.setLayoutParams(flashParams);
+
+        // NEWTUBE(mini-underlap): the title, buttons and line stay on the bar, above the navigation.
+        int under = underlapPx();
+        for (View view : new View[] {text, playPause, next, flash, close}) {
+            setBottomMargin(view, under / 2);
+        }
+        setBottomMargin(progress, under);
 
         updateProgressColors();
 

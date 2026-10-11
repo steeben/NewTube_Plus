@@ -139,9 +139,11 @@ public class MobileSearchActivity extends MobileActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        mNavShown = com.newtube.mobile.ui.browse.BrowseNavMirror.hasTabs(); // before the insets
         setContentView(R.layout.activity_mobile_search);
 
         registerBackHandler(this::handleBack);
+        setupNavMirror();
 
         bindViews();
         mMiniPlayer = new MobileMiniPlayerController(this);
@@ -637,8 +639,52 @@ public class MobileSearchActivity extends MobileActivity
 
     @Override
     public int getMiniCardBottomOffsetPx() {
-        // Overlay card (mobile_mini_player_overlay.xml) sits flush at the content bottom.
-        return 0;
+        // Overlay card (mobile_mini_player_overlay.xml) sits flush at the results' bottom: above
+        // the tabs (56dp, like Home's) when they show.
+        return mNav != null && mNav.getVisibility() == View.VISIBLE
+                ? Math.round(56 * getResources().getDisplayMetrics().density) : 0;
+    }
+
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(nav-mirror): Home's tabs at the bottom, in the results too
+    // ---------------------------------------------------------------------------------
+
+    private boolean mNavShown;
+    @Nullable
+    private com.google.android.material.bottomnavigation.BottomNavigationView mNav;
+
+    private void setupNavMirror() {
+        mNav = findViewById(R.id.mobile_search_bottom_nav);
+        if (mNav == null) {
+            return;
+        }
+        boolean shown = mNavShown && com.newtube.mobile.ui.browse.BrowseNavMirror.populate(this, mNav);
+        mNav.setVisibility(shown ? View.VISIBLE : View.GONE);
+        com.newtube.mobile.ui.browse.BrowseNavMirror.registerDetail(this);
+        if (shown != mNavShown) {
+            mNavShown = shown;
+            refreshContentInsets();
+        }
+    }
+
+    /** The tabs reach the screen's bottom edge and pad themselves; without them, the content is inset. */
+    @Override
+    protected boolean shouldInsetContentForNavigationBar() {
+        return !mNavShown;
+    }
+
+    /** As Home's: the tabs slide away under a bar minimize or expand. */
+    @Override
+    public void setBottomBarReveal(float reveal) {
+        if (mNav != null && mNav.getVisibility() == View.VISIBLE) {
+            float clamped = Math.max(0f, Math.min(1f, reveal));
+            mNav.setTranslationY((1f - clamped) * mNav.getHeight());
+        }
+    }
+
+    @Override
+    public int getBottomBarHeightPx() {
+        return mNav != null && mNav.getVisibility() == View.VISIBLE ? mNav.getHeight() : 0;
     }
 
     // NOTE: back normally flows OnBackPressedDispatcher -> MobileActivity.finish() ->

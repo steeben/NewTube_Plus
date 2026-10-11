@@ -308,6 +308,8 @@ public class MobileBrowseActivity extends MobileActivity
         mContentSwipe.setColorSchemeColors(getColorInt(R.color.mobile_color_on_surface));
         mContentSwipe.setProgressBackgroundColorSchemeColor(getColorInt(R.color.mobile_color_surface));
         mContentSwipe.setOnRefreshListener(() -> {
+            mHoldSectionId = -1; // NEWTUBE(tab-memory): a reload replaces the page
+            mSessionLists.remove(mCurrentSectionId);
             if (mPresenter != null) {
                 mPresenter.refresh(false);
             } else {
@@ -579,7 +581,67 @@ public class MobileBrowseActivity extends MobileActivity
         if (slider != null) {
             slider.collectPictures(out);
         }
+        View mini = this.mMiniUnder; // NEWTUBE(mini-underlap): the video bar, behind the navigation
+        if (mini != null) {
+            out.add(mini);
+        }
     };
+
+    /** NEWTUBE(mini-underlap): the docked video bar while it reaches behind the glass navigation. */
+    @Nullable
+    private View mMiniUnder;
+    private int mNavFadePx;
+
+    @Override
+    public int getMiniUnderlapPx() {
+        return mFrostedApplied && mBottomNav != null ? mBottomNav.getHeight() : 0;
+    }
+
+    @Override
+    public void onMiniVideoFrame() {
+        if (mMiniUnder != null && mNavGlass != null) {
+            mNavGlass.invalidate(); // the glass blurs the moving video
+        }
+    }
+
+    /**
+     * NEWTUBE(mini-underlap): the video bar goes under the navigation and its glass (which loses
+     * its soft top edge, so the bar is not fogged), the other mini players over them.
+     */
+    private void updateMiniUnderlap() {
+        View mini = findViewById(R.id.mobile_mini_player);
+        ViewGroup root = findViewById(R.id.mobile_browse_root);
+        if (!mFrostedApplied || mini == null || root == null || mNavGlass == null || mBottomNav == null) {
+            return;
+        }
+        boolean under = mini.getVisibility() == View.VISIBLE
+                && com.newtube.mobile.ui.playback.MiniPlayerStyle.get(this)
+                        == com.newtube.mobile.ui.playback.MiniPlayerStyle.BAR_VIDEO;
+        mMiniUnder = under ? mini : null;
+        int miniAt = root.indexOfChild(mini);
+        int glassAt = root.indexOfChild(mNavGlass);
+        if (under && miniAt > glassAt) {
+            mNavGlass.bringToFront();
+            mBottomNav.bringToFront();
+        } else if (!under && miniAt < glassAt) {
+            mini.bringToFront();
+        }
+        ViewGroup.LayoutParams glassParams = mNavGlass.getLayoutParams();
+        int glassHeight = mBottomNav.getHeight() + (under ? 0 : mNavFadePx);
+        if (mBottomNav.getHeight() > 0 && glassParams.height != glassHeight) {
+            glassParams.height = glassHeight;
+            mNavGlass.setLayoutParams(glassParams);
+        }
+        if (mNavGlassDrawable != null) {
+            int fadeTop = under ? 0 : mNavFadePx;
+            if (fadeTop != mAppliedNavFade) {
+                mAppliedNavFade = fadeTop;
+                mNavGlassDrawable.setFadeTop(fadeTop);
+            }
+        }
+    }
+
+    private int mAppliedNavFade = -1;
 
     /** NEWTUBE(frosted): the glass is drawn again (what is under it moved). */
     private void invalidateGlass() {
@@ -625,6 +687,15 @@ public class MobileBrowseActivity extends MobileActivity
     private boolean mSlideSwap;
     /** Each section's scroll when it was left, so it comes back where it was (and as its picture). */
     private final android.util.SparseArray<android.os.Parcelable> mScrollStates = new android.util.SparseArray<>();
+    /**
+     * NEWTUBE(tab-memory): each section's cards as they were left this session. Coming back shows
+     * them where they were; the refetch that follows adds what is new below instead of replacing
+     * the page (which used to put the tab back at its top). A reload (tap the tab at its top,
+     * pull to refresh) replaces it as before.
+     */
+    private final android.util.SparseArray<List<Video>> mSessionLists = new android.util.SparseArray<>();
+    /** The section painted from mSessionLists, whose next fresh page is merged, not swapped in. */
+    private int mHoldSectionId = -1;
     @Nullable
     private android.os.Parcelable mPendingScrollRestore;
 
@@ -883,11 +954,12 @@ public class MobileBrowseActivity extends MobileActivity
         mNavGlass = navGlass;
         mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, navGlass, page, tint);
         mNavGlassDrawable.setFadeTop(fade);
+        mNavFadePx = fade;
         mNavGlassDrawable.setLayers(mGlassLayers);
         navGlass.setBackground(mNavGlassDrawable);
         mBottomNav.setBackground(null);
         mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            int height = b - t + fade;
+            int height = b - t + (mMiniUnder != null ? 0 : fade);
             if (navGlassParams.height != height) {
                 navGlassParams.height = height;
                 navGlass.setLayoutParams(navGlassParams);
@@ -940,6 +1012,7 @@ public class MobileBrowseActivity extends MobileActivity
         // A tab change shows or hides what is under the glass (the You panel, an empty feed): the
         // glass is drawn again after any layout, not only on a scroll.
         root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            updateMiniUnderlap();
             invalidateGlass();
         });
         mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
@@ -1362,19 +1435,18 @@ public class MobileBrowseActivity extends MobileActivity
                 R.drawable.ic_watch_expand);
         if (chevron != null) {
             chevron = chevron.mutate();
-            int size = Math.round(20 * getResources().getDisplayMetrics().density);
+            int size = Math.round(22 * getResources().getDisplayMetrics().density);
             chevron.setBounds(0, 0, size, size);
-            chevron.setTint(getColorInt(R.color.mobile_color_on_surface_secondary));
+            chevron.setTint(getColorInt(R.color.mobile_color_on_surface));
         }
-        // The chevron points up while the rows show and down when they are folded away.
-        android.graphics.drawable.RotateDrawable turn = new android.graphics.drawable.RotateDrawable();
-        turn.setDrawable(chevron);
-        turn.setFromDegrees(0f);
-        turn.setToDegrees(180f);
-        if (chevron != null) {
-            turn.setBounds(chevron.getBounds());
-        }
+        // The caret, just right of the word: down while the rows are folded away, up while they show.
+        TurnDrawable turn = new TurnDrawable(chevron);
         label.setCompoundDrawablesRelative(null, null, turn, null);
+        ViewGroup.LayoutParams labelParams = label.getLayoutParams();
+        if (labelParams != null) {
+            labelParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+            label.setLayoutParams(labelParams);
+        }
         label.setCompoundDrawablePadding(Math.round(4 * getResources().getDisplayMetrics().density));
         label.setGravity(android.view.Gravity.CENTER_VERTICAL);
         android.util.TypedValue ripple = new android.util.TypedValue();
@@ -1403,6 +1475,73 @@ public class MobileBrowseActivity extends MobileActivity
             androidx.core.view.ViewCompat.setStateDescription(label, getString(collapsed[0]
                     ? R.string.mobile_you_collapsed : R.string.mobile_you_expanded));
         });
+    }
+
+    /** The Explore caret: a chevron turned by {@link #setLevel} (0 = pointing down, 10000 = up). */
+    private static final class TurnDrawable extends android.graphics.drawable.Drawable {
+        @Nullable
+        private final android.graphics.drawable.Drawable mInner;
+
+        TurnDrawable(@Nullable android.graphics.drawable.Drawable inner) {
+            mInner = inner;
+            if (inner != null) {
+                setBounds(inner.getBounds());
+            }
+        }
+
+        @Override
+        protected boolean onLevelChange(int level) {
+            invalidateSelf();
+            return true;
+        }
+
+        @Override
+        protected void onBoundsChange(android.graphics.Rect bounds) {
+            if (mInner != null) {
+                mInner.setBounds(bounds);
+            }
+        }
+
+        @Override
+        public int getIntrinsicWidth() {
+            return mInner != null ? mInner.getBounds().width() : 0;
+        }
+
+        @Override
+        public int getIntrinsicHeight() {
+            return mInner != null ? mInner.getBounds().height() : 0;
+        }
+
+        @Override
+        public void draw(@androidx.annotation.NonNull android.graphics.Canvas canvas) {
+            if (mInner == null) {
+                return;
+            }
+            android.graphics.Rect b = getBounds();
+            int save = canvas.save();
+            canvas.rotate(180f * getLevel() / 10000f, b.exactCenterX(), b.exactCenterY());
+            mInner.draw(canvas);
+            canvas.restoreToCount(save);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            if (mInner != null) {
+                mInner.setAlpha(alpha);
+            }
+        }
+
+        @Override
+        public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {
+            if (mInner != null) {
+                mInner.setColorFilter(filter);
+            }
+        }
+
+        @Override
+        public int getOpacity() {
+            return android.graphics.PixelFormat.TRANSLUCENT;
+        }
     }
 
     /** A drawable level animated (the Explore chevron's turn). */
@@ -1474,6 +1613,7 @@ public class MobileBrowseActivity extends MobileActivity
         boolean switched = mCurrentSectionId != sectionId;
         if (switched && mCurrentSectionId != -1 && mLayoutManager != null && !mCurrentVideos.isEmpty()) {
             mScrollStates.put(mCurrentSectionId, mLayoutManager.onSaveInstanceState()); // NEWTUBE(tab-slide)
+            mSessionLists.put(mCurrentSectionId, new ArrayList<>(mCurrentVideos)); // NEWTUBE(tab-memory)
         }
         mCurrentSectionId = sectionId;
         paintCachedSnapshot(sectionId, switched);
@@ -1501,10 +1641,19 @@ public class MobileBrowseActivity extends MobileActivity
         // so even a cold start shows cards instead of the skeleton (display-only until the
         // refetch replaces it — see FeedCache class doc).
         List<Video> cached = sectionId == VideoDownloads.SECTION_ID ? null : FeedCache.getOrRestore(sectionId);
+        // NEWTUBE(tab-memory): this session's cards for it, as they were left.
+        List<Video> session = switched && sectionId != VideoDownloads.SECTION_ID ? mSessionLists.get(sectionId) : null;
+        mHoldSectionId = -1;
+        if (session != null && !session.isEmpty()) {
+            cached = session;
+            mHoldSectionId = sectionId;
+        } else if (!switched) {
+            mSessionLists.remove(sectionId); // a reload: what comes is the page now
+        }
         // NEWTUBE(motion): last session's cards wait behind the skeleton (FeedCache
         // .isFromLastSession) - only a failed first load shows them (showError).
         mLastSessionFallback = null;
-        if (cached != null && FeedCache.isFromLastSession(sectionId)) {
+        if (cached != null && mHoldSectionId != sectionId && FeedCache.isFromLastSession(sectionId)) {
             mLastSessionFallback = cached;
             cached = null;
         }
@@ -2407,6 +2556,13 @@ public class MobileBrowseActivity extends MobileActivity
                         // snapshot - keep it on screen; the fresh result replaces it below.
                         return;
                     }
+                    if (!emptyReplace && mAwaitingFreshContent && mHoldSectionId == mCurrentSectionId) {
+                        // NEWTUBE(tab-memory): keep the page where it was; only add what is new.
+                        mHoldSectionId = -1;
+                        mAwaitingFreshContent = false;
+                        appendNew(visibleFeedItems(group.getVideos()));
+                        break;
+                    }
                     staleSwap = mAwaitingFreshContent;
                     mCurrentVideos.clear();
                     if (!emptyReplace) {
@@ -2428,7 +2584,11 @@ public class MobileBrowseActivity extends MobileActivity
                     break;
                 case VideoGroup.ACTION_APPEND:
                 default:
-                    if (mAwaitingFreshContent) {
+                    if (mAwaitingFreshContent && mHoldSectionId == mCurrentSectionId) {
+                        // NEWTUBE(tab-memory): the page stays; fresh rows go below what is there.
+                        mHoldSectionId = -1;
+                        mAwaitingFreshContent = false;
+                    } else if (mAwaitingFreshContent) {
                         // First fresh group after a cached repaint: swap the stale snapshot
                         // out instead of appending fresh rows below it.
                         mCurrentVideos.clear();

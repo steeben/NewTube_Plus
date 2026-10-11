@@ -68,6 +68,18 @@ public final class MiniPlayerBridge {
         default int getBottomBarHeightPx() {
             return 0;
         }
+
+        /**
+         * NEWTUBE(mini-underlap): how far the video-background bar's video reaches down behind this
+         * host's (glass) bottom navigation, px; 0 to stop at its top.
+         */
+        default int getMiniUnderlapPx() {
+            return 0;
+        }
+
+        /** NEWTUBE(mini-underlap): the mini player drew a new video frame (glass over it redraws). */
+        default void onMiniVideoFrame() {
+        }
     }
 
     /**

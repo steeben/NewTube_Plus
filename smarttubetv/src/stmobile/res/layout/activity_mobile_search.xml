@@ -129,11 +129,28 @@
             tools:listitem="@layout/item_mobile_search_suggestion"
             tools:visibility="visible" />
 
+        <!-- Minimizing a video opened from these results keeps playback alive in this overlay.
+             In the results' area, so it docks above the tabs below. -->
+        <include layout="@layout/mobile_mini_player_overlay" />
+
     </FrameLayout>
 
-</LinearLayout>
+    <!-- NEWTUBE(nav-mirror): Home's tabs (BrowseNavMirror), as on the list screens. -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/mobile_search_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/mobile_color_background"
+        android:visibility="gone"
+        app:itemIconSize="24dp"
+        app:itemIconTint="@color/mobile_bottom_nav_item"
+        app:itemTextAppearanceActive="@style/MobileBottomNavText"
+        app:itemTextAppearanceActiveBoldEnabled="false"
+        app:itemTextAppearanceInactive="@style/MobileBottomNavText"
+        app:paddingBottomSystemWindowInsets="true"
+        app:itemTextColor="@color/mobile_bottom_nav_item"
+        app:labelVisibilityMode="labeled" />
 
-    <!-- Minimizing a video opened from these results keeps playback alive in this overlay. -->
-    <include layout="@layout/mobile_mini_player_overlay" />
+</LinearLayout>
 
 </FrameLayout>

@@ -428,6 +428,7 @@ public final class MobileMiniPlayerController {
         } else {
             mViews.refreshBarCorners(); // Rounded thumbnail corners may have been switched
         }
+        updateUnderlap();
         updateText();
         mViews.setHasNext(MiniPlayerBridge.hasNext());
         // NEWTUBE(accent): the progress line in the accent, which may have changed since.
@@ -608,6 +609,9 @@ public final class MobileMiniPlayerController {
                     mTextureHasFrame = true;
                     hideFreezeWhenReady();
                     updateFrost();
+                    if (mActivity instanceof MiniPlayerBridge.MiniHost) {
+                        ((MiniPlayerBridge.MiniHost) mActivity).onMiniVideoFrame();
+                    }
                 }
             });
             mTexture = texture;
@@ -723,7 +727,8 @@ public final class MobileMiniPlayerController {
             width = Math.min(width, Math.round(MiniPlayerStyle.barThumbWidthPx(density)));
         }
         MiniPlayerBridge.setMiniBounds(new Rect(location[0], location[1],
-                location[0] + width, location[1] + mBar.getHeight()), mStyle == MiniPlayerStyle.BAR_VIDEO);
+                location[0] + width, location[1] + mBar.getHeight() - mViews.underlapPx()),
+                mStyle == MiniPlayerStyle.BAR_VIDEO);
     }
 
     private void onTick() {
@@ -797,11 +802,19 @@ public final class MobileMiniPlayerController {
     // NEWTUBE(mini-style)
     // ---------------------------------------------------------------------------------
 
+    /** NEWTUBE(mini-underlap): the video bar reaches behind the host's glass navigation. */
+    private void updateUnderlap() {
+        int under = mActivity instanceof MiniPlayerBridge.MiniHost
+                ? ((MiniPlayerBridge.MiniHost) mActivity).getMiniUnderlapPx() : 0;
+        mViews.setUnderlapPx(under);
+    }
+
     /** Lay the card and its children out for {@code style} (see MiniPlayerStyle). */
     private void applyStyle(int style) {
         mStyle = style;
         mCardLeft = MiniPlayerStyle.isCardLeft(mActivity);
         mViews.applyStyle(style, mCardLeft);
+        updateUnderlap();
         updateAccessibility();
     }
 
