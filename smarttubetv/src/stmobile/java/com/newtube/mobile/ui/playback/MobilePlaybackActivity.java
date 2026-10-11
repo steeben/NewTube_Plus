@@ -4578,11 +4578,6 @@ public class MobilePlaybackActivity extends MobileActivity
 
     private final Player.Listener mUiPlayerListener = new Player.Listener() {
         @Override
-        public void onRenderedFirstFrame() {
-            onFirstFrameForCrop(); // NEWTUBE(black-bars)
-        }
-
-        @Override
         public void onVideoSizeChanged(VideoSize videoSize) {
             // NEWTUBE(issue #9): the fullscreen controls follow this video's shape (controlsStrip).
             // An unknown size keeps the last one, as the content frame does (DoubleTapPlayerViewImpl).
@@ -4686,6 +4681,7 @@ public class MobilePlaybackActivity extends MobileActivity
             // NEWTUBE(still-lift): the controller's AnalyticsListener saw this event first, so
             // OpenFirstFrame already knows whether it was this open's; the texture may have it.
             maybeLiftStillAtFrame();
+            onFirstFrameForCrop(); // NEWTUBE(black-bars)
         }
     };
 
