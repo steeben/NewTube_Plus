@@ -74,6 +74,24 @@ public final class BackdropBlurDrawable extends Drawable {
     private View mExtra;
     private final int[] mExtraOffset = new int[2];
 
+    /**
+     * NEWTUBE(frosted): everything under the glass, bottom to top - each drawn where it is on screen
+     * now (moved, sliding, fading), so the glass is a live blur of exactly what is behind it.
+     * Replaces the single source (and the extra) while set.
+     */
+    public interface Layers {
+        void collect(java.util.List<View> out);
+    }
+
+    @Nullable
+    private Layers mLayers;
+    private final java.util.ArrayList<View> mLayerViews = new java.util.ArrayList<>();
+
+    public void setLayers(@Nullable Layers layers) {
+        mLayers = layers;
+        invalidateSelf();
+    }
+
     /** What the glass shows (the feed, or the You panel over it). */
     public void setSource(View source) {
         if (mSource != source) {
@@ -140,6 +158,17 @@ public final class BackdropBlurDrawable extends Drawable {
     }
 
     private void drawGlass(Canvas canvas, Rect bounds) {
+        if (mLayers != null) {
+            if (Build.VERSION.SDK_INT >= 31 && mNode != null && canvas.isHardwareAccelerated()) {
+                mLayerViews.clear();
+                mLayers.collect(mLayerViews);
+                mHost.getLocationInWindow(mHostOffset);
+                Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mHostOffset, mPageColor, mBlurPx, mAlpha);
+                mLayerViews.clear();
+            }
+            drawTint(canvas, bounds);
+            return;
+        }
         if (Build.VERSION.SDK_INT >= 31 && mNode != null && canvas.isHardwareAccelerated()
                 && mSource.getWidth() > 0 && mSource.isShown()) {
             mHost.getLocationInWindow(mHostOffset);
@@ -156,6 +185,10 @@ public final class BackdropBlurDrawable extends Drawable {
                     mSourceOffset[0] - mHostOffset[0] - bounds.left,
                     mSourceOffset[1] - mHostOffset[1] - bounds.top, extra, ex, ey, mBlurPx, mAlpha);
         }
+        drawTint(canvas, bounds);
+    }
+
+    private void drawTint(Canvas canvas, Rect bounds) {
         int tintAlpha = mTint.getAlpha();
         mTint.setAlpha(Math.round(tintAlpha * mAlpha / 255f));
         canvas.drawRect(bounds, mTint);
@@ -167,6 +200,50 @@ public final class BackdropBlurDrawable extends Drawable {
     private static final class Api31 {
         static Object newNode() {
             return new RenderNode("newtube-backdrop");
+        }
+
+        static void drawLayers(Object nodeObject, Canvas canvas, Rect bounds, java.util.List<View> layers,
+                               int[] hostOffset, int pageColor, float blurPx, int alpha) {
+            RenderNode node = (RenderNode) nodeObject;
+            int width = bounds.width();
+            int height = bounds.height();
+            node.setPosition(0, 0, width, height);
+            RecordingCanvas recording = node.beginRecording(width, height);
+            int[] at = new int[2];
+            try {
+                recording.drawColor(pageColor);
+                for (int i = 0; i < layers.size(); i++) {
+                    View layer = layers.get(i);
+                    float layerAlpha = Math.max(0f, Math.min(1f, layer.getAlpha()));
+                    if (layerAlpha <= 0f || layer.getWidth() <= 0 || layer.getHeight() <= 0
+                            || !layer.isAttachedToWindow()) {
+                        continue;
+                    }
+                    layer.getLocationInWindow(at);
+                    float x = at[0] - hostOffset[0] - bounds.left;
+                    float y = at[1] - hostOffset[1] - bounds.top;
+                    if (x >= width || y >= height || x + layer.getWidth() <= 0 || y + layer.getHeight() <= 0) {
+                        continue; // nowhere under this glass
+                    }
+                    int save = recording.save();
+                    recording.translate(x, y);
+                    recording.clipRect(0, 0, layer.getWidth(), layer.getHeight());
+                    if (layerAlpha < 1f) {
+                        recording.saveLayerAlpha(0f, 0f, layer.getWidth(), layer.getHeight(),
+                                Math.round(255 * layerAlpha));
+                    }
+                    layer.draw(recording);
+                    recording.restoreToCount(save);
+                }
+            } finally {
+                node.endRecording();
+            }
+            node.setRenderEffect(RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
+            node.setAlpha(alpha / 255f);
+            canvas.save();
+            canvas.translate(bounds.left, bounds.top);
+            canvas.drawRenderNode(node);
+            canvas.restore();
         }
 
         static void drawBlur(Object nodeObject, Canvas canvas, Rect bounds, View source, int pageColor,

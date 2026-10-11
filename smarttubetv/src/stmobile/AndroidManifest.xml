@@ -101,7 +101,7 @@
             android:name="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
             android:launchMode="singleTop"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|uiMode"
-            android:theme="@style/Theme.NewTube"
+            android:theme="@style/Theme.NewTube.Launch"
             tools:replace="android:launchMode,android:configChanges" />
 
         <activity

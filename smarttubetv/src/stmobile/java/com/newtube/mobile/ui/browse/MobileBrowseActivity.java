@@ -565,6 +565,21 @@ public class MobileBrowseActivity extends MobileActivity
     @Nullable
     private com.newtube.mobile.ui.common.BackdropBlurDrawable mMiniGlassDrawable;
 
+    /**
+     * NEWTUBE(frosted): what the glass bars blur, bottom to top: the page's views that are showing,
+     * then a tab slide's pictures - each where it is on screen right now.
+     */
+    private final com.newtube.mobile.ui.common.BackdropBlurDrawable.Layers mGlassLayers = out -> {
+        for (View view : new View[] {mContentSwipe, mFeedSkeleton, mErrorContainer, mYouPanel}) {
+            if (view != null && view.getVisibility() == View.VISIBLE) {
+                out.add(view);
+            }
+        }
+        if (mTabSlider != null) {
+            mTabSlider.collectPictures(out);
+        }
+    };
+
     /** NEWTUBE(frosted): the glass is drawn again (what is under it moved). */
     private void invalidateGlass() {
         if (mTopGlass != null) {
@@ -679,13 +694,7 @@ public class MobileBrowseActivity extends MobileActivity
 
             @Override
             public void onSlideFrame(View incoming) {
-                // The glass bars keep showing what is under them as the pages move.
-                for (com.newtube.mobile.ui.common.BackdropBlurDrawable glass : new com.newtube.mobile.ui.common.BackdropBlurDrawable[] {
-                        mTopGlassDrawable, mNavGlassDrawable, mMiniGlassDrawable}) {
-                    if (glass != null) {
-                        glass.setExtraSource(incoming);
-                    }
-                }
+                // The glass bars blur whatever is under them (mGlassLayers), as it moves.
                 invalidateGlass();
             }
         });
@@ -847,6 +856,7 @@ public class MobileBrowseActivity extends MobileActivity
         mTopGlass = glass;
         mTopGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, glass, page, tint);
         mTopGlassDrawable.setFadeBottom(fade);
+        mTopGlassDrawable.setLayers(mGlassLayers);
         glass.setBackground(mTopGlassDrawable);
         title.setBackground(null);
         // Above the feed (declared before it), in the order they were.
@@ -872,6 +882,7 @@ public class MobileBrowseActivity extends MobileActivity
         mNavGlass = navGlass;
         mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, navGlass, page, tint);
         mNavGlassDrawable.setFadeTop(fade);
+        mNavGlassDrawable.setLayers(mGlassLayers);
         navGlass.setBackground(mNavGlassDrawable);
         mBottomNav.setBackground(null);
         mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
@@ -902,6 +913,7 @@ public class MobileBrowseActivity extends MobileActivity
                 mMiniGlass = miniBackdrop;
                 mMiniGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(
                         mContentGrid, miniBackdrop, page, tint);
+                mMiniGlassDrawable.setLayers(mGlassLayers);
                 miniBackdrop.setBackground(mMiniGlassDrawable);
             }
         }

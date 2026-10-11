@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.NewTube.Launch" parent="Theme.NewTube">
+        <item name="android:windowSplashScreenBackground">@color/mobile_color_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_red</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Orange">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_orange</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Amber">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_amber</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Green">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_green</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Teal">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_teal</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Cyan">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_cyan</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Blue">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_blue</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Violet">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_violet</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Purple">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_purple</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Pink">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_pink</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Grey">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_grey</item>
+    </style>
+</resources>

@@ -96,6 +96,16 @@ final class TabSlider {
         mHost = host;
     }
 
+    /** The pictures on screen now (sliding in, or fading out), for the glass to blur with the page. */
+    void collectPictures(List<View> out) {
+        if (mFading != null) {
+            out.add(mFading);
+        }
+        if (mGhost != null) {
+            out.add(mGhost);
+        }
+    }
+
     boolean isBusy() {
         return mGhost != null;
     }
@@ -361,7 +371,13 @@ final class TabSlider {
             if (mPictureRenderer == null) {
                 mPictureRenderer = new PictureRenderer();
             }
-            Bitmap bitmap = mPictureRenderer.render(node, width, height);
+            Bitmap bitmap;
+            try {
+                bitmap = mPictureRenderer.render(node, width, height);
+            } finally {
+                // Hold nothing of the page's drawing between pictures (its views' RenderNodes).
+                mPictureRenderer.release();
+            }
             if (bitmap == null) {
                 return;
             }

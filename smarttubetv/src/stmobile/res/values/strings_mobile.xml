@@ -536,4 +536,10 @@
     <!-- Experimental SABR playback (was strings_sabr.xml) -->
     <string name="sabr_vod_option">Prefer SABR even when links work (experimental; next VOD)</string>
     <string name="sabr_vod_stopped">Experimental SABR playback stopped. Tap play to retry, or disable SABR in Settings.</string>
+    <!-- NEWTUBE(wave) -->
+    <string name="mobile_settings_progress_bar">Progress bar</string>
+    <string name="mobile_settings_wave_always">Wave progress bar for all videos</string>
+    <string name="mobile_settings_wave_always_summary">Music always uses the wave. Turn this on to use it for every video</string>
+    <string name="mobile_settings_wave_colors">Wave colours from the video</string>
+    <string name="mobile_settings_wave_colors_summary">Take the colours from the picture instead of the accent</string>
 </resources>

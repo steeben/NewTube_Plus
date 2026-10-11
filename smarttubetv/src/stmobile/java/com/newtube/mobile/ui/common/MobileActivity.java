@@ -274,6 +274,7 @@ public abstract class MobileActivity extends MotherActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        SplashAccent.apply(this); // NEWTUBE(splash): the next launch screen in the accent
 
         // Mandatory: keeps the ViewManager back-stack/parent lookup correct.
         if (isBackStackScreen()) {

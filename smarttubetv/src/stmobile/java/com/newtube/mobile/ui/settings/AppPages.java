@@ -122,6 +122,7 @@ final class AppPages {
                 () -> UiPrefs.isNavLabels(context), on -> UiPrefs.setNavLabels(context, on)));
 
         // Also in Playback (where it was first), and General's video card options.
+        PlayerPages.addProgressBarRows(context, rows);
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_mini_player)));
         rows.add(PlayerPages.miniPlayerStyleRow(context));
         addVideoCardRows(context, rows);

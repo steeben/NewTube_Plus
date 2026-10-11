@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEWTUBE(splash): the launch screen themes, one per preset accent (the icon is set from
+     Android 12, values-v31). The launcher screen uses Theme.NewTube.Launch (red); from Android 13
+     SplashAccent switches the app to the one nearest the chosen accent. -->
+<resources>
+    <style name="Theme.NewTube.Launch" parent="Theme.NewTube" />
+    <style name="Theme.NewTube.Launch.Orange" />
+    <style name="Theme.NewTube.Launch.Amber" />
+    <style name="Theme.NewTube.Launch.Green" />
+    <style name="Theme.NewTube.Launch.Teal" />
+    <style name="Theme.NewTube.Launch.Cyan" />
+    <style name="Theme.NewTube.Launch.Blue" />
+    <style name="Theme.NewTube.Launch.Violet" />
+    <style name="Theme.NewTube.Launch.Purple" />
+    <style name="Theme.NewTube.Launch.Pink" />
+    <style name="Theme.NewTube.Launch.Grey" />
+</resources>

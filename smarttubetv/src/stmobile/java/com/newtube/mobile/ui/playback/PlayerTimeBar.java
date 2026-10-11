@@ -111,6 +111,39 @@ public class PlayerTimeBar extends View implements TimeBar {
 
     private final Paint mScrubberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
+    // NEWTUBE(wave): One UI's music-player wave over the played part (WaveProgress).
+    private static final float WAVE_DP = 11f;
+    /** The waves drift while the position moves, and this long after (then hold still). */
+    private static final long WAVE_MOVING_MS = 1200;
+    @Nullable
+    private WaveProgress mWave;
+    private boolean mWaveOn;
+    @Nullable
+    private int[] mWaveColors;
+    private int mWaveAccent;
+    private long mPositionMovedAt;
+    private final long mWaveEpoch = SystemClock.uptimeMillis();
+
+    /** Show the wave (music, or the setting for every video) instead of the plain played line. */
+    public void setWaveMode(boolean on) {
+        if (mWaveOn != on) {
+            mWaveOn = on;
+            invalidate();
+        }
+    }
+
+    public boolean isWaveMode() {
+        return mWaveOn;
+    }
+
+    /** The wave's colours (three, e.g. the video's), or null for the accent's. */
+    public void setWaveColors(@Nullable int[] colors) {
+        mWaveColors = colors;
+        if (mWaveOn) {
+            invalidate();
+        }
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
@@ -410,6 +443,7 @@ public class PlayerTimeBar extends View implements TimeBar {
     public void setPosition(long position) {
         if (mPosition != position) {
             mPosition = position;
+            mPositionMovedAt = SystemClock.uptimeMillis();
             if (!mScrubbing && isVisibleEnough()) {
                 invalidate();
             }
@@ -539,13 +573,40 @@ public class PlayerTimeBar extends View implements TimeBar {
             }
         }
 
+        // NEWTUBE(wave): the humps over the played part, rising with the controls.
+        boolean wave = mWaveOn && hasDuration;
+        if (wave) {
+            long now = SystemClock.uptimeMillis();
+            if (mWave == null) {
+                mWave = new WaveProgress(mDensity);
+            }
+            int accent = mPlayedColor;
+            if (mWaveColors != null) {
+                mWave.setColors(mWaveColors, now);
+            } else {
+                mWave.setColors(WaveProgress.accentColors(accent), now);
+            }
+            mWaveAccent = accent;
+            boolean blending = mWave.blending(now);
+            float amplitude = dp(WAVE_DP) * mShown * (1f + 0.25f * mDrag);
+            mWave.drawWaves(canvas, left, playedX, top, amplitude, (now - mWaveEpoch) / 1000f);
+            boolean moving = now - mPositionMovedAt < WAVE_MOVING_MS || mScrubbing;
+            if (amplitude > 0.5f && (moving || blending) && isShown()) {
+                postInvalidateOnAnimation();
+            }
+        }
+
         // The dot grows in with the controls and a little more under the finger.
         float radius = lerp(dp(SCRUBBER_DP), dp(SCRUBBER_DRAGGING_DP), mDrag) / 2f * mShown;
         if (radius > 0.5f && hasDuration) {
             float restRadius = dp(SCRUBBER_DP) / 2f;
             float cx = Math.max(left + restRadius, Math.min(right - restRadius, playedX));
             float cy = (top + bottom) / 2f;
-            canvas.drawCircle(cx, cy, radius, mScrubberPaint);
+            if (wave && mWave != null) {
+                mWave.drawThumb(canvas, cx, cy, radius * 1.15f);
+            } else {
+                canvas.drawCircle(cx, cy, radius, mScrubberPaint);
+            }
         }
     }
 

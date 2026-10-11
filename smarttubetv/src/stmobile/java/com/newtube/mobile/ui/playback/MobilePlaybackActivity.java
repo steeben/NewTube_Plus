@@ -2258,6 +2258,71 @@ public class MobilePlaybackActivity extends MobileActivity
                 startProgressUpdates();
             }
         }
+        updateWave(video);
+    }
+
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(wave): the seek bar's wave - for music, or every video (Settings)
+    // ---------------------------------------------------------------------------------
+
+    private static final long WAVE_SAMPLE_MS = 3000;
+    private long mWaveSampledAt;
+    @Nullable
+    private android.graphics.Bitmap mWaveFrame;
+
+    private void updateWave(@Nullable Video video) {
+        boolean wave = video != null && !video.isLive
+                && (com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(this) || isMusic(video));
+        mTimeBar.setWaveMode(wave);
+        if (!wave || !com.newtube.mobile.ui.common.UiPrefs.isWaveVideoColors(this)) {
+            mTimeBar.setWaveColors(null);
+            return;
+        }
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - mWaveSampledAt < WAVE_SAMPLE_MS || mVideoTexture == null || !mVideoTexture.isAvailable()) {
+            return;
+        }
+        mWaveSampledAt = now;
+        try {
+            if (mWaveFrame == null) {
+                mWaveFrame = android.graphics.Bitmap.createBitmap(32, 18, android.graphics.Bitmap.Config.ARGB_8888);
+            }
+            mVideoTexture.getBitmap(mWaveFrame);
+            int[] colors = WaveProgress.colorsFromFrame(mWaveFrame);
+            if (colors != null) {
+                mTimeBar.setWaveColors(colors);
+            }
+        } catch (RuntimeException e) {
+            // No frame this time; the colours stay as they were.
+        }
+    }
+
+    /**
+     * Whether YouTube files {@code video} as music. The data this app gets has no category, so it
+     * goes by what does say so: opened from Music, a music item, an artist's auto-generated
+     * ("- Topic") or VEVO channel, or a title marked as a song's (official audio/video, lyrics...).
+     */
+    static boolean isMusic(Video video) {
+        if (video.belongsToMusic()) {
+            return true;
+        }
+        if (video.mediaItem != null
+                && video.mediaItem.getType() == com.liskovsoft.mediaserviceinterfaces.data.MediaItem.TYPE_MUSIC) {
+            return true;
+        }
+        String author = video.author != null ? video.author.toLowerCase(java.util.Locale.ROOT) : "";
+        if (author.endsWith(" - topic") || author.contains("vevo")) {
+            return true;
+        }
+        String title = video.title != null ? video.title.toLowerCase(java.util.Locale.ROOT) : "";
+        for (String mark : new String[] {"official music video", "official audio", "official lyric",
+                "lyric video", "lyrics", "(audio)", "[audio]", "music video", "official video",
+                "visualizer", "visualiser", "official mv", "(mv)", "[mv]", "full album"}) {
+            if (title.contains(mark)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

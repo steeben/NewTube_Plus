@@ -58,6 +58,19 @@ final class PlayerPages {
     // ---------------------------------------------------------------------------------------------
 
     /** NEWTUBE(mini-style): how a minimized video docks - in Playback and in Appearance. */
+    /** NEWTUBE(wave): the seek bar's wave - in Playback and in Appearance. */
+    static void addProgressBarRows(Context context, java.util.List<SettingsRow> rows) {
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_progress_bar)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_always),
+                context.getString(R.string.mobile_settings_wave_always_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveAlways(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_colors),
+                context.getString(R.string.mobile_settings_wave_colors_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveVideoColors(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveVideoColors(context, on)));
+    }
+
     static SettingsRow miniPlayerStyleRow(Context context) {
         return SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_mini_style))
                 .option(context.getString(R.string.mobile_settings_mini_style_card),
@@ -185,6 +198,8 @@ final class PlayerPages {
                 () -> PlayerGesturePrefs.isSpeedStopAtNormal(context),
                 on -> PlayerGesturePrefs.setSpeedStopAtNormal(context, on))
                 .enabledWhen(() -> PlayerGesturePrefs.isSpeedSwipeOn(context)));
+
+        addProgressBarRows(context, rows);
 
         // NEWTUBE(mini-style): how a minimized video docks (MiniPlayerStyle); applies to the next
         // minimize, and to a mini player already docked when its screen comes back.

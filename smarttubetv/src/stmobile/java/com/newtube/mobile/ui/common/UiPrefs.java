@@ -153,6 +153,29 @@ public final class UiPrefs {
         notifyChanged();
     }
 
+    // NEWTUBE(wave): the seek bar's wave - always on music; these make it every video's, and/or
+    // take its colours from the video.
+    private static final String KEY_WAVE_ALWAYS = "wave_progress_always";
+    private static final String KEY_WAVE_VIDEO_COLORS = "wave_progress_video_colors";
+
+    public static boolean isWaveAlways(Context context) {
+        return prefs(context).getBoolean(KEY_WAVE_ALWAYS, false);
+    }
+
+    public static void setWaveAlways(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_WAVE_ALWAYS, on).apply();
+        notifyChanged();
+    }
+
+    public static boolean isWaveVideoColors(Context context) {
+        return prefs(context).getBoolean(KEY_WAVE_VIDEO_COLORS, false);
+    }
+
+    public static void setWaveVideoColors(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_WAVE_VIDEO_COLORS, on).apply();
+        notifyChanged();
+    }
+
     public static boolean isRoundedThumbnails(Context context) {
         return prefs(context).getBoolean(KEY_ROUNDED_THUMBS, true);
     }
