@@ -1502,7 +1502,7 @@ public class MobilePlaybackActivity extends MobileActivity
             // A normal feed/search/channel tap: cover the video with the exact tapped thumbnail,
             // place it over the source rect, then grow it into the watch page while Browse remains
             // visible through the rest of our window.
-            showHandoffStill(launch.frame);
+            showHandoffStill(launch.frame, true);
             mStillAwaitFrame = false; // do not lift the source image before the morph completes
             if (fromMini) {
                 // The old stream is still producing frames after its texture was re-parented.
@@ -5179,6 +5179,7 @@ public class MobilePlaybackActivity extends MobileActivity
         mStillAwaitFrame = false;
         android.graphics.drawable.Drawable seed = takeStillSeed(item.videoId);
         mVideoStill.animate().cancel();
+        mVideoStill.setScaleType(ImageView.ScaleType.CENTER_CROP); // a 16:9 thumbnail
         mVideoStill.setImageDrawable(seed); // the seed, or solid black, until the thumbnail lands
         mVideoStill.setAlpha(1f);
         mVideoStill.setVisibility(View.VISIBLE);
@@ -5281,9 +5282,20 @@ public class MobilePlaybackActivity extends MobileActivity
 
     /** Mini hand-off: show a captured frame while the re-parented texture paints (1-2 frames). */
     private void showHandoffStill(Bitmap frame) {
+        showHandoffStill(frame, false);
+    }
+
+    /**
+     * {@code thumbnail}: a card's 16:9 picture (its bars cropped away in a frame of another shape);
+     * otherwise a copy of the video texture - the whole picture squeezed into the copy's size,
+     * which only FIT_XY puts back in proportion (center-cropped, a square video flashed stretched
+     * as it landed on the mini player).
+     */
+    private void showHandoffStill(Bitmap frame, boolean thumbnail) {
         if (mVideoStill == null || frame == null) {
             return;
         }
+        mVideoStill.setScaleType(thumbnail ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_XY);
         mStillAwaitReady = false;
         mStillAwaitFrame = true;
         mVideoStill.animate().cancel();
