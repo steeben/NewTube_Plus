@@ -456,6 +456,15 @@ public final class MiniPlayerBridge {
         float[] crop = sCrop;
         for (int i = 0; i < group.getChildCount(); i++) {
             View child = group.getChildAt(i);
+            // A child laid out later (a new texture) gets its crop then, too.
+            if (!sCropFrames.containsKey(child)) {
+                sCropFrames.put(child, Boolean.TRUE);
+                child.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                    if ((r - l != or - ol || b - t != ob - ot) && v.getParent() instanceof View) {
+                        applyCropTransform((View) v.getParent());
+                    }
+                });
+            }
             if (crop == null) {
                 child.setScaleX(1f);
                 child.setScaleY(1f);

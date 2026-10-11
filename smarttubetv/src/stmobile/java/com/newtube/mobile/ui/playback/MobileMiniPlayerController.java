@@ -445,8 +445,10 @@ public final class MobileMiniPlayerController {
             mFreeze.setVisibility(View.VISIBLE);
         }
 
-        MiniPlayerBridge.fitToVideo(mFrame); // NEWTUBE(issue #9): letterbox, never stretch
         attachTexture();
+        // NEWTUBE(issue #9): letterbox, never stretch - after the texture is in, so its crop
+        // (black bars) is on it from the first frame, not from the next tick.
+        MiniPlayerBridge.fitToVideo(mFrame);
         mBar.setVisibility(View.VISIBLE);
         updatePlayPause(player);
 

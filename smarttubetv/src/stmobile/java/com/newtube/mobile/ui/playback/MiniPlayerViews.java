@@ -442,7 +442,8 @@ final class MiniPlayerViews {
         FrameLayout.LayoutParams flashParams = (FrameLayout.LayoutParams) flash.getLayoutParams();
         if (style == MiniPlayerStyle.BAR_VIDEO) {
             flashParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-            flashParams.setMarginEnd(px(4, density) + (buttonSize - px(44, density)) / 2);
+            // On play/pause - which Next, when there is one, pushes in from the end.
+            flashParams.setMarginEnd(px(4, density) + nextSlot + (buttonSize - px(44, density)) / 2);
             android.graphics.drawable.GradientDrawable ring = new android.graphics.drawable.GradientDrawable();
             ring.setShape(android.graphics.drawable.GradientDrawable.OVAL);
             ring.setColor(ContextCompat.getColor(context, R.color.mobile_mini_play_flash));
