@@ -286,13 +286,16 @@ final class MiniPlayerViews {
             // shows the same band of the video as the minimize landed on.
             frameParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.height = barHeight + 2 * mUnderlapPx;
-            frameParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            // Centred with the parent (bar + underlap) less half the underlap: the frame's middle on
+            // the bar's middle whatever height the zoom gives it (a 4:3 picture grows taller).
+            frameParams.gravity = Gravity.CENTER;
         } else {
             frameParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.gravity = Gravity.CENTER;
         }
-        frameParams.topMargin = style == MiniPlayerStyle.BAR_VIDEO ? -mUnderlapPx : 0;
+        frameParams.topMargin = 0;
+        frameParams.bottomMargin = style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx / 2 : 0;
         frame.setLayoutParams(frameParams);
         if (frame instanceof AspectRatioFrameLayout) {
             ((AspectRatioFrameLayout) frame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
@@ -508,9 +511,7 @@ final class MiniPlayerViews {
     /** NEWTUBE(wave): the player's wave on the line - the video-background bar only. */
     void setWave(boolean on, @Nullable int[] colors) {
         // The humps only on the video bar (and only when they are wanted); the colours on every one.
-        boolean humps = on && style == MiniPlayerStyle.BAR_VIDEO
-                && com.newtube.mobile.ui.common.UiPrefs.isWaveHumps(card.getContext());
-        mProgressDrawable.setWave(humps, on ? colors : null);
+        mProgressDrawable.setWave(on && style == MiniPlayerStyle.BAR_VIDEO, colors);
     }
 
     void updateProgressColors() {

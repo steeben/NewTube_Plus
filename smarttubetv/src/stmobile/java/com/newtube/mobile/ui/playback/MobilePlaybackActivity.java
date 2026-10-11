@@ -1716,6 +1716,9 @@ public class MobilePlaybackActivity extends MobileActivity
 
     @Override
     protected void onDestroy() {
+        if (isFinishing()) {
+            com.newtube.mobile.ui.common.LogoTint.reset(); // NEWTUBE(logo-tint): the video closed
+        }
         DownloadRegistry.instance(this).removeListener(mDownloadsListener);
         cancelAutoHide();
         mOrientationHandBack.disarm();
@@ -2278,19 +2281,24 @@ public class MobilePlaybackActivity extends MobileActivity
     private int[] mWaveThumbColors;
 
     private void updateWave(@Nullable Video video) {
-        boolean wave = video != null && !video.isLive
-                && (com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(this) || isMusic(this, video));
-        mTimeBar.setWaveMode(wave);
-        mTimeBar.setWaveHumps(com.newtube.mobile.ui.common.UiPrefs.isWaveHumps(this));
+        // The colours (accent, or the video's) for every video; the humps by kind (music or not).
+        boolean live = video == null || video.isLive;
+        boolean humps = !live && (isMusic(this, video)
+                ? com.newtube.mobile.ui.common.UiPrefs.isWaveMusic(this)
+                : com.newtube.mobile.ui.common.UiPrefs.isWaveOther(this));
+        mTimeBar.setWaveMode(!live);
+        mTimeBar.setWaveHumps(humps);
         int source = com.newtube.mobile.ui.common.UiPrefs.getWaveColorSource(this);
         int[] colors = null;
-        if (wave && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_LIVE) {
+        if (!live && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_LIVE) {
             colors = sampleLiveWaveColors();
-        } else if (wave && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_THUMBNAIL) {
+        } else if (!live && source == com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_THUMBNAIL) {
             colors = thumbnailWaveColors(video);
         }
         mTimeBar.setWaveColors(colors);
-        MiniPlayerBridge.setWave(wave, colors);
+        MiniPlayerBridge.setWave(humps, colors);
+        com.newtube.mobile.ui.common.LogoTint.set(colors != null ? colors[0]
+                : com.newtube.mobile.ui.common.UiPrefs.getAccent(this)); // NEWTUBE(logo-tint)
     }
 
     /** The live picture's colours, sampled every few seconds (the last ones in between). */
@@ -2612,18 +2620,78 @@ public class MobilePlaybackActivity extends MobileActivity
      * left once its black bars are cropped (a square film taller, a 2.39:1 one lower), within reason.
      */
     private int portraitVideoHeight(int width) {
-        float normal = width * 9f / 16f;
-        BlackBars.Crop crop = mCropShown;
-        if (crop == null || crop.isNone() || !(mVideoAspect > 0f) || mCropFraction <= 0f) {
-            return Math.round(normal);
+        if (mBoxAnimator != null && mBoxAnimWidth == width) {
+            return mBoxAnimHeight; // easing to its new shape
         }
-        return Math.round(normal + (croppedHeight(width, crop) - normal) * mCropFraction);
+        return targetBoxHeight(width);
     }
 
-    /** The box's height for the cropped picture, within reason (between 2.4:1 and 4:5). */
-    private float croppedHeight(int width, BlackBars.Crop crop) {
-        float height = width / Math.max(0.1f, crop.aspect(mVideoAspect));
-        return Math.max(width / 2.4f, Math.min(width * 1.25f, height));
+    /**
+     * NEWTUBE(black-bars): the box takes the picture's shape - the video's own (a square video is
+     * taller, a 2.39:1 one lower), or what is left of it once its black bars are cropped - within
+     * reason (2.4:1 to 4:5). 16:9 while a panel (comments, the playlist) is open over the page.
+     */
+    private int targetBoxHeight(int width) {
+        float normal = width * 9f / 16f;
+        float aspect = shownAspect();
+        if (mCropSuspended || !(aspect > 0f) || Math.abs(aspect - 16f / 9f) < 0.03f) {
+            return Math.round(normal);
+        }
+        return Math.round(Math.max(width / 2.4f, Math.min(width * 1.25f, width / aspect)));
+    }
+
+    /** The shape of what the box shows: the video's, cropped if its bars were found. */
+    private float shownAspect() {
+        if (!(mVideoAspect > 0f)) {
+            return 0f;
+        }
+        return mCrop != null ? mCrop.aspect(mVideoAspect) : mVideoAspect;
+    }
+
+    @Nullable
+    private android.animation.ValueAnimator mBoxAnimator;
+    private int mBoxAnimHeight;
+    private int mBoxAnimWidth;
+
+    /** Ease the portrait box to its shape now (targetBoxHeight) instead of jumping. */
+    private void animateBox() {
+        float aspect = shownAspect();
+        MiniPlayerBridge.setBoxAspect(aspect > 0f && Math.abs(aspect - 16f / 9f) >= 0.03f
+                ? Math.max(1f / 1.25f, Math.min(2.4f, aspect)) : 16f / 9f);
+        if (mWatchRoot == null || mVideoArea == null || isLandscape() || mWatchRoot.getWidth() <= 0) {
+            return;
+        }
+        int width = mWatchRoot.getWidth();
+        int from = mVideoArea.getLayoutParams().height;
+        int to = targetBoxHeight(width);
+        if (mBoxAnimator != null) {
+            mBoxAnimator.cancel();
+            mBoxAnimator = null;
+        }
+        if (from <= 0 || from == to || mMorphFraction != 0f) {
+            applyPortraitVideoHeight(width);
+            return;
+        }
+        android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofInt(from, to);
+        animator.setDuration(380);
+        animator.setInterpolator(Motion.STANDARD);
+        mBoxAnimWidth = width;
+        mBoxAnimHeight = from;
+        animator.addUpdateListener(a -> {
+            mBoxAnimHeight = (int) a.getAnimatedValue();
+            applyPortraitVideoHeight(width);
+        });
+        animator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                if (mBoxAnimator == animation) {
+                    mBoxAnimator = null;
+                    applyPortraitVideoHeight(width);
+                }
+            }
+        });
+        mBoxAnimator = animator;
+        animator.start();
     }
 
     // ---------------------------------------------------------------------------------
@@ -2732,22 +2800,21 @@ public class MobilePlaybackActivity extends MobileActivity
             mCropShown = crop;
         }
         MiniPlayerBridge.setCrop(crop != null ? crop.toArray() : null);
-        MiniPlayerBridge.setBoxAspect(crop != null && mVideoAspect > 0f
-                ? Math.max(1f / 1.25f, Math.min(2.4f, crop.aspect(mVideoAspect))) : 16f / 9f);
         animateCrop(mCropVideoId != null);
+        animateBox();
     }
 
     /** NEWTUBE(black-bars): a panel opens over the page (the box goes back to 16:9), or closes. */
     private void suspendCrop(boolean suspend) {
         if (mCropSuspended != suspend) {
             mCropSuspended = suspend;
-            animateCrop(true);
+            animateBox(); // the box only: the picture keeps its crop, fitted into 16:9
         }
     }
 
     /** Ease the box and the picture to the crop (or away from it) instead of jumping. */
     private void animateCrop(boolean animate) {
-        float target = mCrop != null && !mCropSuspended ? 1f : 0f;
+        float target = mCrop != null ? 1f : 0f;
         if (mCropAnimator != null) {
             mCropAnimator.cancel();
             mCropAnimator = null;
@@ -2771,9 +2838,6 @@ public class MobilePlaybackActivity extends MobileActivity
     private void applyCropFraction() {
         if (mCropFraction <= 0f && mCrop == null) {
             mCropShown = null;
-        }
-        if (mWatchRoot != null && !isLandscape() && mWatchRoot.getWidth() > 0) {
-            applyPortraitVideoHeight(mWatchRoot.getWidth());
         }
         applyContentTransform();
     }
@@ -4644,8 +4708,13 @@ public class MobilePlaybackActivity extends MobileActivity
             // NEWTUBE(issue #9): the fullscreen controls follow this video's shape (controlsStrip).
             // An unknown size keeps the last one, as the content frame does (DoubleTapPlayerViewImpl).
             if (videoSize.width > 0 && videoSize.height > 0) {
-                mVideoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height;
+                float aspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height;
+                boolean changed = Math.abs(aspect - mVideoAspect) > 0.001f;
+                mVideoAspect = aspect;
                 applyControlsInsets();
+                if (changed) {
+                    animateBox(); // NEWTUBE(black-bars): the box takes the video's own shape
+                }
             }
         }
 
@@ -5966,7 +6035,10 @@ public class MobilePlaybackActivity extends MobileActivity
             mMorphLineDrawable.setColors(MiniPlayerStyle.accent(this), getResources().getColor(
                     R.color.mobile_color_progress_track), com.newtube.mobile.ui.common.ThemeMode.isLight(this));
             // The video's colours, when the bar has them (it keeps them all the way down).
-            mMorphLineDrawable.setWave(false, MiniPlayerBridge.isWaveOn() ? MiniPlayerBridge.getWaveColors() : null);
+            // The humps rise with the minimize when the bar it lands on shows them (the video bar).
+            mMorphLineDrawable.setWave(MiniPlayerBridge.isWaveOn()
+                    && MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO, MiniPlayerBridge.getWaveColors());
+            mMorphLineDrawable.setWaveScale(0f);
             if (mPlayer != null && mPlayer.getDuration() > 0) {
                 mMorphLineDrawable.setLevel((int) (mPlayer.getCurrentPosition() * 10000L / mPlayer.getDuration()));
             }
@@ -5983,6 +6055,9 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         mMorphLine.setTranslationX(box.left);
         mMorphLine.setTranslationY(bottom - height);
+        if (mMorphLineDrawable != null) {
+            mMorphLineDrawable.setWaveScale(Math.max(0f, Math.min(1f, f)));
+        }
         return true;
     }
 

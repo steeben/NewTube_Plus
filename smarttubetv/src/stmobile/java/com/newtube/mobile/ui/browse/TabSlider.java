@@ -38,6 +38,9 @@ final class TabSlider {
         /** The page's visible views, which move together (the feed, its placeholders, You). */
         List<View> pageViews();
 
+        /** The real page is in place (the section's cards committed, at their scroll). */
+        boolean pageReady();
+
         /** The tabs' ids, in the bar's order. */
         int[] tabIds();
 
@@ -295,6 +298,20 @@ final class TabSlider {
             // The picture stays a moment over the page that replaced it, and fades.
             ghost.setX(mHost.pageRect().left);
             mFading = ghost;
+            fadeWhenReady(ghost, android.os.SystemClock.uptimeMillis());
+        }
+    }
+
+    /** The picture goes once the real page under it is there (not the last tab's cards). */
+    private void fadeWhenReady(ImageView ghost, long since) {
+        if (mFading != ghost) {
+            return;
+        }
+        if (!mHost.pageReady() && android.os.SystemClock.uptimeMillis() - since < 800) {
+            ghost.postOnAnimation(() -> fadeWhenReady(ghost, since));
+            return;
+        }
+        {
             ghost.animate().alpha(0f).setStartDelay(60).setDuration(160)
                     .setUpdateListener(a -> mHost.onSlideFrame(ghost))
                     .withEndAction(() -> {
@@ -359,6 +376,9 @@ final class TabSlider {
                 canvas.scale(0.5f, 0.5f);
                 canvas.drawColor(mHost.pageColor());
                 for (View view : mHost.pageViews()) {
+                    if (view.getVisibility() != View.VISIBLE) {
+                        continue;
+                    }
                     canvas.save();
                     canvas.translate(view.getLeft() - area.left, view.getTop() - area.top);
                     canvas.clipRect(0, 0, view.getWidth(), view.getHeight());

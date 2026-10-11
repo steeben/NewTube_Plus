@@ -25,7 +25,39 @@ final class BrowseTopBar {
     private final int mWordmarkInset;
     private final int mBesideBackInset;
 
+    /** NEWTUBE(logo-tint): the Play logo's circle, blended to the progress bar's colour. */
+    @androidx.annotation.Nullable
+    private android.graphics.drawable.GradientDrawable mPlayCircle;
+    @androidx.annotation.Nullable
+    private android.animation.ValueAnimator mTintAnimator;
+    private int mCircleColor;
+    private final com.newtube.mobile.ui.common.LogoTint.Listener mTintListener = color -> blendLogo(color);
+
+    private void blendLogo(int color) {
+        android.graphics.drawable.GradientDrawable circle = mPlayCircle;
+        if (circle == null) {
+            return;
+        }
+        int to = color != 0 ? color : com.newtube.mobile.ui.common.UiPrefs.getAccent(mTitle.getContext());
+        if (mTintAnimator != null) {
+            mTintAnimator.cancel();
+        }
+        int from = mCircleColor;
+        if (from == to) {
+            return;
+        }
+        mTintAnimator = android.animation.ValueAnimator.ofArgb(from, to);
+        mTintAnimator.setDuration(600);
+        mTintAnimator.addUpdateListener(a -> {
+            mCircleColor = (int) a.getAnimatedValue();
+            circle.setColor(mCircleColor);
+            mTitle.invalidate();
+        });
+        mTintAnimator.start();
+    }
+
     BrowseTopBar(Activity activity, Runnable onBack) {
+        com.newtube.mobile.ui.common.LogoTint.addListener(mTintListener);
         mTitle = activity.findViewById(R.id.mobile_title_bar);
         mBack = activity.findViewById(R.id.mobile_title_back);
         mBack.setOnClickListener(v -> onBack.run());
@@ -99,6 +131,7 @@ final class BrowseTopBar {
             mTitle.setLetterSpacing(0f);
         }
         android.graphics.drawable.Drawable mark = null;
+        mPlayCircle = null;
         if (!mSubScreen) {
             switch (com.newtube.mobile.ui.common.UiPrefs.getLogo(context)) {
                 case com.newtube.mobile.ui.common.UiPrefs.LOGO_NEWTUBE:
@@ -109,6 +142,14 @@ final class BrowseTopBar {
                     break;
                 case com.newtube.mobile.ui.common.UiPrefs.LOGO_PLAY:
                     mark = playLogo(context);
+                    // NEWTUBE(logo-tint): in the playing video's colour, if one is playing.
+                    if (mark instanceof android.graphics.drawable.LayerDrawable) {
+                        mPlayCircle = (android.graphics.drawable.GradientDrawable)
+                                ((android.graphics.drawable.LayerDrawable) mark).getDrawable(0);
+                        int tint = com.newtube.mobile.ui.common.LogoTint.get();
+                        mCircleColor = tint != 0 ? tint : com.newtube.mobile.ui.common.UiPrefs.getAccent(context);
+                        mPlayCircle.setColor(mCircleColor);
+                    }
                     break;
                 default:
                     break;

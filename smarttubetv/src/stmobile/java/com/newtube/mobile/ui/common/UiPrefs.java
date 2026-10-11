@@ -183,7 +183,7 @@ public final class UiPrefs {
     private static final String KEY_BLACK_BARS = "detect_black_bars";
 
     public static boolean isBlackBarDetection(Context context) {
-        return prefs(context).getBoolean(KEY_BLACK_BARS, true);
+        return prefs(context).getBoolean(KEY_BLACK_BARS, false);
     }
 
     public static void setBlackBarDetection(Context context, boolean on) {
@@ -196,6 +196,31 @@ public final class UiPrefs {
 
     public static boolean isWaveHumps(Context context) {
         return prefs(context).getBoolean(KEY_WAVE_HUMPS, true);
+    }
+
+    // NEWTUBE(wave): the humps, for music and for everything else (the colours go everywhere).
+    private static final String KEY_WAVE_MUSIC = "wave_anim_music";
+    private static final String KEY_WAVE_OTHER = "wave_anim_other";
+
+    public static boolean isWaveMusic(Context context) {
+        SharedPreferences prefs = prefs(context);
+        return prefs.contains(KEY_WAVE_MUSIC) ? prefs.getBoolean(KEY_WAVE_MUSIC, true) : isWaveHumps(context);
+    }
+
+    public static void setWaveMusic(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_WAVE_MUSIC, on).apply();
+        notifyChanged();
+    }
+
+    public static boolean isWaveOther(Context context) {
+        SharedPreferences prefs = prefs(context);
+        return prefs.contains(KEY_WAVE_OTHER) ? prefs.getBoolean(KEY_WAVE_OTHER, false)
+                : isWaveAlways(context) && isWaveHumps(context);
+    }
+
+    public static void setWaveOther(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_WAVE_OTHER, on).apply();
+        notifyChanged();
     }
 
     public static void setWaveHumps(Context context, boolean on) {

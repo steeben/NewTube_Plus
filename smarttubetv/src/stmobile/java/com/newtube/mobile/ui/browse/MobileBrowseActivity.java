@@ -732,13 +732,20 @@ public class MobileBrowseActivity extends MobileActivity
         mTabSlider = new TabSlider(this, root, new TabSlider.Host() {
             @Override
             public List<View> pageViews() {
+                // All of them, shown or not: one that hides mid-slide (the placeholders, as the
+                // cards arrive) must still be put back in place, or it shows up shifted later.
                 List<View> views = new ArrayList<>();
                 for (View view : new View[] {mContentSwipe, mFeedSkeleton, mErrorContainer, mYouPanel}) {
-                    if (view != null && view.getVisibility() == View.VISIBLE) {
+                    if (view != null) {
                         views.add(view);
                     }
                 }
                 return views;
+            }
+
+            @Override
+            public boolean pageReady() {
+                return !mSectionSwapPending;
             }
 
             @Override

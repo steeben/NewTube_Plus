@@ -99,9 +99,8 @@ public final class FeedAutoplay {
     @Nullable
     private ImageButton mSpeaker;
     @Nullable
-    private View mLine;
-    @Nullable
-    private MiniProgressDrawable mLineDrawable;
+    private PlayerTimeBar mLine;
+    private boolean mLineScrubbing;
     private boolean mShown;
 
     private final Runnable mEvaluate = this::evaluate;
@@ -331,11 +330,19 @@ public final class FeedAutoplay {
             if (format.getUrl() == null || mime == null || !mime.startsWith("audio/mp4") || format.isDrc()) {
                 continue;
             }
-            if (best == null || bitrate(format) < bitrate(best)) {
-                best = format; // the smallest: it is a preview
+            // The original language first (YouTube's ".4" track, or the only one), not a dub;
+            // then the smallest: it is a preview.
+            if (best == null || audioRank(format) > audioRank(best)
+                    || (audioRank(format) == audioRank(best) && bitrate(format) < bitrate(best))) {
+                best = format;
             }
         }
         return best;
+    }
+
+    private static int audioRank(MediaFormat format) {
+        String id = format.getAudioTrackId();
+        return id == null || id.isEmpty() || id.endsWith(".4") ? 2 : 1;
     }
 
     private static long bitrate(MediaFormat format) {
@@ -377,14 +384,33 @@ public final class FeedAutoplay {
         frame.addView(mTexture, 1, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        mLineDrawable = new MiniProgressDrawable(density);
-        mLineDrawable.setColors(MiniPlayerStyle.accent(mContext), 0x33FFFFFF, false);
-        mLine = new View(mContext);
-        mLine.setBackground(mLineDrawable);
+        // The player's own seek bar, small: a line with its dot, and the dot can be dragged.
+        mLine = new PlayerTimeBar(mContext);
+        mLine.setTrackAtBottom(false);
+        mLine.setShown(true, false);
         mLine.setAlpha(0f);
-        mLine.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        frame.addView(mLine, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                Math.round(10 * density), Gravity.BOTTOM));
+        mLine.addListener(new androidx.media3.ui.TimeBar.OnScrubListener() {
+            @Override
+            public void onScrubStart(@NonNull androidx.media3.ui.TimeBar timeBar, long position) {
+                mLineScrubbing = true;
+            }
+
+            @Override
+            public void onScrubMove(@NonNull androidx.media3.ui.TimeBar timeBar, long position) {
+            }
+
+            @Override
+            public void onScrubStop(@NonNull androidx.media3.ui.TimeBar timeBar, long position, boolean canceled) {
+                mLineScrubbing = false;
+                if (!canceled && mPlayer != null) {
+                    mPlayer.seekTo(position);
+                }
+            }
+        });
+        FrameLayout.LayoutParams lineParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                Math.round(22 * density), Gravity.BOTTOM);
+        lineParams.bottomMargin = Math.round(2 * density);
+        frame.addView(mLine, lineParams);
 
         mSpeaker = new ImageButton(mContext);
         mSpeaker.setBackgroundResource(R.drawable.bg_mini_scrim_circle);
@@ -432,12 +458,14 @@ public final class FeedAutoplay {
     }
 
     private void updateLine() {
-        if (mPlayer == null || mLineDrawable == null) {
+        if (mPlayer == null || mLine == null || mLineScrubbing) {
             return;
         }
         long duration = mPlayer.getDuration();
         if (duration > 0 && duration != C.TIME_UNSET) {
-            mLineDrawable.setLevel((int) Math.min(10000, mPlayer.getCurrentPosition() * 10000L / duration));
+            mLine.setDuration(duration);
+            mLine.setPosition(mPlayer.getCurrentPosition());
+            mLine.setBufferedPosition(mPlayer.getBufferedPosition());
         }
     }
 
@@ -468,7 +496,7 @@ public final class FeedAutoplay {
         mTexture = null;
         mSpeaker = null;
         mLine = null;
-        mLineDrawable = null;
+        mLineScrubbing = false;
         mFrame = null;
         mPlayingId = null;
         mShown = false;

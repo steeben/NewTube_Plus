@@ -29,6 +29,9 @@ final class WaveProgress {
     /** How long a change of colours takes. */
     private static final long BLEND_MS = 700;
 
+    /** One clock for every wave drawn, so a wave handed from the player to the mini player goes on. */
+    static final long EPOCH = android.os.SystemClock.uptimeMillis();
+
     private final float mDensity;
     private final Path mPath = new Path();
     private final Paint[] mFill = new Paint[LAYERS];

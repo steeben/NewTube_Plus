@@ -126,7 +126,7 @@ public class PlayerTimeBar extends View implements TimeBar {
     private int[] mWaveColors;
     private int mWaveAccent;
     private long mPositionMovedAt;
-    private final long mWaveEpoch = SystemClock.uptimeMillis();
+    private final long mWaveEpoch = WaveProgress.EPOCH;
 
     /** Show the wave (music, or the setting for every video) instead of the plain played line. */
     public void setWaveMode(boolean on) {

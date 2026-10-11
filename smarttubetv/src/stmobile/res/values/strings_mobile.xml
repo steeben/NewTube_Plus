@@ -542,7 +542,10 @@
     <string name="mobile_settings_wave_always_summary">Music always uses the wave. Turn this on to use it for every video</string>
     <string name="mobile_settings_wave_humps">Show waves</string>
     <string name="mobile_settings_wave_humps_summary">Off: music (or every video, above) gets the coloured bar only, without the waves</string>
-    <string name="mobile_settings_wave_colors">Progress bar colours</string>
+    <string name="mobile_settings_wave_colors">Progress bar colour</string>
+    <string name="mobile_settings_wave_music">Wave animation for music</string>
+    <string name="mobile_settings_wave_music_summary">Music: from the Music section, artist channels, songs\' titles, or marked as a song in the player</string>
+    <string name="mobile_settings_wave_other">Wave animation for other videos</string>
     <string name="mobile_settings_wave_colors_accent">Accent colour</string>
     <string name="mobile_settings_wave_colors_live">From the video (updates as it plays)</string>
     <string name="mobile_settings_wave_colors_thumbnail">From the video\'s thumbnail</string>
@@ -556,8 +559,8 @@
     <string name="mobile_player_bars_none">No black bars found</string>
     <string name="mobile_player_bars_unclear">The picture is too dark to tell. Try again on a brighter scene</string>
     <string name="mobile_settings_picture">Picture</string>
-    <string name="mobile_settings_black_bars">Detect black bars</string>
-    <string name="mobile_settings_black_bars_summary">Crops letterboxing and pillarboxing that is part of the video, and fits the player to what is left. It only checks at the start of each video, not continuously. To check again, use Detect black bars in the player\'s settings</string>
+    <string name="mobile_settings_black_bars">Detect black bars automatically</string>
+    <string name="mobile_settings_black_bars_summary">Crops letterboxing and pillarboxing that is part of the video, and fits the player to what is left. It only checks at the start of each video, not continuously. Off: use Detect black bars in the player\'s settings when a video has them. The player always takes the video\'s own shape</string>
     <string name="mobile_player_song_marked">Marked as a song</string>
     <string name="mobile_player_song_unmarked">Not marked as a song</string>
 </resources>

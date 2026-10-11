@@ -61,14 +61,13 @@ final class PlayerPages {
     /** NEWTUBE(wave): the seek bar's wave - in Playback and in Appearance. */
     static void addProgressBarRows(Context context, java.util.List<SettingsRow> rows) {
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_progress_bar)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_always),
-                context.getString(R.string.mobile_settings_wave_always_summary),
-                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveAlways(context),
-                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveAlways(context, on)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_humps),
-                context.getString(R.string.mobile_settings_wave_humps_summary),
-                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveHumps(context),
-                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveHumps(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_music),
+                context.getString(R.string.mobile_settings_wave_music_summary),
+                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveMusic(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveMusic(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_wave_other), null,
+                () -> com.newtube.mobile.ui.common.UiPrefs.isWaveOther(context),
+                on -> com.newtube.mobile.ui.common.UiPrefs.setWaveOther(context, on)));
         rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_settings_wave_colors))
                 .option(context.getString(R.string.mobile_settings_wave_colors_accent),
                         com.newtube.mobile.ui.common.UiPrefs.WAVE_COLORS_ACCENT)
