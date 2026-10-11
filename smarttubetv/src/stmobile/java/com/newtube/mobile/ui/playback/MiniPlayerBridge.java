@@ -440,6 +440,18 @@ public final class MiniPlayerBridge {
         }
         // NEWTUBE(black-bars): the frame has the cropped shape; its picture (video, still) grows
         // past it - each way by what the bars took - with the crop's middle on the frame's.
+        if (!sCropFrames.containsKey(frame)) {
+            sCropFrames.put(frame, Boolean.TRUE);
+            frame.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                if (r - l != or - ol || b - t != ob - ot) {
+                    applyCropTransform(v);
+                }
+            });
+        }
+        applyCropTransform(frame);
+    }
+
+    private static void applyCropTransform(View frame) {
         android.view.ViewGroup group = (android.view.ViewGroup) frame;
         float[] crop = sCrop;
         for (int i = 0; i < group.getChildCount(); i++) {
@@ -469,6 +481,31 @@ public final class MiniPlayerBridge {
     public static void setCrop(@Nullable float[] crop) {
         sCrop = crop;
     }
+
+    @Nullable
+    public static float[] getCrop() {
+        return sCrop;
+    }
+
+    /** The cropped picture's shape (width / height), for a picture of {@code aspect}. */
+    public static float croppedAspect(float aspect) {
+        float[] crop = sCrop;
+        return crop == null ? aspect : aspect * (1f - crop[2] - crop[3]) / Math.max(0.01f, 1f - crop[0] - crop[1]);
+    }
+
+    /** NEWTUBE(black-bars): the player box's shape (16:9, or the cropped picture's) - the card's. */
+    private static float sBoxAspect = 16f / 9f;
+
+    public static void setBoxAspect(float aspect) {
+        sBoxAspect = aspect > 0f ? aspect : 16f / 9f;
+    }
+
+    public static float getBoxAspect() {
+        return sBoxAspect;
+    }
+
+    /** Frames that redo their crop when they are laid out again (their children's size changed). */
+    private static final java.util.WeakHashMap<View, Boolean> sCropFrames = new java.util.WeakHashMap<>();
 
     /**
      * NEWTUBE(loudness): the session's volume as its player controller keeps it, apart from loudness

@@ -1187,7 +1187,7 @@ public class MobilePlaybackActivity extends MobileActivity
      */
     private void animateResizeMode(int mode) {
         ViewGroup contentFrame = mPlayerView != null ? mPlayerView.getContentFrame() : null;
-        if (contentFrame == null || contentFrame.getWidth() == 0 || getResizeMode() == mode || mCrop != null) {
+        if (contentFrame == null || contentFrame.getWidth() == 0 || getResizeMode() == mode || mCropShown != null) {
             setResizeMode(mode);
             applyContentTransform(); // NEWTUBE(black-bars): the crop's own scale, at once
             return;
@@ -2612,13 +2612,18 @@ public class MobilePlaybackActivity extends MobileActivity
      * left once its black bars are cropped (a square film taller, a 2.39:1 one lower), within reason.
      */
     private int portraitVideoHeight(int width) {
-        BlackBars.Crop crop = mCrop;
-        if (crop == null || crop.isNone() || !(mVideoAspect > 0f)) {
-            return Math.round(width * 9f / 16f);
+        float normal = width * 9f / 16f;
+        BlackBars.Crop crop = mCropShown;
+        if (crop == null || crop.isNone() || !(mVideoAspect > 0f) || mCropFraction <= 0f) {
+            return Math.round(normal);
         }
-        float aspect = crop.aspect(mVideoAspect);
-        float height = width / Math.max(0.1f, aspect);
-        return Math.round(Math.max(width / 2.4f, Math.min(width * 1.25f, height)));
+        return Math.round(normal + (croppedHeight(width, crop) - normal) * mCropFraction);
+    }
+
+    /** The box's height for the cropped picture, within reason (between 2.4:1 and 4:5). */
+    private float croppedHeight(int width, BlackBars.Crop crop) {
+        float height = width / Math.max(0.1f, crop.aspect(mVideoAspect));
+        return Math.max(width / 2.4f, Math.min(width * 1.25f, height));
     }
 
     // ---------------------------------------------------------------------------------
@@ -2626,8 +2631,17 @@ public class MobilePlaybackActivity extends MobileActivity
     // video (a few frames, until one is bright enough to tell), and on request; never continuously.
     // ---------------------------------------------------------------------------------
 
+    /** The crop found for this video (null: none). */
     @Nullable
     private BlackBars.Crop mCrop;
+    /** The crop drawn - mCrop, or the last one while it eases away - and how far in it is (0-1). */
+    @Nullable
+    private BlackBars.Crop mCropShown;
+    private float mCropFraction;
+    @Nullable
+    private android.animation.ValueAnimator mCropAnimator;
+    /** A panel over the page (comments, the playlist) wants the box at its normal size. */
+    private boolean mCropSuspended;
     @Nullable
     private BlackBars.Crop mCropSample;
     @Nullable
@@ -2714,7 +2728,50 @@ public class MobilePlaybackActivity extends MobileActivity
             crop = null;
         }
         mCrop = crop;
+        if (crop != null) {
+            mCropShown = crop;
+        }
         MiniPlayerBridge.setCrop(crop != null ? crop.toArray() : null);
+        MiniPlayerBridge.setBoxAspect(crop != null && mVideoAspect > 0f
+                ? Math.max(1f / 1.25f, Math.min(2.4f, crop.aspect(mVideoAspect))) : 16f / 9f);
+        animateCrop(mCropVideoId != null);
+    }
+
+    /** NEWTUBE(black-bars): a panel opens over the page (the box goes back to 16:9), or closes. */
+    private void suspendCrop(boolean suspend) {
+        if (mCropSuspended != suspend) {
+            mCropSuspended = suspend;
+            animateCrop(true);
+        }
+    }
+
+    /** Ease the box and the picture to the crop (or away from it) instead of jumping. */
+    private void animateCrop(boolean animate) {
+        float target = mCrop != null && !mCropSuspended ? 1f : 0f;
+        if (mCropAnimator != null) {
+            mCropAnimator.cancel();
+            mCropAnimator = null;
+        }
+        if (!animate || mCropShown == null || mCropFraction == target) {
+            mCropFraction = target;
+            applyCropFraction();
+            return;
+        }
+        android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(mCropFraction, target);
+        animator.setDuration(380);
+        animator.setInterpolator(Motion.STANDARD);
+        animator.addUpdateListener(a -> {
+            mCropFraction = (float) a.getAnimatedValue();
+            applyCropFraction();
+        });
+        mCropAnimator = animator;
+        animator.start();
+    }
+
+    private void applyCropFraction() {
+        if (mCropFraction <= 0f && mCrop == null) {
+            mCropShown = null;
+        }
         if (mWatchRoot != null && !isLandscape() && mWatchRoot.getWidth() > 0) {
             applyPortraitVideoHeight(mWatchRoot.getWidth());
         }
@@ -2733,7 +2790,7 @@ public class MobilePlaybackActivity extends MobileActivity
         float scale = 1f;
         float tx = 0f;
         float ty = 0f;
-        BlackBars.Crop crop = mCrop;
+        BlackBars.Crop crop = mCropShown;
         int boxW = mPlayerView.getWidth();
         int boxH = mPlayerView.getHeight();
         int cw = content.getWidth();
@@ -2748,6 +2805,10 @@ public class MobilePlaybackActivity extends MobileActivity
             scale = Math.max(1f, scale);
             tx = -cw * (crop.left - crop.right) / 2f * scale;
             ty = -ch * (crop.top - crop.bottom) / 2f * scale;
+            // Eased in and out (mCropFraction).
+            scale = 1f + (scale - 1f) * mCropFraction;
+            tx *= mCropFraction;
+            ty *= mCropFraction;
         }
         content.setPivotX(cw / 2f);
         content.setPivotY(ch / 2f);
@@ -6070,7 +6131,8 @@ public class MobilePlaybackActivity extends MobileActivity
             return;
         }
         float zoom = 1f;
-        if (f > 0f && content.getWidth() > 0 && mVideoArea != null) {
+        // NEWTUBE(black-bars): a cropped picture already spans the box's width.
+        if (f > 0f && content.getWidth() > 0 && mVideoArea != null && (mCropShown == null || mCropFraction <= 0f)) {
             zoom = 1f + (Math.max(1f, mVideoArea.getWidth() / (float) content.getWidth()) - 1f) * f;
         }
         mContentZoom = zoom;
@@ -6112,7 +6174,9 @@ public class MobilePlaybackActivity extends MobileActivity
             // NEWTUBE(mini-progress): one line only - the one riding the video (mMorphLine).
             chrome.progress.setVisibility(View.INVISIBLE);
             if (chrome.frame instanceof androidx.media3.ui.AspectRatioFrameLayout) {
-                ((androidx.media3.ui.AspectRatioFrameLayout) chrome.frame).setAspectRatio(16f / 9f);
+                // NEWTUBE(black-bars): the cropped picture's shape, as the host's frame has it.
+                ((androidx.media3.ui.AspectRatioFrameLayout) chrome.frame).setAspectRatio(
+                        MiniPlayerBridge.croppedAspect(mVideoAspect > 0f ? mVideoAspect : 16f / 9f));
             }
             Video video = getVideo();
             chrome.title.setText(video != null ? video.getTitle() : null);
@@ -8161,6 +8225,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // that resumed every queued watch-page image before the first frame. Avatars wait for the
         // hold's normal release like the rest of the page.
         Utils.removeCallbacks(mPrefetchComments);
+        suspendCrop(true); // NEWTUBE(black-bars): the box back to 16:9 under the panel
         mCommentsPanel.open();
     }
 
@@ -8185,6 +8250,7 @@ public class MobilePlaybackActivity extends MobileActivity
 
         @Override
         public void onCommentsPanelShown(boolean shown) {
+            suspendCrop(shown || mQueueExpanded); // NEWTUBE(black-bars)
             // The page under the panel is covered: keep TalkBack off it (the video stays reachable).
             if (mWatchScroll != null) {
                 mWatchScroll.setImportantForAccessibility(shown
@@ -9226,6 +9292,7 @@ public class MobilePlaybackActivity extends MobileActivity
 
     private void toggleQueueExpanded() {
         mQueueExpanded = !mQueueExpanded;
+        suspendCrop(mQueueExpanded || (mCommentsPanel != null && mCommentsPanel.isOpen())); // NEWTUBE(black-bars)
         float chevronFrom = mQueueChevron != null ? mQueueChevron.getRotation() : 0f;
         applyQueueExpanded();
         if (mQueueChevron != null) {

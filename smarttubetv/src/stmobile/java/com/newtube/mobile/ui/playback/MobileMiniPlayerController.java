@@ -429,6 +429,7 @@ public final class MobileMiniPlayerController {
             mViews.refreshBarCorners(); // Rounded thumbnail corners may have been switched
         }
         updateUnderlap();
+        mViews.refreshCardAspect(); // NEWTUBE(black-bars)
         updateText();
         mViews.setHasNext(MiniPlayerBridge.hasNext());
         // NEWTUBE(accent): the progress line in the accent, which may have changed since.

@@ -170,6 +170,15 @@ final class MiniPlayerViews {
         }
     }
 
+    private float mAppliedBoxAspect = 16f / 9f;
+
+    /** NEWTUBE(black-bars): the card takes the player box's shape; laid out again if it changed. */
+    void refreshCardAspect() {
+        if (style >= 0 && !MiniPlayerStyle.isBar(style) && mAppliedBoxAspect != MiniPlayerBridge.getBoxAspect()) {
+            applyStyle(style, cardLeft);
+        }
+    }
+
     /** NEWTUBE(mini-underlap): see {@link #mUnderlapPx}; lays the card out again when it changes. */
     void setUnderlapPx(int px) {
         px = Math.max(0, px);
@@ -217,7 +226,8 @@ final class MiniPlayerViews {
             int startMargin = !bar && cardLeft ? margin : 0;
             int endMargin = !bar && !cardLeft ? margin : 0;
             int under = style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx : 0;
-            margins.height = bar ? barHeight + under : px(MiniPlayerStyle.CARD_HEIGHT_DP, density);
+            margins.height = bar ? barHeight + under : Math.round(MiniPlayerStyle.cardHeightPx(density));
+            mAppliedBoxAspect = MiniPlayerBridge.getBoxAspect();
             margins.width = bar ? ViewGroup.LayoutParams.MATCH_PARENT : px(MiniPlayerStyle.CARD_WIDTH_DP, density);
             margins.leftMargin = startMargin;
             margins.rightMargin = endMargin;
@@ -609,9 +619,16 @@ final class MiniPlayerViews {
         float top = view.getTop() + (content ? view.getPaddingTop() : 0) - frame.getTop();
         float right = view.getRight() - (content ? view.getPaddingRight() : 0) - frame.getLeft();
         float bottom = view.getBottom() - (content ? view.getPaddingBottom() : 0) - frame.getTop();
-        float sx = (float) FROST_WIDTH / frameWidth;
-        float sy = (float) FROST_HEIGHT / frameHeight;
-        mFrostSource.set(Math.round(left * sx), Math.round(top * sy), Math.round(right * sx), Math.round(bottom * sy));
+        // NEWTUBE(black-bars): the frame shows the cropped part of the picture; the copy is all of it.
+        float[] crop = MiniPlayerBridge.getCrop();
+        float cl = crop != null ? crop[2] : 0f;
+        float cw = crop != null ? 1f - crop[2] - crop[3] : 1f;
+        float ct = crop != null ? crop[0] : 0f;
+        float ch = crop != null ? 1f - crop[0] - crop[1] : 1f;
+        mFrostSource.set(Math.round((cl + left / frameWidth * cw) * FROST_WIDTH),
+                Math.round((ct + top / frameHeight * ch) * FROST_HEIGHT),
+                Math.round((cl + right / frameWidth * cw) * FROST_WIDTH),
+                Math.round((ct + bottom / frameHeight * ch) * FROST_HEIGHT));
         if (mFrostSource.width() <= 0) {
             mFrostSource.right = mFrostSource.left + 1;
         }

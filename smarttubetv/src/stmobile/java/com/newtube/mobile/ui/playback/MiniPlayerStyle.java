@@ -111,6 +111,14 @@ public final class MiniPlayerStyle {
                 .getInt("accent", 0xFFFF0033);
     }
 
+    /**
+     * NEWTUBE(black-bars): the floating card's height, px - 16:9, or the player box's shape when the
+     * video's black bars were cropped (a square video lands on a square card).
+     */
+    public static float cardHeightPx(float density) {
+        return CARD_WIDTH_DP * density / MiniPlayerBridge.getBoxAspect();
+    }
+
     /** Width of the bar's 16:9 thumbnail slot ({@link #BAR}), in px. */
     public static float barThumbWidthPx(float density) {
         return BAR_HEIGHT_DP * density * 16f / 9f;
@@ -164,7 +172,7 @@ public final class MiniPlayerStyle {
                 float cardWidth = CARD_WIDTH_DP * density;
                 float cardBottom = bottom - margin;
                 float left = cardLeft ? margin : width - margin - cardWidth;
-                RectF rect = new RectF(left, cardBottom - CARD_HEIGHT_DP * density, left + cardWidth, cardBottom);
+                RectF rect = new RectF(left, cardBottom - cardHeightPx(density), left + cardWidth, cardBottom);
                 return new Target(rect, false, CARD_CORNER_DP);
             }
         }
