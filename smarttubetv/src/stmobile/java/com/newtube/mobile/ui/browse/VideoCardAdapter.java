@@ -433,7 +433,7 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             bindReadiness(video);
 
             String thumbnailUrl = thumbnailUrl(context, video);
-            if (thumbnailUrl == null ? mBoundThumbUrl != null : !thumbnailUrl.equals(mBoundThumbUrl)) {
+            if (!samePicture(thumbnailUrl, mBoundThumbUrl)) {
                 bindThumbnail(context, video);
             }
         }
@@ -530,6 +530,27 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             return ClickbaitRemover.updateThumbnail(video, MainUIData.instance(context).getThumbQuality());
         }
 
+        /**
+         * NEWTUBE(tab-slide): the two URLs show the same picture. YouTube signs its thumbnail links
+         * per response ({@code ?sqp=...&rs=...}), so a tab's fresh page brings the same picture
+         * under a new link - compared whole, every card reloaded (went dark, faded back in) a
+         * moment after a tab switch. The path names the picture (video and size); the query only
+         * signs it.
+         */
+        static boolean samePicture(String a, String b) {
+            if (a == null || b == null) {
+                return a == null && b == null;
+            }
+            if (a.equals(b)) {
+                return true;
+            }
+            int qa = a.indexOf('?');
+            int qb = b.indexOf('?');
+            String pathA = qa >= 0 ? a.substring(0, qa) : a;
+            String pathB = qb >= 0 ? b.substring(0, qb) : b;
+            return pathA.equals(pathB) && pathA.contains("ytimg.com/");
+        }
+
         /** NEWTUBE(tab-slide): when this card's thumbnail was put up (0: not yet). */
         private long mThumbReadyAt;
 
@@ -544,7 +565,7 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             // shown again) - leave it. Loading it again blanked the card for a moment (from the
             // disk cache, a fade in), the flicker after changing tabs.
             boolean still = com.newtube.mobile.ui.playback.FeedAutoplay.takeStill(mThumbnail);
-            if (!still && thumbnailUrl != null && thumbnailUrl.equals(mBoundThumbUrl) && mThumbnail.getDrawable() != null
+            if (!still && samePicture(thumbnailUrl, mBoundThumbUrl) && mThumbnail.getDrawable() != null
                     && mThumbReadyAt > 0) {
                 return;
             }

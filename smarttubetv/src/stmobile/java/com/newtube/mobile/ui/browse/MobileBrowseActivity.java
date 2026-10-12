@@ -854,6 +854,9 @@ public class MobileBrowseActivity extends MobileActivity
 
             @Override
             public View placeholders(int tabId) {
+                if (tabId == YOU_ITEM_ID) {
+                    return null; // the You page has no video cards: a plain page while it comes in
+                }
                 // NEWTUBE(playlists-grid): in the incoming tab's columns, not the current tab's.
                 int section = tabId - ITEM_ID_OFFSET;
                 int spans = com.newtube.mobile.ui.common.MobileGrid.computeSpanCount(MobileBrowseActivity.this);
