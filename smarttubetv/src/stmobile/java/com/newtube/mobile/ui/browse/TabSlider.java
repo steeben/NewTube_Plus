@@ -55,9 +55,15 @@ final class TabSlider {
          */
         Rect pageRect();
 
-        /** The loading placeholders' view (drawn for a tab that has no picture yet), if any. */
+        /**
+         * The loading placeholders' view, laid out for tab {@code tabId} (its column count), to be
+         * drawn for that tab while it has no picture yet; {@link #placeholdersDrawn} follows.
+         */
         @Nullable
-        View placeholders();
+        View placeholders(int tabId);
+
+        /** The placeholders were drawn: lay them out for the tab on screen again. */
+        void placeholdersDrawn();
 
         /** The page colour, under a picture's empty parts. */
         int pageColor();
@@ -217,7 +223,7 @@ final class TabSlider {
         ghost.setBackgroundColor(mHost.pageColor());
         Bitmap picture = mPictures.get(target);
         if (picture == null) {
-            picture = drawPlaceholders(area);
+            picture = drawPlaceholders(area, target);
         }
         if (picture != null) {
             ghost.setImageBitmap(picture);
@@ -494,9 +500,10 @@ final class TabSlider {
 
     /** The loading placeholders as a picture, for a tab not shown yet. */
     @Nullable
-    private Bitmap drawPlaceholders(Rect area) {
-        View placeholders = mHost.placeholders();
+    private Bitmap drawPlaceholders(Rect area, int tabId) {
+        View placeholders = mHost.placeholders(tabId);
         if (placeholders == null || placeholders.getWidth() <= 0 || placeholders.getHeight() <= 0) {
+            mHost.placeholdersDrawn();
             return null;
         }
         try {
@@ -510,6 +517,8 @@ final class TabSlider {
             return bitmap;
         } catch (RuntimeException | OutOfMemoryError e) {
             return null;
+        } finally {
+            mHost.placeholdersDrawn();
         }
     }
 

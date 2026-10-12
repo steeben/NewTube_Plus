@@ -853,8 +853,17 @@ public class MobileBrowseActivity extends MobileActivity
             }
 
             @Override
-            public View placeholders() {
+            public View placeholders(int tabId) {
+                // NEWTUBE(playlists-grid): in the incoming tab's columns, not the current tab's.
+                int section = tabId - ITEM_ID_OFFSET;
+                int spans = com.newtube.mobile.ui.common.MobileGrid.computeSpanCount(MobileBrowseActivity.this);
+                layOutSkeleton(section == MediaGroup.TYPE_USER_PLAYLISTS ? Math.max(2, spans) : spans);
                 return mFeedSkeleton;
+            }
+
+            @Override
+            public void placeholdersDrawn() {
+                layOutSkeleton(mLayoutManager != null ? mLayoutManager.getSpanCount() : computeSpanCount());
             }
 
             @Override
@@ -2532,6 +2541,23 @@ public class MobileBrowseActivity extends MobileActivity
             }
             onYouPanelToggled();
         }
+    }
+
+    /** NEWTUBE(playlists-grid): the skeleton in {@code columns}, laid out now (to be drawn at once). */
+    private void layOutSkeleton(int columns) {
+        if (mFeedSkeleton == null) {
+            return;
+        }
+        com.newtube.mobile.ui.common.FeedSkeletonStyle.apply(mFeedSkeleton, columns);
+        int width = mFeedSkeleton.getWidth();
+        int height = mFeedSkeleton.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        mFeedSkeleton.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
+        mFeedSkeleton.layout(mFeedSkeleton.getLeft(), mFeedSkeleton.getTop(),
+                mFeedSkeleton.getLeft() + width, mFeedSkeleton.getTop() + height);
     }
 
     /** NEWTUBE(playlists-grid): the Playlists tab shows at least two cards per row. */
