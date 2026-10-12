@@ -93,6 +93,18 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             // carry refreshed metadata and must be rebound; the same instance needs no rebind.
             return oldItem == newItem;
         }
+
+        /**
+         * NEWTUBE(tab-slide): the same video as a new instance (a tab's fresh page replacing its
+         * remembered one) is rebound in place, through the partial bind: text and progress are
+         * refreshed, the thumbnail is kept unless its URL changed. Without a payload RecyclerView
+         * built a second card for each and cross-faded the two - every card on the page dimmed,
+         * went blank and reloaded its thumbnail just after a tab switch.
+         */
+        @Override
+        public Object getChangePayload(@NonNull Video oldItem, @NonNull Video newItem) {
+            return PAYLOAD_SYNC;
+        }
     };
 
     @Override
