@@ -11,7 +11,7 @@
 [SmartTube](https://github.com/yuliskov/SmartTube) by [@yuliskov](https://github.com/yuliskov).<br>
 It keeps everything NewTube does and changes how the app looks, moves and previews videos.
 
-[![Latest release](https://img.shields.io/github/v/release/steeben/newtube?style=flat-square&label=release&color=FF0033)](https://github.com/steeben/newtube/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/steeben/NewTube_Plus?style=flat-square&label=release&color=FF0033)](https://github.com/steeben/NewTube_Plus/releases/latest)
 [![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-FF0033?style=flat-square)](#download)
 [![License: MIT](https://img.shields.io/badge/license-MIT-FF0033?style=flat-square)](LICENSE)
 
@@ -60,7 +60,7 @@ It keeps everything NewTube does and changes how the app looks, moves and previe
 
 ## Download
 
-<a href="https://github.com/steeben/newtube/releases/latest"><img src="images/badge_github.png" height="64" alt="Get it on GitHub"></a>
+<a href="https://github.com/steeben/NewTube_Plus/releases/latest"><img src="images/badge_github.png" height="64" alt="Get it on GitHub"></a>
 
 | Your device | File |
 |:--|:--|

@@ -21,7 +21,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-REPO = "steeben/newtube"
+REPO = "steeben/NewTube_Plus"
 # x86_64 and anything else get the universal APK (arm64-v8a + armeabi-v7a), the README's "not sure"
 # file: x86_64 devices run it through ARM translation. One without translation had no release APK
 # to install in the first place (the x86 one runs only where 32-bit x86 is also supported).

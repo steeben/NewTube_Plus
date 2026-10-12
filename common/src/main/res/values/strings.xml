@@ -64,10 +64,10 @@
     <!-- NEWTUBE(settings): the phone's About screen (AboutSimpleSettingsPresenter). -->
     <string name="about_app">About %1$s</string>
     <string name="about_source_code">Source code</string>
-    <string name="about_source_code_url" translatable="false">https://github.com/steeben/newtube</string>
+    <string name="about_source_code_url" translatable="false">https://github.com/steeben/NewTube_Plus</string>
     <string name="about_license">License</string>
     <string name="about_license_name" translatable="false">MIT</string>
-    <string name="about_license_url" translatable="false">https://github.com/steeben/newtube/blob/main/LICENSE</string>
+    <string name="about_license_url" translatable="false">https://github.com/steeben/NewTube_Plus/blob/main/LICENSE</string>
     <!-- NEWTUBE(diagnostics): About > "Send diagnostic log" (DiagnosticLog). -->
     <string name="diagnostic_log_send">Send diagnostic log</string>
     <string name="diagnostic_log_send_desc">For bug reports. Includes the videos and channels you opened; passwords and sign-in tokens are removed</string>

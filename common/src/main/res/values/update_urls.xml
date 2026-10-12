@@ -3,6 +3,6 @@
     <string-array name="update_urls">
         <!-- NewTube+ (steeben's fork): updates come from this fork's releases only, never from
              upstream NewTube. The latest published release's manifest (fork-release.yml). -->
-        <item>https://github.com/steeben/newtube/releases/latest/download/newtube.json</item>
+        <item>https://github.com/steeben/NewTube_Plus/releases/latest/download/newtube.json</item>
     </string-array>
 </resources>
