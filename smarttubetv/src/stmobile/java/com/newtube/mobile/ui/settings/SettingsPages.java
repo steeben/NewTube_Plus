@@ -53,6 +53,8 @@ public final class SettingsPages {
     public static final String BACKUP = "backup";
     public static final String ADVANCED = "advanced";
     public static final String ABOUT = "about";
+    /** NewTube+: the original NewTube's About links and credits. */
+    public static final String ABOUT_ORIGINAL = "about_original";
 
     /** A built page: its title and rows. */
     public static final class Page {
@@ -103,6 +105,8 @@ public final class SettingsPages {
                 return PlayerPages.advanced(context);
             case ABOUT:
                 return about(context);
+            case ABOUT_ORIGINAL:
+                return aboutOriginal(context);
             case ROOT:
             default:
                 return root(context);
@@ -210,7 +214,34 @@ public final class SettingsPages {
         rows.add(SettingsRow.action(context.getString(R.string.about_license),
                 context.getString(R.string.about_license_name),
                 page -> Utils.openLinkExt(page.requireContext(), context.getString(R.string.about_license_url))));
+        rows.add(SettingsRow.divider());
+        rows.add(SettingsRow.page(context.getString(R.string.mobile_about_based_on),
+                () -> context.getString(R.string.mobile_about_based_on_summary), ABOUT_ORIGINAL));
 
         return new Page(context.getString(R.string.about_app, context.getString(R.string.app_name)), rows);
+    }
+
+    /** NewTube+: what About showed in the original NewTube - its links and credits - on a page of its own. */
+    private static Page aboutOriginal(Context context) {
+        List<SettingsRow> rows = new ArrayList<>();
+
+        for (OptionItem item : AboutShareRows.createOriginal(context)) {
+            rows.add(SettingsRow.action(item.getTitle(), item.getDescription(), page -> item.onSelect(true)));
+        }
+        String repo = context.getString(R.string.mobile_about_original_repo_url);
+        rows.add(SettingsRow.action(context.getString(R.string.about_source_code), repo.replace("https://", ""),
+                page -> Utils.openLinkExt(page.requireContext(), repo)));
+        rows.add(SettingsRow.action(context.getString(R.string.about_license),
+                context.getString(R.string.about_license_name),
+                page -> Utils.openLinkExt(page.requireContext(), context.getString(R.string.mobile_about_original_license_url))));
+        String site = context.getString(R.string.mobile_about_site_url);
+        rows.add(SettingsRow.action(context.getString(R.string.mobile_about_website), site.replace("https://", ""),
+                page -> Utils.openLinkExt(page.requireContext(), site)));
+        String smartTube = context.getString(R.string.mobile_about_smarttube_url);
+        rows.add(SettingsRow.action(context.getString(R.string.mobile_about_built_on),
+                context.getString(R.string.mobile_about_built_on_desc),
+                page -> Utils.openLinkExt(page.requireContext(), smartTube)));
+
+        return new Page(context.getString(R.string.mobile_about_original_title), rows);
     }
 }

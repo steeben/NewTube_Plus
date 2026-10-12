@@ -26,29 +26,48 @@ public final class AboutShareRows {
     private AboutShareRows() {
     }
 
+    /** NewTube+'s own: star and share this fork's repository. */
     public static List<OptionItem> create(Context context) {
+        List<OptionItem> rows = new ArrayList<>();
+
+        rows.add(UiOptionItem.from(
+                context.getString(R.string.mobile_about_fork_star),
+                context.getString(R.string.mobile_about_fork_star_desc),
+                option -> Utils.openLinkExt(context, context.getString(R.string.mobile_about_repo_url))));
+
+        rows.add(UiOptionItem.from(
+                context.getString(R.string.mobile_about_fork_share),
+                context.getString(R.string.mobile_about_fork_share_desc),
+                option -> share(context, R.string.mobile_about_fork_share, R.string.mobile_about_fork_share_text,
+                        R.string.mobile_about_repo_url)));
+
+        return rows;
+    }
+
+    /** The original NewTube's, as About showed them before the fork: star, and share its site. */
+    public static List<OptionItem> createOriginal(Context context) {
         List<OptionItem> rows = new ArrayList<>();
 
         rows.add(UiOptionItem.from(
                 context.getString(R.string.mobile_about_star),
                 context.getString(R.string.mobile_about_star_desc),
-                option -> Utils.openLinkExt(context, context.getString(R.string.mobile_about_repo_url))));
+                option -> Utils.openLinkExt(context, context.getString(R.string.mobile_about_original_repo_url))));
 
         rows.add(UiOptionItem.from(
                 context.getString(R.string.mobile_about_share),
                 context.getString(R.string.mobile_about_share_desc),
-                option -> share(context)));
+                option -> share(context, R.string.mobile_about_share, R.string.mobile_about_share_text,
+                        R.string.mobile_about_site_url)));
 
         return rows;
     }
 
-    private static void share(Context context) {
+    private static void share(Context context, int titleRes, int textRes, int linkRes) {
         Intent send = new Intent(Intent.ACTION_SEND)
                 .setType("text/plain")
-                .putExtra(Intent.EXTRA_TEXT, context.getString(R.string.mobile_about_share_text,
-                        context.getString(R.string.mobile_about_site_url)));
+                .putExtra(Intent.EXTRA_TEXT, context.getString(textRes, context.getString(linkRes)));
 
-        Intent chooser = Intent.createChooser(send, context.getString(R.string.mobile_about_share));
+        Intent chooser = Intent.createChooser(send, context.getString(titleRes));
         chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, ownTextTargets(context, send));
         if (!(context instanceof Activity)) {
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

@@ -533,6 +533,22 @@
     <string name="mobile_about_share_text">NewTube — a YouTube client for phones, built on SmartTube: %1$s</string>
     <string name="mobile_about_repo_url" translatable="false">https://github.com/steeben/newtube</string>
     <string name="mobile_about_site_url" translatable="false">https://newtube.org/</string>
+    <!-- NewTube+ (steeben's fork): the main About page speaks for the fork; the strings above
+         (star, share, source, license, site) are the original NewTube's, on its own page. -->
+    <string name="mobile_about_fork_star">Star NewTube+ on GitHub</string>
+    <string name="mobile_about_fork_star_desc">Free and open source. A star helps others find it</string>
+    <string name="mobile_about_fork_share">Share NewTube+</string>
+    <string name="mobile_about_fork_share_desc">Send the link to someone who\'d like it</string>
+    <string name="mobile_about_fork_share_text">NewTube+ — a YouTube client for phones, a fork of NewTube: %1$s</string>
+    <string name="mobile_about_based_on">Based on NewTube by aleixrodriala</string>
+    <string name="mobile_about_based_on_summary">The original project: its links and credits</string>
+    <string name="mobile_about_original_title">NewTube by aleixrodriala</string>
+    <string name="mobile_about_original_repo_url" translatable="false">https://github.com/aleixrodriala/newtube</string>
+    <string name="mobile_about_original_license_url" translatable="false">https://github.com/aleixrodriala/newtube/blob/main/LICENSE</string>
+    <string name="mobile_about_website">Website</string>
+    <string name="mobile_about_built_on">Built on SmartTube</string>
+    <string name="mobile_about_built_on_desc">The engine under NewTube, by yuliskov</string>
+    <string name="mobile_about_smarttube_url" translatable="false">https://github.com/yuliskov/SmartTube</string>
     <!-- Experimental SABR playback (was strings_sabr.xml) -->
     <string name="sabr_vod_option">Prefer SABR even when links work (experimental; next VOD)</string>
     <string name="sabr_vod_stopped">Experimental SABR playback stopped. Tap play to retry, or disable SABR in Settings.</string>
