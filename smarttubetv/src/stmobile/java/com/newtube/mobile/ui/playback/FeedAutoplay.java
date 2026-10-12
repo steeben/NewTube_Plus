@@ -166,7 +166,7 @@ public final class FeedAutoplay {
     }
 
     private void evaluate() {
-        if (!mActive || !mGate.canAutoplay() || !UiPrefs.isFeedAutoplay(mContext)) {
+        if (!mActive || !mGate.canAutoplay() || !UiPrefs.isFeedAutoplayAllowed(mContext)) {
             stop();
             return;
         }

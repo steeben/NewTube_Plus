@@ -136,9 +136,6 @@ final class AppPages {
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_full_width_thumbs),
                 context.getString(R.string.mobile_settings_full_width_thumbs_summary),
                 () -> UiPrefs.isFullWidthThumbnails(context), on -> UiPrefs.setFullWidthThumbnails(context, on)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_feed_autoplay),
-                context.getString(R.string.mobile_settings_feed_autoplay_summary),
-                () -> UiPrefs.isFeedAutoplay(context), on -> UiPrefs.setFeedAutoplay(context, on)));
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_rounded_thumbs), null,
                 () -> UiPrefs.isRoundedThumbnails(context), on -> UiPrefs.setRoundedThumbnails(context, on)));
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_card_menu),

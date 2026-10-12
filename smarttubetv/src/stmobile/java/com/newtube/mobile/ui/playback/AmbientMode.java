@@ -78,11 +78,12 @@ final class AmbientMode {
     private final RectF mGlowRect = new RectF();
     @Nullable
     private Bitmap mSampleBitmap;
+    /** What is drawn: the pixels between {@link #mFrom} and {@link #mTo}, blended into one picture. */
     @Nullable
     private Bitmap mCurrent;
-    @Nullable
-    private Bitmap mPrevious;
-    private float mCrossfade = 1f;
+    private final int[] mFrom = new int[SAMPLE_WIDTH * SAMPLE_HEIGHT];
+    private final int[] mTo = new int[SAMPLE_WIDTH * SAMPLE_HEIGHT];
+    private final int[] mBlend = new int[SAMPLE_WIDTH * SAMPLE_HEIGHT];
     @Nullable
     private ValueAnimator mCrossfadeAnimator;
     private float mBandAlpha;
@@ -250,27 +251,40 @@ final class AmbientMode {
         for (int pass = 0; pass < 3; pass++) {
             boxBlur(mPixels, mScratch, SAMPLE_WIDTH, SAMPLE_HEIGHT, 3);
         }
-        Bitmap next = mPrevious != null && !mPrevious.isRecycled() ? mPrevious
-                : Bitmap.createBitmap(SAMPLE_WIDTH, SAMPLE_HEIGHT, Bitmap.Config.ARGB_8888);
-        next.setPixels(mPixels, 0, SAMPLE_WIDTH, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-        mPrevious = mCurrent;
-        mCurrent = next;
-        if (mPrevious == null) {
-            mCrossfade = 1f;
+        if (mCurrent == null) {
+            mCurrent = Bitmap.createBitmap(SAMPLE_WIDTH, SAMPLE_HEIGHT, Bitmap.Config.ARGB_8888);
+            mCurrent.setPixels(mPixels, 0, SAMPLE_WIDTH, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
+            System.arraycopy(mPixels, 0, mTo, 0, mPixels.length);
             invalidateAll();
             return;
         }
+        // Fade from what is on screen now (even part-way through the last fade) to the new frame.
+        // The two are blended pixel by pixel into one picture: drawing both with alpha (1 - t)
+        // and t composites to less than either alone half-way, a dip that pulsed on a still picture.
+        mCurrent.getPixels(mFrom, 0, SAMPLE_WIDTH, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
+        System.arraycopy(mPixels, 0, mTo, 0, mPixels.length);
         if (mCrossfadeAnimator != null) {
             mCrossfadeAnimator.cancel();
         }
         ValueAnimator fade = ValueAnimator.ofFloat(0f, 1f);
         fade.setDuration(CROSSFADE_MS);
         fade.addUpdateListener(a -> {
-            mCrossfade = (float) a.getAnimatedValue();
+            float t = (float) a.getAnimatedValue();
+            for (int i = 0; i < mBlend.length; i++) {
+                mBlend[i] = lerp(mFrom[i], mTo[i], t);
+            }
+            mCurrent.setPixels(mBlend, 0, SAMPLE_WIDTH, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
             invalidateAll();
         });
         mCrossfadeAnimator = fade;
         fade.start();
+    }
+
+    private static int lerp(int from, int to, float t) {
+        int r = Math.round(((from >> 16) & 0xFF) * (1f - t) + ((to >> 16) & 0xFF) * t);
+        int g = Math.round(((from >> 8) & 0xFF) * (1f - t) + ((to >> 8) & 0xFF) * t);
+        int b = Math.round((from & 0xFF) * (1f - t) + (to & 0xFF) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
     private void invalidateAll() {
@@ -304,11 +318,7 @@ final class AmbientMode {
         float width = video.getWidth();
         float height = video.getHeight();
         mGlowRect.set(left - width * 0.3f, top - height * REACH, left + width * 1.3f, top + height * (1f + REACH));
-        if (mPrevious != null && mCrossfade < 1f) {
-            mGlowPaint.setAlpha(Math.round(alpha * (1f - mCrossfade)));
-            canvas.drawBitmap(mPrevious, null, mGlowRect, mGlowPaint);
-        }
-        mGlowPaint.setAlpha(Math.round(alpha * (mPrevious != null ? mCrossfade : 1f)));
+        mGlowPaint.setAlpha(alpha);
         canvas.drawBitmap(mCurrent, null, mGlowRect, mGlowPaint);
     }
 
@@ -425,11 +435,7 @@ final class AmbientMode {
             }
             mGlowRect.set(bounds);
             int alpha = Math.round(255 * 0.5f * mAlpha / 255f);
-            if (mPrevious != null && mCrossfade < 1f) {
-                mGlowPaint.setAlpha(Math.round(alpha * (1f - mCrossfade)));
-                canvas.drawBitmap(mPrevious, null, mGlowRect, mGlowPaint);
-            }
-            mGlowPaint.setAlpha(Math.round(alpha * (mPrevious != null ? mCrossfade : 1f)));
+            mGlowPaint.setAlpha(alpha);
             canvas.drawBitmap(mCurrent, null, mGlowRect, mGlowPaint);
         }
     }

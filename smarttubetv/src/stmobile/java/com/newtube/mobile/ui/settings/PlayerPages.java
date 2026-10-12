@@ -207,6 +207,16 @@ final class PlayerPages {
                 on -> PlayerGesturePrefs.setSpeedStopAtNormal(context, on))
                 .enabledWhen(() -> PlayerGesturePrefs.isSpeedSwipeOn(context)));
 
+        // NEWTUBE(autoplay): the feed's muted preview (was under Video cards).
+        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_feed_autoplay_header)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_feed_autoplay),
+                context.getString(R.string.mobile_settings_feed_autoplay_summary),
+                () -> UiPrefs.isFeedAutoplay(context), on -> UiPrefs.setFeedAutoplay(context, on)));
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_feed_autoplay_wifi),
+                context.getString(R.string.mobile_settings_feed_autoplay_wifi_summary),
+                () -> UiPrefs.isFeedAutoplayWifiOnly(context), on -> UiPrefs.setFeedAutoplayWifiOnly(context, on))
+                .enabledWhen(() -> UiPrefs.isFeedAutoplay(context)));
+
         addProgressBarRows(context, rows);
 
         // NEWTUBE(black-bars)

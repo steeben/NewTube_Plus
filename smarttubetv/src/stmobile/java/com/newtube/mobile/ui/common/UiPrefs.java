@@ -179,6 +179,38 @@ public final class UiPrefs {
         notifyChanged();
     }
 
+    // NEWTUBE(autoplay): Wi-Fi only (default) - on mobile data the feed does not autoplay.
+    private static final String KEY_FEED_AUTOPLAY_WIFI = "feed_autoplay_wifi_only";
+
+    public static boolean isFeedAutoplayWifiOnly(Context context) {
+        return prefs(context).getBoolean(KEY_FEED_AUTOPLAY_WIFI, true);
+    }
+
+    public static void setFeedAutoplayWifiOnly(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_FEED_AUTOPLAY_WIFI, on).apply();
+        notifyChanged();
+    }
+
+    /** The feed may autoplay now: the setting is on, and (Wi-Fi only) the connection is not mobile data. */
+    public static boolean isFeedAutoplayAllowed(Context context) {
+        if (!isFeedAutoplay(context)) {
+            return false;
+        }
+        if (!isFeedAutoplayWifiOnly(context)) {
+            return true;
+        }
+        try {
+            android.net.ConnectivityManager manager = (android.net.ConnectivityManager)
+                    context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            android.net.Network network = manager != null ? manager.getActiveNetwork() : null;
+            android.net.NetworkCapabilities caps = network != null ? manager.getNetworkCapabilities(network) : null;
+            return caps != null && (caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                    || caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     // NEWTUBE(black-bars): look for black bars at the start of each video and crop them.
     private static final String KEY_BLACK_BARS = "detect_black_bars";
 

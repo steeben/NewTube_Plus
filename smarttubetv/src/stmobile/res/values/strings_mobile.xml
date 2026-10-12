@@ -550,6 +550,9 @@
     <string name="mobile_settings_wave_colors_live">From the video (updates as it plays)</string>
     <string name="mobile_settings_wave_colors_thumbnail">From the video\'s thumbnail</string>
     <string name="mobile_player_song">Song</string>
+    <string name="mobile_settings_feed_autoplay_header">Feed autoplay</string>
+    <string name="mobile_settings_feed_autoplay_wifi">Wi-Fi only</string>
+    <string name="mobile_settings_feed_autoplay_wifi_summary">Does not autoplay on mobile data</string>
     <string name="mobile_settings_feed_autoplay">Autoplay</string>
     <string name="mobile_settings_feed_autoplay_summary">Plays the video in the middle of the feed, muted. Only when the feed shows one column</string>
     <string name="mobile_autoplay_mute">Mute</string>

@@ -336,7 +336,7 @@ public class MobileBrowseActivity extends MobileActivity
             mFeedSkeleton.animate().cancel();
             mFeedSkeleton.setAlpha(1f);
             com.newtube.mobile.ui.common.FeedSkeletonStyle.apply(mFeedSkeleton, // NEWTUBE(ui-options)
-                    mLayoutManager == null || mLayoutManager.getSpanCount() == 1);
+                    mLayoutManager == null ? 1 : mLayoutManager.getSpanCount());
             mFeedSkeleton.setVisibility(View.VISIBLE);
             return;
         }
@@ -1736,6 +1736,7 @@ public class MobileBrowseActivity extends MobileActivity
             mSessionLists.put(mCurrentSectionId, new ArrayList<>(mCurrentVideos)); // NEWTUBE(tab-memory)
         }
         mCurrentSectionId = sectionId;
+        updateGridSpanCount(computeSpanCount()); // NEWTUBE(playlists-grid)
         paintCachedSnapshot(sectionId, switched);
         syncNavHighlight(sectionId);
 
@@ -1961,7 +1962,7 @@ public class MobileBrowseActivity extends MobileActivity
     };
 
     private int computeSpanCount() {
-        return com.newtube.mobile.ui.common.MobileGrid.computeSpanCount(this);
+        return sectionSpanCount(com.newtube.mobile.ui.common.MobileGrid.computeSpanCount(this));
     }
 
     private static int toMenuItemId(int sectionId) {
@@ -2487,7 +2488,7 @@ public class MobileBrowseActivity extends MobileActivity
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
 
-        updateGridSpanCount(com.newtube.mobile.ui.common.MobileGrid.computeSpanCount(newConfig));
+        updateGridSpanCount(sectionSpanCount(com.newtube.mobile.ui.common.MobileGrid.computeSpanCount(newConfig)));
     }
 
     // NEWTUBE(ui-mode): a recreated Browse (any config change the manifest doesn't absorb, or
@@ -2531,6 +2532,11 @@ public class MobileBrowseActivity extends MobileActivity
             }
             onYouPanelToggled();
         }
+    }
+
+    /** NEWTUBE(playlists-grid): the Playlists tab shows at least two cards per row. */
+    private int sectionSpanCount(int spans) {
+        return mCurrentSectionId == MediaGroup.TYPE_USER_PLAYLISTS ? Math.max(2, spans) : spans;
     }
 
     private void updateGridSpanCount(int spanCount) {
@@ -2627,6 +2633,7 @@ public class MobileBrowseActivity extends MobileActivity
             hideYouPanel();
             boolean switched = mCurrentSectionId != section.getId();
             mCurrentSectionId = section.getId();
+            updateGridSpanCount(computeSpanCount()); // NEWTUBE(playlists-grid)
             paintCachedSnapshot(section.getId(), switched);
 
             // The section may not be one of the sections shown in the bottom nav - e.g. the
