@@ -2,6 +2,26 @@
 
 All notable user-facing changes to NewTube, the phone app built on SmartTube.
 
+## 1.0.1 — 2026-10-11
+
+NewTube+ (steeben's fork). Updates now come from this fork's own releases.
+
+### New
+
+- **Feed autoplay settings.** Settings → Playback → Feed autoplay: turn autoplay
+  on or off, and play only on Wi-Fi (on by default).
+- **Settings opens with a spinner** instead of a blank page while it loads.
+
+### Fixed
+
+- **Thumbnails no longer flash when switching tabs.** Each tab keeps its
+  pictures, and the same video's thumbnail is never reloaded.
+- **No more sharp patches in the frosted bottom bar** while a preview plays
+  under it.
+- **Ambient mode no longer pulses** on a still picture.
+- **Playlists tab shows two columns**, with matching loading placeholders, and
+  the You tab no longer shows video placeholders.
+
 ## 1.15.0 — 2026-10-02 — Los Morancos Edition
 
 "Swipe up? — Up! And now swipe it down. — Down!" A fictional homage to Los

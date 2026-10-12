@@ -1,14 +1,26 @@
 name: Fork release
 
-# Pushing a change to RELEASE_NOTES.md on test-build builds the APKs and attaches them to a GitHub release.
+# NewTube+ (steeben's fork). A change to RELEASE_NOTES.md pushed to test-build builds the signed
+# release APKs for the versionName in smarttubetv/build.gradle and publishes them as release
+# v<versionName>, with newtube.json - the manifest the in-app updater reads from this repo's latest
+# release. A version that is already released is skipped.
+#
+# Signing: repository secrets FORK_KEYSTORE_BASE64 (the .jks, base64) and FORK_KEYSTORE_PASSWORD
+# (store and key password; key alias "newtube"). Every release must use the same key, or the
+# update will not install over the app.
 
 on:
   push:
     branches: [test-build]
     paths: [RELEASE_NOTES.md]
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: fork-release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -21,20 +33,86 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
+      - name: Version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name=$(grep -A1 -E '^\s*versionCode 1[0-9]{4}$' smarttubetv/build.gradle | grep -oE 'versionName "[^"]+"' | cut -d'"' -f2)
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=v$name" >> "$GITHUB_OUTPUT"
+          if gh release view "v$name" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "v$name is already released - nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Releasing v$name"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up JDK 17
+        if: steps.version.outputs.skip == 'false'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
 
-      - name: Build the APKs
-        run: ./gradlew --no-daemon :smarttubetv:assembleStmobileDebug
+      - name: Configure signing
+        if: steps.version.outputs.skip == 'false'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FORK_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.FORK_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error title=Signing key missing::Add the repository secrets FORK_KEYSTORE_BASE64 and FORK_KEYSTORE_PASSWORD (Settings > Secrets and variables > Actions), then run this workflow again."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=newtube"
+            echo "keyPassword=$KEYSTORE_PASSWORD"
+          } > keystore.properties
+
+      - name: Build the release APKs
+        if: steps.version.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :smarttubetv:assembleStmobileRelease 2>&1 | tee build.log
+          mkdir dist
+          cp smarttubetv/build/outputs/renamed_apks/stmobileRelease/NewTube_*.apk dist/
+          ls -l dist
+
+      - name: Report build errors
+        if: failure()
+        run: |
+          msg=$(grep -a -E "error:|^e: |ERROR:|What went wrong|^\* What|\.java:[0-9]+:" -A3 build.log 2>/dev/null | grep -av "^Note:" | head -80)
+          msg=${msg//'%'/'%25'}
+          msg=${msg//$'\n'/'%0A'}
+          echo "::error title=Build errors::${msg}"
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f keystore.properties "$RUNNER_TEMP/release.jks"
+
+      - name: Write the update manifest
+        if: steps.version.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          # Only this version: older CHANGELOG entries are upstream NewTube's (other version codes).
+          python3 tools/update_manifest.py --tag "${{ steps.version.outputs.tag }}" --dist dist \
+            --out dist/newtube.json --versions 1
+          cat dist/newtube.json
 
       - name: Publish the release
+        if: steps.version.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ls -l smarttubetv/build/outputs/renamed_apks/stmobileDebug/
-          gh release create v1.0 --target "$GITHUB_SHA" smarttubetv/build/outputs/renamed_apks/stmobileDebug/*.apk \
-            --repo "$GITHUB_REPOSITORY" --title "NewTube+ 1.0" --notes-file RELEASE_NOTES.md
+          set -euo pipefail
+          gh release create "${{ steps.version.outputs.tag }}" dist/*.apk dist/newtube.json \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "NewTube+ ${{ steps.version.outputs.name }}" --notes-file RELEASE_NOTES.md

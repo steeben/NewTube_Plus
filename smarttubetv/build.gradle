@@ -307,15 +307,17 @@ android {
             // package name never has to change if the app is ever renamed — "arc" ties to the
             // arch-"n" launcher mark (Catalan for "arch"). This ID is permanent once released;
             // do not couple it to the marketing name. See docs/gtm + the legal-risk memo.
-            applicationId "io.github.aleixrodriala.arc"
+            // NewTube+ (steeben's fork): its own app id, so it installs next to upstream NewTube
+            // and only ever takes updates signed with the fork's key.
+            applicationId "io.github.steeben.newtube"
             minSdk = 24 // media3 1.10.x floor is 23; 24 = project-wide minimum
             targetSdk = project.ext.targetSdkVersion
             // NewTube versions independently of upstream SmartTube (defaultConfig carries the
             // fork-point 31.97/2387). versionCode starts at 10000 - above upstream's code so
             // existing test installs upgrade in place - and encodes the version:
             // 1.0.0 -> 10000, 1.0.1 -> 10001, 1.1.0 -> 10100, 2.0.0 -> 20000.
-            versionCode 11500
-            versionName "1.15.0"
+            versionCode 10001
+            versionName "1.0.1"
         }
     }
 }
