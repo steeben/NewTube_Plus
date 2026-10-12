@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/assets/icon.png" width="112" height="112" alt="NewTube+ icon: a red circle with a play button">
+<img src=".github/assets/logo.png" width="112" height="112" alt="NewTube+ icon: a red circle with a play button">
 
 # NewTube+
 
