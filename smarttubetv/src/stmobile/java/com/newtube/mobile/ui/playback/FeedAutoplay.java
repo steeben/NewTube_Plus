@@ -57,6 +57,14 @@ public final class FeedAutoplay {
     /** What the host decides: whether a preview may play now. */
     public interface Gate {
         boolean canAutoplay();
+
+        /**
+         * NEWTUBE(frosted): the preview drew a new frame (video, or its line moved) in {@code frame}.
+         * Glass over it must record it again whole: left alone, the GPU refreshed only the changed
+         * patch of the blur, which showed as small sharp rectangles in the bar.
+         */
+        default void onPreviewFrame(@NonNull View frame) {
+        }
     }
 
     /** The cards' parts the preview uses. */
@@ -473,11 +481,27 @@ public final class FeedAutoplay {
         }
     }
 
+    /** NEWTUBE(frosted): each display frame while the preview shows, the host hears of it. */
+    private final Runnable mFrameLoop = new Runnable() {
+        @Override
+        public void run() {
+            ViewGroup frame = mFrame;
+            if (!mShown || frame == null) {
+                return;
+            }
+            mGate.onPreviewFrame(frame);
+            frame.postOnAnimation(this);
+        }
+    };
+
     private void showViews() {
         if (mShown) {
             return;
         }
         mShown = true;
+        if (mFrame != null) {
+            mFrame.postOnAnimation(mFrameLoop);
+        }
         for (View view : new View[] {mTexture, mSpeaker, mLine}) {
             if (view != null) {
                 view.animate().alpha(1f).setDuration(260).start();
@@ -529,6 +553,9 @@ public final class FeedAutoplay {
         mSpeaker = null;
         mLine = null;
         mLineScrubbing = false;
+        if (mFrame != null) {
+            mFrame.removeCallbacks(mFrameLoop);
+        }
         mFrame = null;
         mPlayingId = null;
         mShown = false;

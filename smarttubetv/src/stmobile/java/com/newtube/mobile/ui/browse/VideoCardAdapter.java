@@ -564,7 +564,68 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             int qb = b.indexOf('?');
             String pathA = qa >= 0 ? a.substring(0, qa) : a;
             String pathB = qb >= 0 ? b.substring(0, qb) : b;
-            return pathA.equals(pathB) && pathA.contains("ytimg.com/");
+            if (pathA.equals(pathB) && pathA.contains("ytimg.com/")) {
+                return true;
+            }
+            // The same video's picture at another size (hqdefault / hq720 / sddefault...): a fresh
+            // page often names another one than the remembered page did. It is the same picture.
+            String idA = ytimgVideoId(pathA);
+            return idA != null && idA.equals(ytimgVideoId(pathB));
+        }
+
+        /** The video id of an i.ytimg.com/vi/ID/... (or vi_webp) picture link, else null. */
+        @androidx.annotation.Nullable
+        static String ytimgVideoId(String path) {
+            int host = path.indexOf("ytimg.com/");
+            if (host < 0) {
+                return null;
+            }
+            String rest = path.substring(host + "ytimg.com/".length());
+            int slash = rest.indexOf('/');
+            if (slash < 0) {
+                return null;
+            }
+            String kind = rest.substring(0, slash);
+            if (!kind.equals("vi") && !kind.equals("vi_webp")) {
+                return null; // an_webp (animated), sb (storyboards): not the card picture
+            }
+            String tail = rest.substring(slash + 1);
+            int end = tail.indexOf('/');
+            String id = end >= 0 ? tail.substring(0, end) : null;
+            String file = end >= 0 ? tail.substring(end + 1) : "";
+            // Frames like 1.jpg / 2.jpg / hq1.jpg are other moments of the video, not its thumbnail.
+            if (id == null || file.matches("(hq|mq|sd)?[0-9]+\\.(jpg|webp)")) {
+                return null;
+            }
+            return id;
+        }
+
+        /** NEWTUBE(tab-memory): the video whose picture the thumbnail shows (null: none). */
+        @androidx.annotation.Nullable
+        private String mVideoIdShown;
+
+        /** The picture on screen, copied (Glide's bitmap returns to its pool once the load is cleared). */
+        @androidx.annotation.Nullable
+        private android.graphics.drawable.Drawable copyOfShown() {
+            android.graphics.Bitmap copy = drawShown();
+            return copy != null ? new android.graphics.drawable.BitmapDrawable(mThumbnail.getResources(), copy) : null;
+        }
+
+        @androidx.annotation.Nullable
+        private android.graphics.Bitmap drawShown() {
+            if (mThumbnail.getDrawable() == null || mThumbnail.getWidth() <= 0 || mThumbnail.getHeight() <= 0) {
+                return null;
+            }
+            try {
+                android.graphics.Bitmap copy = android.graphics.Bitmap.createBitmap(mThumbnail.getWidth(),
+                        mThumbnail.getHeight(), android.graphics.Bitmap.Config.RGB_565);
+                android.graphics.Canvas canvas = new android.graphics.Canvas(copy);
+                canvas.concat(mThumbnail.getImageMatrix());
+                mThumbnail.getDrawable().draw(canvas);
+                return copy;
+            } catch (RuntimeException | OutOfMemoryError e) {
+                return null;
+            }
         }
 
         /** NEWTUBE(tab-memory): a copy of the picture on screen, for when its tab is shown again. */
@@ -576,19 +637,9 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             if (TabPictures.get(mBoundThumbUrl, mThumbnail.getWidth()) != null) {
                 return;
             }
-            try {
-                // A copy, drawn as shown: Glide's own bitmap goes back to its pool once released.
-                android.graphics.Bitmap copy = android.graphics.Bitmap.createBitmap(mThumbnail.getWidth(),
-                        mThumbnail.getHeight(), android.graphics.Bitmap.Config.RGB_565);
-                android.graphics.Canvas canvas = new android.graphics.Canvas(copy);
-                android.graphics.drawable.Drawable drawable = mThumbnail.getDrawable();
-                canvas.save();
-                canvas.concat(mThumbnail.getImageMatrix());
-                drawable.draw(canvas);
-                canvas.restore();
+            android.graphics.Bitmap copy = drawShown(); // drawn as shown, Glide's bitmap left alone
+            if (copy != null) {
                 TabPictures.put(mBoundThumbUrl, copy);
-            } catch (RuntimeException | OutOfMemoryError ignored) {
-                // no copy: the card loads as before
             }
         }
 
@@ -618,12 +669,18 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
                 Glide.with(context.getApplicationContext()).clear(mThumbnail); // a load still on its way
                 mThumbnail.setImageBitmap(held);
                 mBoundThumbUrl = thumbnailUrl;
+                mVideoIdShown = video.videoId;
                 mThumbReadyAt = android.os.SystemClock.uptimeMillis() - 1000;
                 mBadge.post(mBadge::invalidate);
                 return;
             }
+            // NEWTUBE(tab-memory): the card already shows a picture of this video (a new one is
+            // coming - DeArrow, another size): the new one fades in over it, not over a dark card.
+            android.graphics.drawable.Drawable previous = !still && mThumbReadyAt > 0 && mVideoIdShown != null
+                    && mVideoIdShown.equals(video.videoId) ? copyOfShown() : null;
             mThumbReadyAt = 0;
             mBoundThumbUrl = thumbnailUrl;
+            mVideoIdShown = video.videoId;
 
             int w = thumbWidth(context);
             com.bumptech.glide.RequestBuilder<android.graphics.drawable.Drawable> request =
@@ -650,6 +707,9 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             }
 
             request = request.addListener(mBadgeRefresh); // NEWTUBE(frosted): the badge's glass shows it
+            if (previous != null) {
+                request = request.placeholder(previous);
+            }
             request.into(mThumbnail);
         }
 
@@ -696,6 +756,7 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
         public void unbind() {
             mVideo = null;
             mBoundThumbUrl = null;
+            mVideoIdShown = null;
             Glide.with(itemView.getContext().getApplicationContext()).clear(mThumbnail);
         }
     }
@@ -785,7 +846,9 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
 
         private static String key(String url) {
             int query = url.indexOf('?');
-            return query >= 0 && url.contains("ytimg.com/") ? url.substring(0, query) : url;
+            String path = query >= 0 && url.contains("ytimg.com/") ? url.substring(0, query) : url;
+            String id = VideoViewHolder.ytimgVideoId(path);
+            return id != null ? "yt:" + id : path; // any size of a video's picture is the same picture
         }
 
         @androidx.annotation.Nullable

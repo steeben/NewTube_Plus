@@ -770,13 +770,43 @@ public class MobileBrowseActivity extends MobileActivity
                 }
             }
         });
-        mAutoplay = new com.newtube.mobile.ui.playback.FeedAutoplay(this, mContentGrid, () ->
+        com.newtube.mobile.ui.playback.FeedAutoplay.Gate gate = () ->
                 !mYouShowing
                         && mContentGrid.getVisibility() == View.VISIBLE
                         && (mLayoutManager == null || mLayoutManager.getSpanCount() == 1)
                         && !com.newtube.mobile.ui.playback.MiniPlayerBridge.isActive()
                         && (mTabSlider == null || !mTabSlider.isBusy())
-                        && !isDownloadsSectionShowing());
+                        && !isDownloadsSectionShowing();
+        mAutoplay = new com.newtube.mobile.ui.playback.FeedAutoplay(this, mContentGrid,
+                new com.newtube.mobile.ui.playback.FeedAutoplay.Gate() {
+            @Override
+            public boolean canAutoplay() {
+                return gate.canAutoplay();
+            }
+
+            @Override
+            public void onPreviewFrame(@androidx.annotation.NonNull View frame) {
+                invalidateGlassOver(frame);
+            }
+        });
+    }
+
+    private final int[] mGlassProbe = new int[2];
+
+    /** NEWTUBE(frosted): the glass bars that {@code view} reaches under record it again. */
+    private void invalidateGlassOver(View view) {
+        view.getLocationInWindow(mGlassProbe);
+        int top = mGlassProbe[1] - Math.round(12 * getResources().getDisplayMetrics().density); // the dot
+        int bottom = mGlassProbe[1] + view.getHeight() + Math.round(12 * getResources().getDisplayMetrics().density);
+        for (View glass : new View[] {mTopGlass, mNavGlass, mMiniGlass}) {
+            if (glass == null || !glass.isShown()) {
+                continue;
+            }
+            glass.getLocationInWindow(mGlassProbe);
+            if (bottom > mGlassProbe[1] && top < mGlassProbe[1] + glass.getHeight()) {
+                glass.invalidate();
+            }
+        }
     }
 
     private void setupTabSlider() {
