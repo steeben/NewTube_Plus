@@ -167,6 +167,22 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
         }
     }
 
+    /**
+     * NEWTUBE(tab-memory): the tab on screen is being left - keep the pictures of its cards on
+     * screen (and just off it), so coming back puts them up at once instead of reloading them.
+     */
+    public void rememberPictures() {
+        if (mRecycler == null) {
+            return;
+        }
+        for (int i = 0; i < mRecycler.getChildCount(); i++) {
+            RecyclerView.ViewHolder holder = mRecycler.getChildViewHolder(mRecycler.getChildAt(i));
+            if (holder instanceof VideoViewHolder) {
+                ((VideoViewHolder) holder).rememberPicture();
+            }
+        }
+    }
+
     /** NEWTUBE(ui-options): General's card options changed, or the column count did: redraw. */
     @SuppressLint("NotifyDataSetChanged")
     private void onAppearanceChanged() {
@@ -551,6 +567,31 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             return pathA.equals(pathB) && pathA.contains("ytimg.com/");
         }
 
+        /** NEWTUBE(tab-memory): a copy of the picture on screen, for when its tab is shown again. */
+        void rememberPicture() {
+            if (mBoundThumbUrl == null || mThumbReadyAt <= 0 || mThumbnail.getDrawable() == null
+                    || mThumbnail.getWidth() <= 0 || mThumbnail.getHeight() <= 0) {
+                return;
+            }
+            if (TabPictures.get(mBoundThumbUrl, mThumbnail.getWidth()) != null) {
+                return;
+            }
+            try {
+                // A copy, drawn as shown: Glide's own bitmap goes back to its pool once released.
+                android.graphics.Bitmap copy = android.graphics.Bitmap.createBitmap(mThumbnail.getWidth(),
+                        mThumbnail.getHeight(), android.graphics.Bitmap.Config.RGB_565);
+                android.graphics.Canvas canvas = new android.graphics.Canvas(copy);
+                android.graphics.drawable.Drawable drawable = mThumbnail.getDrawable();
+                canvas.save();
+                canvas.concat(mThumbnail.getImageMatrix());
+                drawable.draw(canvas);
+                canvas.restore();
+                TabPictures.put(mBoundThumbUrl, copy);
+            } catch (RuntimeException | OutOfMemoryError ignored) {
+                // no copy: the card loads as before
+            }
+        }
+
         /** NEWTUBE(tab-slide): when this card's thumbnail was put up (0: not yet). */
         private long mThumbReadyAt;
 
@@ -567,6 +608,18 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             boolean still = com.newtube.mobile.ui.playback.FeedAutoplay.takeStill(mThumbnail);
             if (!still && samePicture(thumbnailUrl, mBoundThumbUrl) && mThumbnail.getDrawable() != null
                     && mThumbReadyAt > 0) {
+                return;
+            }
+            // NEWTUBE(tab-memory): this picture as it was on screen when its tab was left - up at
+            // once, no load and no fade. A tab switch rebinds the whole grid, and Glide brought the
+            // pictures back from its disk cache with a fade in, a moment after the tab landed.
+            android.graphics.Bitmap held = !still ? TabPictures.get(thumbnailUrl, mThumbnail.getWidth()) : null;
+            if (held != null) {
+                Glide.with(context.getApplicationContext()).clear(mThumbnail); // a load still on its way
+                mThumbnail.setImageBitmap(held);
+                mBoundThumbUrl = thumbnailUrl;
+                mThumbReadyAt = android.os.SystemClock.uptimeMillis() - 1000;
+                mBadge.post(mBadge::invalidate);
                 return;
             }
             mThumbReadyAt = 0;
@@ -709,6 +762,48 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
         void unbind() {
             mVideo = null;
             Glide.with(itemView.getContext().getApplicationContext()).clear(mAvatar);
+        }
+    }
+
+    /**
+     * NEWTUBE(tab-memory): the pictures of the cards that were on screen when their tab was left,
+     * drawn at their size (so they go back up as they were), most recent last. Keyed by the
+     * picture's link without its signature (samePicture).
+     */
+    static final class TabPictures {
+        private static final int MAX = 24; // ~4 cards a tab, 1.3 MB each at full width
+        private static final java.util.LinkedHashMap<String, android.graphics.Bitmap> sPictures =
+                new java.util.LinkedHashMap<String, android.graphics.Bitmap>(MAX, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(java.util.Map.Entry<String, android.graphics.Bitmap> eldest) {
+                        return size() > MAX;
+                    }
+                };
+
+        private TabPictures() {
+        }
+
+        private static String key(String url) {
+            int query = url.indexOf('?');
+            return query >= 0 && url.contains("ytimg.com/") ? url.substring(0, query) : url;
+        }
+
+        @androidx.annotation.Nullable
+        static android.graphics.Bitmap get(@androidx.annotation.Nullable String url, int width) {
+            if (url == null) {
+                return null;
+            }
+            android.graphics.Bitmap bitmap = sPictures.get(key(url));
+            // Drawn for another card width (columns, rotation): it would be stretched - load it.
+            return bitmap != null && (width <= 0 || bitmap.getWidth() == width) ? bitmap : null;
+        }
+
+        static void put(String url, android.graphics.Bitmap bitmap) {
+            sPictures.put(key(url), bitmap);
+        }
+
+        static void clear() {
+            sPictures.clear();
         }
     }
 }

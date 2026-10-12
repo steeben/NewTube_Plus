@@ -88,15 +88,49 @@ public class MobileSettingsActivity extends MobileActivity {
         });
 
         if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction()
-                    .setReorderingAllowed(true)
-                    .add(R.id.settings_container, SettingsPageFragment.newInstance(SettingsPages.ROOT))
-                    .commitNow();
-            String page = getIntent().getStringExtra(EXTRA_PAGE);
-            if (page != null && !SettingsPages.ROOT.equals(page)) {
-                openPage(null, page, false, null);
-            }
+            showLoadingThenBuild();
         }
+    }
+
+    /**
+     * NEWTUBE(settings-loading): building the top level reads every setting's current value and can
+     * take a moment (up to ~2 s on a cold start); until now the screen sat blank meanwhile, as if
+     * frozen. The first frame is the page colour with a spinner - the platform one, whose animation
+     * runs on the render thread and so keeps turning while the page is built - and the page goes in
+     * right after that frame is drawn.
+     */
+    private void showLoadingThenBuild() {
+        android.widget.FrameLayout container = findViewById(R.id.settings_container);
+        android.widget.ProgressBar spinner = new android.widget.ProgressBar(this);
+        spinner.setIndeterminate(true);
+        spinner.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(
+                com.newtube.mobile.ui.common.UiPrefs.getAccent(this)));
+        int size = Math.round(40 * getResources().getDisplayMetrics().density);
+        container.addView(spinner, new android.widget.FrameLayout.LayoutParams(size, size, android.view.Gravity.CENTER));
+        View decor = getWindow().getDecorView();
+        decor.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                decor.getViewTreeObserver().removeOnPreDrawListener(this);
+                // After this frame (the spinner's) has gone out.
+                decor.post(() -> {
+                    if (isFinishing() || isDestroyed() || getSupportFragmentManager().isStateSaved()) {
+                        container.removeView(spinner);
+                        return;
+                    }
+                    getSupportFragmentManager().beginTransaction()
+                            .setReorderingAllowed(true)
+                            .add(R.id.settings_container, SettingsPageFragment.newInstance(SettingsPages.ROOT))
+                            .commitNow();
+                    container.removeView(spinner);
+                    String page = getIntent().getStringExtra(EXTRA_PAGE);
+                    if (page != null && !SettingsPages.ROOT.equals(page)) {
+                        openPage(null, page, false, null);
+                    }
+                });
+                return true;
+            }
+        });
     }
 
     /** Opens a page of the tree on top of {@code from}, the page whose row was tapped. */

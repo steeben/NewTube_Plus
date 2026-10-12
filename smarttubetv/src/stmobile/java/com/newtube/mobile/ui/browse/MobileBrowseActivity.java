@@ -1811,6 +1811,7 @@ public class MobileBrowseActivity extends MobileActivity
             // one frame with the animator parked, pinned to the top, and fades in.
             parkItemAnimator();
             mSectionSwapPending = true;
+            mAdapter.rememberPictures(); // NEWTUBE(tab-memory): the cards of the tab being left
             mAdapter.submitList(new ArrayList<>(mCurrentVideos), this::onSectionSwapCommitted);
         } else if (mSectionSwapPending) {
             // A re-paint landing before the switch's own commit supersedes it: it finishes the switch.
@@ -2494,6 +2495,14 @@ public class MobileBrowseActivity extends MobileActivity
         }
 
         super.onDestroy();
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_BACKGROUND) {
+            VideoCardAdapter.TabPictures.clear(); // NEWTUBE(tab-memory): only a nicety
+        }
     }
 
     @Override
