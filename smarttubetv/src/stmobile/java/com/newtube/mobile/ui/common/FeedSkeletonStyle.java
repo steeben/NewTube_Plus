@@ -83,6 +83,15 @@ public final class FeedSkeletonStyle {
     }
 
     private static final int KEY_COLUMNS = R.id.mobile_feed_skeleton;
+    /** MobileSkeletonFeedCard's layout_marginBottom. */
+    private static final int CARD_GAP_DP = 20;
+    /**
+     * A grid card's text block (title, subtitle, padding), measured on a Playlists card: the lines
+     * sit where its two lines of text do and the next row starts where the next card does.
+     */
+    private static final int GRID_TITLE_TOP_DP = 14;
+    private static final int GRID_SUBTITLE_TOP_DP = 9;
+    private static final int GRID_CARD_GAP_DP = 34;
 
     /** The single-column skeleton is the layout file's; rows built for columns are dropped for it. */
     private static void restoreSingleColumn(ViewGroup root) {
@@ -93,9 +102,13 @@ public final class FeedSkeletonStyle {
         root.setTag(KEY_COLUMNS, null);
         root.removeAllViews();
         Context context = root.getContext();
+        float density = context.getResources().getDisplayMetrics().density;
         for (int i = 0; i < 3; i++) {
-            root.addView(ghostCard(context, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)));
+            // As MobileSkeletonFeedCard: a style's layout_ attributes do not apply to views made in code.
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            params.bottomMargin = Math.round(CARD_GAP_DP * density);
+            root.addView(ghostCard(context, params));
         }
     }
 
@@ -124,17 +137,18 @@ public final class FeedSkeletonStyle {
         return params;
     }
 
-    /** Rows of {@code columns} ghost cards, laid out like the grid's cards (8dp around each). */
+    /** Rows of {@code columns} ghost cards, laid out like the grid's cards (8dp padding, 8dp around each). */
     private static void applyColumns(ViewGroup root, int columns) {
         Resources res = root.getResources();
         Context context = root.getContext();
         float density = res.getDisplayMetrics().density;
         boolean rounded = UiPrefs.isRoundedThumbnails(context);
         int spacing = res.getDimensionPixelSize(R.dimen.mobile_card_spacing);
-        root.setPadding(0, root.getPaddingTop(), 0, root.getPaddingBottom());
+        // As the grid: its own side padding, then each card's margin on both sides.
+        root.setPadding(spacing, root.getPaddingTop(), spacing, root.getPaddingBottom());
         View parent = (View) root.getParent();
         int width = parent != null && parent.getWidth() > 0 ? parent.getWidth() : res.getDisplayMetrics().widthPixels;
-        int cardWidth = width / columns - 2 * spacing;
+        int cardWidth = (width - 2 * spacing) / columns - 2 * spacing;
         int thumbHeight = Math.round(cardWidth * 9f / 16f);
         int textInset = Math.round(4 * density);
         Object built = root.getTag(KEY_COLUMNS);
@@ -151,6 +165,7 @@ public final class FeedSkeletonStyle {
                             ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
                     params.setMarginStart(spacing);
                     params.setMarginEnd(spacing);
+                    params.bottomMargin = Math.round(GRID_CARD_GAP_DP * density);
                     row.addView(ghostCard(context, params));
                 }
                 root.addView(row);
@@ -169,7 +184,13 @@ public final class FeedSkeletonStyle {
                         part.setBackgroundResource(rounded ? R.drawable.bg_skeleton_block
                                 : R.color.mobile_color_placeholder);
                     } else if (params instanceof ViewGroup.MarginLayoutParams) {
-                        ((ViewGroup.MarginLayoutParams) params).setMarginStart(textInset);
+                        ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
+                        margins.setMarginStart(textInset);
+                        margins.leftMargin = textInset;
+                        margins.topMargin = Math.round((j == 1 ? GRID_TITLE_TOP_DP : GRID_SUBTITLE_TOP_DP) * density);
+                        if (j == 2) {
+                            params.width = Math.round(cardWidth * 0.4f); // a subtitle, not a title
+                        }
                     }
                     part.setLayoutParams(params);
                 }
