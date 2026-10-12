@@ -30,6 +30,7 @@ import com.liskovsoft.smartyoutubetv2.common.utils.AppDialogUtil;
 import com.liskovsoft.smartyoutubetv2.common.utils.Utils;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.liskovsoft.youtubeapi.service.internal.MediaServiceData;
+import com.newtube.mobile.ui.common.UiPrefs;
 import com.newtube.mobile.player.SabrSourcePreference;
 import com.newtube.mobile.ui.playback.MiniPlayerStyle;
 import com.newtube.mobile.ui.playback.PlayerGesturePrefs;
