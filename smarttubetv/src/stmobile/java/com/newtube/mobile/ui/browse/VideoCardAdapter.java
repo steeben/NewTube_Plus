@@ -44,7 +44,7 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
     private final View.OnLayoutChangeListener mSpanWatcher =
             (v, l, t, r, b, ol, ot, or, ob) -> {
                 if (mAppearanceSpans != -1 && spanCount() != mAppearanceSpans) {
-                    v.post(this::onAppearanceChanged); // rotated into (or out of) one column
+                    v.post(this::onSpansChanged); // rotated into (or out of) one column
                 }
             };
 
@@ -130,6 +130,14 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
     }
 
     @Override
+    public void onViewAttachedToWindow(@NonNull RecyclerView.ViewHolder holder) {
+        super.onViewAttachedToWindow(holder);
+        if (holder instanceof VideoViewHolder) {
+            applyAppearance((VideoViewHolder) holder); // no-op unless the columns changed meanwhile
+        }
+    }
+
+    @Override
     public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
         super.onAttachedToRecyclerView(recyclerView);
         mRecycler = recyclerView;
@@ -152,6 +160,27 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
     private void onAppearanceChanged() {
         mAppearanceSpans = -1;
         notifyDataSetChanged();
+    }
+
+    /**
+     * NEWTUBE(playlists-grid): the column count changed (a rotation, or a tab with its own columns
+     * - Playlists has two): the cards on screen get their new margins where they are. Rebinding
+     * them all (notifyDataSetChanged) reloaded every thumbnail, a flash on each tab switch.
+     */
+    private void onSpansChanged() {
+        if (mRecycler == null) {
+            onAppearanceChanged();
+            return;
+        }
+        for (int i = 0; i < mRecycler.getChildCount(); i++) {
+            RecyclerView.ViewHolder holder = mRecycler.getChildViewHolder(mRecycler.getChildAt(i));
+            if (holder instanceof VideoViewHolder) {
+                applyAppearance((VideoViewHolder) holder);
+            }
+        }
+        // Cards just off screen come back from RecyclerView's cache without a bind: they are
+        // styled as they attach (onViewAttachedToWindow).
+        mAppearanceSpans = spanCount();
     }
 
     private int spanCount() {
