@@ -453,6 +453,7 @@ public final class LiquidNav {
                         int save = recording.save();
                         recording.translate(mAt[0] - mRootAt[0], mAt[1] - mRootAt[1]);
                         recording.clipRect(0, 0, layer.getWidth(), layer.getHeight());
+                        recording.translate(-layer.getScrollX(), -layer.getScrollY()); // draw() leaves it out
                         layer.draw(recording);
                         recording.restoreToCount(save);
                     }

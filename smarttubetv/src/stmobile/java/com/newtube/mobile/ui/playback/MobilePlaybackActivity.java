@@ -1537,6 +1537,7 @@ public class MobilePlaybackActivity extends MobileActivity
                         // NEWTUBE(pills): a pill bar rests a gap above the navigation.
                         float pillGap = MiniPlayerStyle.isPill(this)
                                 ? MiniPlayerStyle.pillGapPx(getResources().getDisplayMetrics().density) : 0f;
+                        mBarExpanding = true; // before the chrome is built (see showBarChrome)
                         barSlide = setupBarSlide(miniBounds.top - containerLocation[1],
                                 miniBounds.height(), miniBounds.width(),
                                 mContainer.getHeight() - bottomNav - pillGap);
@@ -1559,18 +1560,21 @@ public class MobilePlaybackActivity extends MobileActivity
                     // leaves the bar): the host's bar folds under our first frame, and the page
                     // rises from the bar - under the finger, if the bar was pulled up.
                     boolean pulled = MiniPlayerBridge.hasPendingExpandDrag();
-                    FrameGate.afterNextFrame(mContainer, HOST_CARD_FOLD_WAIT_MS,
-                            () -> MiniPlayerBridge.foldHostCard(() -> {
-                                if (isFinishing() || isDestroyed() || mMorphAnimator != null) {
-                                    return;
-                                }
-                                if (pulled) {
-                                    armExpandWatchdog();
-                                    MiniPlayerBridge.attachExpandDrag(mExpandDrag);
-                                } else {
-                                    animateMorph(0f, 340, Motion.EMPHASIZED, this::resetMorph);
-                                }
-                            }));
+                    Runnable start = () -> {
+                        if (isFinishing() || isDestroyed() || mMorphAnimator != null) {
+                            return;
+                        }
+                        if (pulled) {
+                            armExpandWatchdog();
+                            MiniPlayerBridge.attachExpandDrag(mExpandDrag);
+                        } else {
+                            animateMorph(0f, mBarPill ? 420 : 340, Motion.EMPHASIZED, this::finishExpand);
+                        }
+                    };
+                    // NEWTUBE(pills): the host's pill stays on screen under the expand (the video
+                    // grows over it, then the page rises over it) and folds once the page is open.
+                    FrameGate.afterNextFrame(mContainer, HOST_CARD_FOLD_WAIT_MS, mBarPill ? start
+                            : () -> MiniPlayerBridge.foldHostCard(start));
                     return;
                 }
                 // NEWTUBE(motion): the host kept its card up, frozen (MiniPlayerBridge
@@ -5931,6 +5935,13 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mOutlineCropLocalPx;
     /** NEWTUBE(mini-style): the outline's top corners only (the video-background bar), local px. */
     private float mOutlineTopRadiusPx;
+    /**
+     * NEWTUBE(pills): the pill bar's slide rounds its two ends apart (local px): the thumbnail's
+     * left end follows the pill's, its right corners are the video cards'. Off: {@link #mMorphCornerLocalPx}.
+     */
+    private boolean mOutlinePerEnd;
+    private float mOutlineStartRadiusPx;
+    private float mOutlineEndRadiusPx;
     @Nullable
     private android.view.ViewOutlineProvider mVideoAreaOutline;
     private final android.view.ViewOutlineProvider mMorphOutline = new android.view.ViewOutlineProvider() {
@@ -5939,6 +5950,19 @@ public class MobilePlaybackActivity extends MobileActivity
             int height = view.getHeight();
             int crop = Math.round(Math.min(height / 2f - 1f, Math.max(0f, mOutlineCropLocalPx)));
             crop = Math.max(0, crop);
+            if (mOutlinePerEnd) {
+                float a = mOutlineStartRadiusPx;
+                float b = mOutlineEndRadiusPx;
+                if (android.os.Build.VERSION.SDK_INT >= 33 && Math.abs(a - b) > 0.5f) {
+                    android.graphics.Path path = new android.graphics.Path();
+                    path.addRoundRect(0, crop, view.getWidth(), height - crop, new float[] {a, a, b, b, b, b, a, a},
+                            android.graphics.Path.Direction.CW);
+                    outline.setPath(path);
+                } else {
+                    outline.setRoundRect(0, crop, view.getWidth(), height - crop, a);
+                }
+                return;
+            }
             if (mOutlineTopRadiusPx > 0f && android.os.Build.VERSION.SDK_INT >= 33) {
                 // NEWTUBE(mini-style): the video-background bar's rounded top (a path clips from 13).
                 android.graphics.Path path = new android.graphics.Path();
@@ -5973,6 +5997,18 @@ public class MobilePlaybackActivity extends MobileActivity
      */
     private float mBarLeft;
     private float mBarInset;
+    /**
+     * NEWTUBE(pills): the bar is a pill. Its slide has two legs: between the player and the whole
+     * pill (the video narrows to the pill and rounds into its ends as it comes down) and, on the
+     * plain pill bar, between the whole pill and its thumbnail. The expand runs them backwards:
+     * the thumbnail grows over the pill, which stays on screen, then the video slides up.
+     */
+    private boolean mBarPill;
+    /** The pill's sides, container px. */
+    private float mBarPillLeft;
+    private float mBarPillWidth;
+    /** The plain pill's thumbnail's right corners, px on screen. */
+    private float mBarThumbEndRadius;
     /** The fraction at which the slide down ends and the sideways shrink begins. */
     private float mBarSplit = 1f;
     /** Finger travel for the whole bar minimize. */
@@ -6034,7 +6070,7 @@ public class MobilePlaybackActivity extends MobileActivity
             boolean open = cancelled || velocityY < -flick || (velocityY <= flick && mMorphFraction < 0.85f);
             mDragTravelPx = Math.max(1f, mBarTravelPx);
             if (open) {
-                settleMorph(0f, velocityY, MobilePlaybackActivity.this::resetMorph);
+                settleMorph(0f, velocityY, MobilePlaybackActivity.this::finishExpand);
             } else {
                 // Let go near the bar: back into it, as a minimize.
                 mDismissDragActive = true;
@@ -6075,6 +6111,31 @@ public class MobilePlaybackActivity extends MobileActivity
 
     /** True while the line stands in for the seek bar. */
     private boolean updateMorphLine(float f, float bottom) {
+        if (mContainer == null || mVideoArea == null) {
+            return updateMorphLine(f, bottom, 0f, 0f, 0f, 0f);
+        }
+        Rect box = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
+        mContainer.offsetDescendantRectToMyCoords(mVideoArea, box);
+        return updateMorphLine(f, bottom, box.left, box.width(), 0f, 0f);
+    }
+
+    /** NEWTUBE(pills): the line's own band, cut like the band's bottom corners (radius on screen). */
+    private float mMorphLineBandPx;
+    private float mMorphLineRadiusPx;
+    private final android.view.ViewOutlineProvider mMorphLineOutline = new android.view.ViewOutlineProvider() {
+        @Override
+        public void getOutline(View view, android.graphics.Outline outline) {
+            int height = view.getHeight();
+            float band = Math.max(height, mMorphLineBandPx);
+            outline.setRoundRect(0, Math.round(height - band), view.getWidth(), height, mMorphLineRadiusPx);
+        }
+    };
+
+    /**
+     * As above, at {@code left} and {@code width} (container px). {@code bandPx} and {@code radiusPx}:
+     * the line is cut to a band that tall ending at its bottom, with those corners (0: uncut).
+     */
+    private boolean updateMorphLine(float f, float bottom, float left, float width0, float bandPx, float radiusPx) {
         if (!mMorphLineOn || mContainer == null || mVideoArea == null || mTimeBar == null || f <= 0f
                 || mTimeBar.getVisibility() != View.VISIBLE || isLandscape()
                 || !(mControlsVisible || mTimeBar.isLineWhenHidden())) {
@@ -6082,10 +6143,8 @@ public class MobilePlaybackActivity extends MobileActivity
             return false;
         }
         float density = getResources().getDisplayMetrics().density;
-        Rect box = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
-        mContainer.offsetDescendantRectToMyCoords(mVideoArea, box);
         int height = Math.round(10 * density);
-        int width = Math.max(1, box.width());
+        int width = Math.max(1, Math.round(width0));
         if (mMorphLine == null) {
             mMorphLineDrawable = new MiniProgressDrawable(density);
             mMorphLineDrawable.setColors(MiniPlayerStyle.accent(this), getResources().getColor(
@@ -6110,8 +6169,18 @@ public class MobilePlaybackActivity extends MobileActivity
             params.width = width;
             mMorphLine.setLayoutParams(params);
         }
-        mMorphLine.setTranslationX(box.left);
+        mMorphLine.setTranslationX(left);
         mMorphLine.setTranslationY(bottom - height);
+        boolean cut = radiusPx > 0.5f;
+        mMorphLineBandPx = bandPx;
+        mMorphLineRadiusPx = radiusPx;
+        if (cut != mMorphLine.getClipToOutline()) {
+            mMorphLine.setOutlineProvider(cut ? mMorphLineOutline : android.view.ViewOutlineProvider.BACKGROUND);
+            mMorphLine.setClipToOutline(cut);
+        }
+        if (cut) {
+            mMorphLine.invalidateOutline();
+        }
         if (mMorphLineDrawable != null) {
             mMorphLineDrawable.setWaveScale(Math.max(0f, Math.min(1f, f)));
         }
@@ -6159,9 +6228,13 @@ public class MobilePlaybackActivity extends MobileActivity
         float pillDensity = getResources().getDisplayMetrics().density;
         mBarInset = pill ? MiniPlayerStyle.pillInsetPx(barStyle, pillDensity) : 0f;
         mBarLeft = pill ? MiniPlayerStyle.pillSidePx(pillDensity) + mBarInset : 0f;
+        mBarPill = pill;
+        mBarPillLeft = MiniPlayerStyle.pillSidePx(pillDensity);
+        mBarPillWidth = mContainer.getWidth() - 2f * mBarPillLeft;
+        mBarThumbEndRadius = Math.min(barHeight / 2f, MiniPlayerStyle.PILL_THUMB_CORNER_DP * pillDensity);
         if (pill) {
             landedWidth = barStyle == MiniPlayerStyle.BAR ? MiniPlayerStyle.pillThumbWidthPx(pillDensity)
-                    : mContainer.getWidth() - 2f * MiniPlayerStyle.pillSidePx(pillDensity);
+                    : mBarPillWidth;
             mBarRoundedTop = false;
         }
         showBarChrome(barTop, barHeight);
@@ -6172,6 +6245,11 @@ public class MobilePlaybackActivity extends MobileActivity
         float down = Math.max(1f, (barTop + barHeight - mBarInset) - video.bottom);
         float sideways = mBarLandedWidth < video.width() - 1f
                 ? Math.max(1f, mContainer.getHeight() * 0.18f) : 0f;
+        if (pill) {
+            // Down onto the whole pill, then (the plain pill) in to its thumbnail.
+            down = Math.max(1f, (barTop + barHeight) - video.bottom);
+            sideways = barStyle == MiniPlayerStyle.BAR ? Math.max(1f, mContainer.getHeight() * 0.12f) : 0f;
+        }
         mBarTravelPx = down + sideways;
         mBarSplit = down / mBarTravelPx;
         // The plain morph's terms, for whatever reads them (the settle's speed, the drag travel).
@@ -6192,25 +6270,48 @@ public class MobilePlaybackActivity extends MobileActivity
         float down = mBarSplit > 0f ? Math.min(1f, settled / mBarSplit) : 1f;
         float sideways = mBarSplit < 1f ? Math.max(0f, (settled - mBarSplit) / (1f - mBarSplit)) : 0f;
 
-        // The visible band of the video: from the whole box down onto the bar, full width.
-        // NEWTUBE(pills): onto the pill's inset video, not the whole bar.
-        float barBottom = mBarTop + mBarHeight - mBarInset;
-        float bandTop = video.top + (mBarTop + mBarInset - video.top) * down;
-        float bandBottom = video.bottom + (barBottom - video.bottom) * down;
+        float bandTop;
+        float bandBottom;
+        float bandLeft;
+        float scale;
+        float startRadius = 0f;
+        float endRadius = 0f;
+        if (mBarPill) {
+            // NEWTUBE(pills): onto the whole pill - its width, its height, its rounded ends - and
+            // then onto its thumbnail, whose left end stays concentric with the pill's.
+            float pillBottom = mBarTop + mBarHeight;
+            float radius = mBarHeight / 2f;
+            bandLeft = lerp(lerp(video.left, mBarPillLeft, down), mBarLeft, sideways);
+            float width = lerp(lerp(video.width(), mBarPillWidth, down), mBarLandedWidth, sideways);
+            bandTop = lerp(lerp(video.top, mBarTop, down), mBarTop + mBarInset, sideways);
+            bandBottom = lerp(lerp(video.bottom, pillBottom, down), pillBottom - mBarInset, sideways);
+            scale = Math.max(0.01f, width / video.width());
+            startRadius = lerp(radius * down, radius - mBarInset, sideways);
+            endRadius = lerp(radius * down, mBarThumbEndRadius, sideways);
+        } else {
+            // The visible band of the video: from the whole box down onto the bar, full width.
+            float barBottom = mBarTop + mBarHeight;
+            bandTop = video.top + (mBarTop - video.top) * down;
+            bandBottom = video.bottom + (barBottom - video.bottom) * down;
+            // Then narrower, keeping the bar's height: the cut shrinks as the box does.
+            scale = 1f + (mBarLandedWidth / video.width() - 1f) * sideways;
+            bandLeft = video.left + (mBarLeft - video.left) * sideways;
+        }
         float bandHeight = Math.max(1f, bandBottom - bandTop);
-        // Then narrower, keeping the bar's height: the cut shrinks as the box does.
-        float scale = 1f + (mBarLandedWidth / video.width() - 1f) * sideways;
         float cropLocal = Math.max(0f, (video.height() - bandHeight / scale) / 2f);
 
         mVideoArea.setPivotX(0f);
         mVideoArea.setPivotY(0f);
         mVideoArea.setScaleX(scale);
         mVideoArea.setScaleY(scale);
-        mVideoArea.setTranslationX((mBarLeft - video.left) * sideways);
+        mVideoArea.setTranslationX(bandLeft - video.left);
         mVideoArea.setTranslationY(bandTop - cropLocal * scale - video.top);
         mVideoArea.setTranslationZ(0f);
         mOutlineCropLocalPx = cropLocal;
         mOutlineTopRadiusPx = mBarRoundedTop ? MiniPlayerStyle.CARD_CORNER_DP * density * down / scale : 0f;
+        mOutlinePerEnd = mBarPill;
+        mOutlineStartRadiusPx = startRadius / scale;
+        mOutlineEndRadiusPx = endRadius / scale;
         if (mBarZoomContent) {
             setContentZoom(settled);
         }
@@ -6239,6 +6340,9 @@ public class MobilePlaybackActivity extends MobileActivity
             float areaShift = bandBottom - video.bottom;
             mWatchArea.setTranslationY(areaShift);
             int visible = Math.round(clipBottom - (mBarAreaTop + areaShift));
+            if (mBarPill && sideways > 0f) {
+                visible = 0; // inside the pill: none of the page below the video shows
+            }
             mWatchArea.setClipBounds(new Rect(0, 0, mWatchArea.getWidth(),
                     Math.max(0, Math.min(mWatchArea.getHeight(), visible))));
         }
@@ -6255,7 +6359,18 @@ public class MobilePlaybackActivity extends MobileActivity
             mControlsRoot.setAlpha(controlsAlpha);
         }
         if (mTimeBar != null) {
-            mTimeBar.setAlpha(updateMorphLine(settled, bandBottom) ? 0f : controlsAlpha);
+            boolean line;
+            if (mBarPill) {
+                // NEWTUBE(pills): the line narrows with the video onto the pill's bottom edge, its
+                // ends cut by the rounding corners; inside the pill it stays on the pill's line.
+                float pillRadius = mBarHeight / 2f * down;
+                line = updateMorphLine(settled, sideways > 0f ? mBarTop + mBarHeight : bandBottom,
+                        lerp(video.left, mBarPillLeft, down), lerp(video.width(), mBarPillWidth, down),
+                        sideways > 0f ? mBarHeight : bandHeight, pillRadius);
+            } else {
+                line = updateMorphLine(settled, bandBottom);
+            }
+            mTimeBar.setAlpha(line ? 0f : controlsAlpha);
         }
         if (mCommentsPanel != null) {
             mCommentsPanel.setMorphAlpha(1f);
@@ -6266,6 +6381,10 @@ public class MobilePlaybackActivity extends MobileActivity
             mBarChrome.card.setAlpha(Math.max(0f, Math.min(1f,
                     (settled - (1f - BAR_CHROME_FADE)) / BAR_CHROME_FADE)));
         }
+    }
+
+    private static float lerp(float from, float to, float f) {
+        return from + (to - from) * f;
     }
 
     /** See {@link #mBarZoomContent}: the video's own frame grown {@code f} of the way to the box's width. */
@@ -6289,6 +6408,9 @@ public class MobilePlaybackActivity extends MobileActivity
         int style = MiniPlayerStyle.get(this);
         if (!MiniPlayerStyle.isBar(style) || mContainer == null) {
             return;
+        }
+        if (mBarExpanding && style == MiniPlayerStyle.BAR && MiniPlayerStyle.isPill(this)) {
+            return; // NEWTUBE(pills): the host's own pill stays up under the expand
         }
         try {
             View card = getLayoutInflater().inflate(R.layout.mobile_mini_player_overlay, mContainer, false);
@@ -6382,6 +6504,7 @@ public class MobilePlaybackActivity extends MobileActivity
                 mContainer.getWidth(), mContainer.getHeight(), bottomNav, density,
                 MiniPlayerStyle.isCardLeft(this), MiniPlayerStyle.isPill(this));
         mBarSlide = false;
+        mBarExpanding = false; // before the chrome is built (see showBarChrome)
         if (MiniPlayerStyle.isBar(style) && host != null
                 && setupBarSlide(target.rect.top, target.rect.height(), target.rect.width(),
                         target.rect.bottom)) {
@@ -6609,6 +6732,12 @@ public class MobilePlaybackActivity extends MobileActivity
         mMorphOutlineFraction = 0f;
     }
 
+    /** An expand has landed: the host's card, if it was left up under it (a pill bar), goes now. */
+    private void finishExpand() {
+        MiniPlayerBridge.foldHostCard(null);
+        resetMorph();
+    }
+
     private void resetMorph() {
         if (mMorphAnimator != null) {
             mMorphAnimator.cancel();
@@ -6640,6 +6769,8 @@ public class MobilePlaybackActivity extends MobileActivity
             }
         }
         mOutlineTopRadiusPx = 0f;
+        mOutlinePerEnd = false;
+        mBarPill = false;
         removeMorphLine();
         if (mBarZoomContent) {
             mBarZoomContent = false;

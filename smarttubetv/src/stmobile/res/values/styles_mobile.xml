@@ -214,6 +214,17 @@
 
     <style name="ThemeOverlay.NewTube.BottomSheetDialog.Player">
         <item name="android:windowLightStatusBar">false</item>
+        <item name="bottomSheetStyle">@style/Widget.NewTube.BottomSheet.Player</item>
+    </style>
+
+    <!--
+      NEWTUBE(pills): the player's sheets stop under the status bar. A sheet nearly as tall as the
+      screen (the gear sheet in landscape) was otherwise pushed up into the status bar band by
+      BottomSheetBehavior (paddingTopSystemWindowInsets), and its frame - frosted, see-through -
+      showed there as a second, larger panel behind the sheet's own.
+    -->
+    <style name="Widget.NewTube.BottomSheet.Player">
+        <item name="paddingTopSystemWindowInsets">false</item>
     </style>
 
     <!-- NEWTUBE(theme): android:theme of the player's video area (and the mini player), so the

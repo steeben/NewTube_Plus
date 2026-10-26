@@ -308,6 +308,8 @@ public final class BackdropBlurDrawable extends Drawable {
                         recording.saveLayerAlpha(0f, 0f, layer.getWidth(), layer.getHeight(),
                                 Math.round(255 * layerAlpha));
                     }
+                    // draw() leaves out the layer's own scroll (a scrolled You panel).
+                    recording.translate(-layer.getScrollX(), -layer.getScrollY());
                     layer.draw(recording);
                     recording.restoreToCount(save);
                 }

@@ -168,20 +168,49 @@ final class MiniPlayerViews {
                 card.setOutlineProvider(mCardOutline);
                 card.invalidateOutline();
             }
-            // NEWTUBE(pills): a pill bar clips its video and glass to its rounded ends.
-            card.setClipToOutline(mPill || mCardClips);
+            // NEWTUBE(pills): the video pill clips its video to its rounded ends; the plain pill's
+            // views clip themselves (see applyStyle).
+            card.setClipToOutline(mPill ? style == MiniPlayerStyle.BAR_VIDEO : mCardClips);
         }
     }
 
     /** NEWTUBE(pills): the bar is a floating pill (see MiniPlayerStyle#isPill). */
     private boolean mPill;
-    /** NEWTUBE(pills): the plain pill bar's inset video, with the video cards' corners. */
+    /**
+     * NEWTUBE(pills): the plain pill bar's inset video. Its left end follows the pill's rounded end
+     * (concentric with it, so the margin is the same all round) and its right corners are the video
+     * cards'. Before Android 13 only a rounded rectangle clips: one that runs past the right edge
+     * (which the frame's bounds cut) rounds only the left end.
+     */
     private final android.view.ViewOutlineProvider mThumbOutline = new android.view.ViewOutlineProvider() {
         @Override
         public void getOutline(View view, android.graphics.Outline outline) {
+            int width = view.getWidth();
+            int height = view.getHeight();
             float density = view.getResources().getDisplayMetrics().density;
-            outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(),
-                    MiniPlayerStyle.PILL_THUMB_CORNER_DP * density);
+            float start = height / 2f;
+            float end = Math.min(start, MiniPlayerStyle.PILL_THUMB_CORNER_DP * density);
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                android.graphics.Path path = new android.graphics.Path();
+                path.addRoundRect(0, 0, width, height, new float[] {start, start, end, end, end, end, start, start},
+                        android.graphics.Path.Direction.CW);
+                outline.setPath(path);
+            } else {
+                outline.setRoundRect(0, 0, width + Math.round(start), height, start);
+            }
+        }
+    };
+
+    /**
+     * NEWTUBE(pills): the plain pill bar's line, cut to the pill it lies along the bottom of: the
+     * pill's rounded rectangle, reaching up past the line's top to the pill's.
+     */
+    private final android.view.ViewOutlineProvider mLineOutline = new android.view.ViewOutlineProvider() {
+        @Override
+        public void getOutline(View view, android.graphics.Outline outline) {
+            int pillHeight = px(MiniPlayerStyle.barHeightDp(style), view.getResources().getDisplayMetrics().density);
+            int top = view.getHeight() - pillHeight;
+            outline.setRoundRect(0, top, view.getWidth(), view.getHeight(), pillHeight / 2f);
         }
     };
 
@@ -333,18 +362,17 @@ final class MiniPlayerViews {
         frameParams.leftMargin = pillInset;
         frameParams.setMarginStart(pillInset);
         frame.setLayoutParams(frameParams);
-        boolean roundThumb = style == MiniPlayerStyle.BAR && pill;
-        frame.setOutlineProvider(roundThumb ? mThumbOutline : android.view.ViewOutlineProvider.BACKGROUND);
-        frame.setClipToOutline(roundThumb);
-        // NEWTUBE(pills): everything in the bar - the video, the line - is cut to the pill's shape
-        // (the card's own clip did not hold the video in on the device): the thumbnail's left
-        // corners follow the pill's rounded end.
+        // NEWTUBE(pills): one clip per view, never nested - with the video's TextureView inside a
+        // clipped parent inside the clipped card, the thumbnail's square corners flickered through
+        // on the device. On the plain pill bar the card clips nothing: the thumbnail, the glass and
+        // the line each cut themselves to the pill. The video pill keeps the card's clip (its
+        // zoomed video is larger than the bar), and its video clips nothing of its own.
+        boolean plainPill = style == MiniPlayerStyle.BAR && pill;
+        clipTo(frame, plainPill ? mThumbOutline : null);
+        clipTo(backdrop, plainPill ? com.newtube.mobile.ui.common.Pills.OUTLINE : null);
+        clipTo(progress, plainPill ? mLineOutline : null);
         if (frame.getParent() instanceof View) {
-            View inner = (View) frame.getParent();
-            inner.setOutlineProvider(pill ? com.newtube.mobile.ui.common.Pills.OUTLINE
-                    : android.view.ViewOutlineProvider.BACKGROUND);
-            inner.setClipToOutline(pill);
-            inner.invalidateOutline();
+            clipTo((View) frame.getParent(), null);
         }
         if (frame instanceof AspectRatioFrameLayout) {
             ((AspectRatioFrameLayout) frame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
@@ -751,6 +779,13 @@ final class MiniPlayerViews {
             return null;
         }
         return ContextCompat.getDrawable(context, value.resourceId);
+    }
+
+    /** Clip {@code view} to {@code outline}, or (null) let it draw unclipped with its usual outline. */
+    private static void clipTo(View view, @Nullable android.view.ViewOutlineProvider outline) {
+        view.setOutlineProvider(outline != null ? outline : android.view.ViewOutlineProvider.BACKGROUND);
+        view.setClipToOutline(outline != null);
+        view.invalidateOutline();
     }
 
     private static void setPadding(View view, int padding) {
