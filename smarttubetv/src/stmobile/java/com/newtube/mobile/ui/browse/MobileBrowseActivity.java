@@ -1165,11 +1165,15 @@ public class MobileBrowseActivity extends MobileActivity
             if (button == null) {
                 continue;
             }
+            // A little more room at the pill's two ends than between the icons.
+            int endRoom = com.newtube.mobile.ui.common.Pills.px(this, 6);
+            boolean first = button == mCastButton;
             ViewGroup.LayoutParams params = button.getLayoutParams();
-            params.width = pillHeight;
+            params.width = pillHeight + endRoom;
             params.height = pillHeight;
             button.setLayoutParams(params);
-            button.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+            button.setPaddingRelative(iconPadding + (first ? endRoom : 0), iconPadding,
+                    iconPadding + (first ? 0 : endRoom), iconPadding);
         }
         if (mSearchButton != null) {
             ((ViewGroup.MarginLayoutParams) mSearchButton.getLayoutParams()).setMarginEnd(side);
@@ -2490,6 +2494,7 @@ public class MobileBrowseActivity extends MobileActivity
         // The synthetic You tab always sits last (account + extra sections + settings).
         menu.add(Menu.NONE, YOU_ITEM_ID, navSections.size(), R.string.mobile_nav_you)
                 .setIcon(R.drawable.ic_nav_you);
+        applyNavAvatar(); // NEWTUBE(nav-avatar)
 
         // NEWTUBE(nav-mirror): the same tabs for the list screens opened from here.
         List<Integer> mirrorIds = new ArrayList<>();
@@ -2746,10 +2751,66 @@ public class MobileBrowseActivity extends MobileActivity
             } else {
                 mYouAvatar.setImageResource(R.drawable.ic_mobile_account);
             }
+            loadNavAvatar(avatarUrl);
         } else {
             mYouAccountText.setText(R.string.dialog_add_account);
             mYouAccountSub.setVisibility(View.GONE);
             mYouAvatar.setImageResource(R.drawable.ic_mobile_account);
+            loadNavAvatar(null);
+        }
+    }
+
+    // NEWTUBE(nav-avatar): signed in, the You tab's icon is the account's picture in a white ring.
+    @Nullable
+    private String mNavAvatarUrl;
+    @Nullable
+    private android.graphics.Bitmap mNavAvatar;
+
+    private void loadNavAvatar(@Nullable String url) {
+        if (url == null || url.isEmpty()) {
+            mNavAvatarUrl = null;
+            mNavAvatar = null;
+            applyNavAvatar();
+            return;
+        }
+        if (url.equals(mNavAvatarUrl) && mNavAvatar != null) {
+            applyNavAvatar();
+            return;
+        }
+        mNavAvatarUrl = url;
+        com.bumptech.glide.Glide.with(this)
+                .asBitmap()
+                .load(url)
+                .into(new com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
+                    @Override
+                    public void onResourceReady(@NonNull android.graphics.Bitmap bitmap,
+                            @Nullable com.bumptech.glide.request.transition.Transition<? super android.graphics.Bitmap> transition) {
+                        if (url.equals(mNavAvatarUrl)) {
+                            mNavAvatar = bitmap;
+                            applyNavAvatar();
+                        }
+                    }
+
+                    @Override
+                    public void onLoadCleared(@Nullable android.graphics.drawable.Drawable placeholder) {
+                    }
+                });
+    }
+
+    private void applyNavAvatar() {
+        if (mBottomNav == null) {
+            return;
+        }
+        android.view.MenuItem you = mBottomNav.getMenu().findItem(YOU_ITEM_ID);
+        if (you == null) {
+            return;
+        }
+        if (mNavAvatar != null) {
+            int size = mBottomNav.getItemIconSize();
+            you.setIcon(new com.newtube.mobile.ui.common.AvatarIconDrawable(mNavAvatar, size,
+                    getResources().getDisplayMetrics().density * 1.25f));
+        } else {
+            you.setIcon(R.drawable.ic_nav_you);
         }
     }
 

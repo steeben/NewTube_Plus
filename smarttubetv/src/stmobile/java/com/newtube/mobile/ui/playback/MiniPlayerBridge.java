@@ -526,7 +526,23 @@ public final class MiniPlayerBridge {
                     }
                 });
             }
-            if (crop == null) {
+            // NEWTUBE(pills): a frame of a fixed shape (the plain pill bar's thumbnail, FILL) is
+            // filled whatever the video's shape: a square or vertical video is cropped to it, not
+            // shown as a narrower thumbnail.
+            float fillX = 1f;
+            float fillY = 1f;
+            Float aspect = sFrameAspects.get(frame);
+            if (frame instanceof AspectRatioFrameLayout
+                    && ((AspectRatioFrameLayout) frame).getResizeMode() == AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    && aspect != null && aspect > 0f && frame.getWidth() > 0 && frame.getHeight() > 0) {
+                float shape = frame.getWidth() / (float) frame.getHeight();
+                if (aspect < shape) {
+                    fillY = shape / aspect;
+                } else {
+                    fillX = aspect / shape;
+                }
+            }
+            if (crop == null && fillX == 1f && fillY == 1f) {
                 child.setScaleX(1f);
                 child.setScaleY(1f);
                 child.setTranslationX(0f);
@@ -536,8 +552,11 @@ public final class MiniPlayerBridge {
             if (child.getWidth() <= 0 || child.getHeight() <= 0) {
                 continue; // laid out later: its layout listener crops it then
             }
-            float sx = 1f / Math.max(0.01f, 1f - crop[2] - crop[3]);
-            float sy = 1f / Math.max(0.01f, 1f - crop[0] - crop[1]);
+            if (crop == null) {
+                crop = new float[4];
+            }
+            float sx = fillX / Math.max(0.01f, 1f - crop[2] - crop[3]);
+            float sy = fillY / Math.max(0.01f, 1f - crop[0] - crop[1]);
             child.setPivotX(child.getWidth() / 2f);
             child.setPivotY(child.getHeight() / 2f);
             child.setScaleX(sx);

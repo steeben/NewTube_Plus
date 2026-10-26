@@ -4477,10 +4477,37 @@ public class MobilePlaybackActivity extends MobileActivity
                         int status = insets != null ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top : 0;
                         int[] at = new int[2];
                         room.getLocationOnScreen(at);
+                        // What of the room the screen really shows: in the immersive landscape
+                        // player the room still reached under the hidden navigation bar's area,
+                        // and the last row (More) stayed half under the screen's bottom edge.
+                        android.graphics.Rect shown = new android.graphics.Rect();
+                        room.getWindowVisibleDisplayFrame(shown);
+                        android.util.DisplayMetrics real = new android.util.DisplayMetrics();
+                        getWindowManager().getDefaultDisplay().getRealMetrics(real);
+                        int screenBottom = shown.bottom > shown.top ? Math.min(shown.bottom, real.heightPixels)
+                                : real.heightPixels;
+                        int hiddenBelow = Math.max(0, at[1] + room.getHeight() - screenBottom);
+                        int gestures = 0;
+                        if (insets != null) {
+                            gestures = Math.max(
+                                    insets.getInsetsIgnoringVisibility(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom,
+                                    insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.mandatorySystemGestures()).bottom);
+                        }
                         int max = Math.max(dp(160), room.getHeight() - Math.max(0, status - at[1]));
                         if (behavior.getMaxHeight() != max) {
                             behavior.setMaxHeight(max);
                             sheetView.requestLayout();
+                        }
+                        // And the rows end clear of the gesture area, scrolled all the way down.
+                        if (sheetView instanceof ViewGroup && ((ViewGroup) sheetView).getChildCount() > 0
+                                && ((ViewGroup) sheetView).getChildAt(0) instanceof androidx.core.widget.NestedScrollView) {
+                            ViewGroup scroll = (ViewGroup) ((ViewGroup) sheetView).getChildAt(0);
+                            View rows = scroll.getChildCount() > 0 ? scroll.getChildAt(0) : null;
+                            int bottom = dp(16) + gestures + hiddenBelow;
+                            if (rows != null && rows.getPaddingBottom() != bottom) {
+                                rows.setPadding(rows.getPaddingLeft(), rows.getPaddingTop(),
+                                        rows.getPaddingRight(), bottom);
+                            }
                         }
                     };
                     cap.run();
@@ -6066,6 +6093,11 @@ public class MobilePlaybackActivity extends MobileActivity
     private boolean mHostPillShown;
     /** The fraction at which the slide down ends and the sideways shrink begins. */
     private float mBarSplit = 1f;
+    /**
+     * NEWTUBE(pills): how much of the thumbnail's growing inside the pill is left (as the
+     * sideways leg's fraction) when the page starts to rise: it starts at 60% grown.
+     */
+    private static final float PAGE_RISE_FROM = 0.4f;
     /** Finger travel for the whole bar minimize. */
     private float mBarTravelPx = 1f;
     /** The top of the area under the video (mobile_watch_area), in container coordinates. */
@@ -6408,16 +6440,19 @@ public class MobilePlaybackActivity extends MobileActivity
             float areaShift = bandBottom - video.bottom;
             if (mBarPill) {
                 // NEWTUBE(pills): the page rises from the screen's bottom edge over the navigation
-                // pill (which stays put) from the expand's first frame - while the thumbnail still
-                // grows inside the pill - and meets the video under it as it opens; it never
-                // passes the video's bottom edge. The minimize runs the same backwards: it slides
-                // off the bottom as the video shrinks into the pill.
-                float open = 1f - settled;
-                float rise = 1f - (1f - open) * (1f - open);
-                float pageTop = mContainer.getHeight() + (video.bottom - mContainer.getHeight()) * rise;
-                // Inside the pill, the page stops at the pill's bottom edge, not the thumbnail's.
-                float floor = sideways > 0f ? mBarTop + mBarHeight : bandBottom;
-                areaShift = Math.max(floor, pageTop) - video.bottom;
+                // pill (which stays put) once the thumbnail is 60% grown inside the pill, reaches
+                // the pill's bottom edge the moment the thumbnail fills it, and from there rides
+                // up under the video. The minimize runs the same backwards.
+                float pillBottom = mBarTop + mBarHeight;
+                float pageTop;
+                if (sideways > 0f) {
+                    float rise = Math.max(0f, Math.min(1f, (PAGE_RISE_FROM - sideways) / PAGE_RISE_FROM));
+                    // Linear in the slide (already eased): no stop where it meets the thumbnail.
+                    pageTop = lerp(mContainer.getHeight(), pillBottom, rise);
+                } else {
+                    pageTop = bandBottom;
+                }
+                areaShift = pageTop - video.bottom;
                 clipBottom = mContainer.getHeight();
             }
             mWatchArea.setTranslationY(areaShift);

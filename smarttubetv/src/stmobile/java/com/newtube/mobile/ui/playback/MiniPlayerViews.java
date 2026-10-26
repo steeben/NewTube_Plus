@@ -439,8 +439,11 @@ final class MiniPlayerViews {
             clipTo((View) frame.getParent(), null);
         }
         if (frame instanceof AspectRatioFrameLayout) {
+            // The plain pill's thumbnail keeps its 16:9 slot whatever the video's shape (FILL, the
+            // picture cropped to it: MiniPlayerBridge.applyCropTransform).
             ((AspectRatioFrameLayout) frame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
-                    ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+                    ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    : plainPill ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         }
         frame.setBackgroundColor(style == MiniPlayerStyle.BAR ? Color.BLACK : Color.TRANSPARENT);
 

@@ -97,11 +97,14 @@ public final class LiquidGlass {
             + "    float2 centeredCoord = (coord + offset) - halfSize;\n"
             + "    float radius = radiusAt(coord, cornerRadii);\n"
             + "    float sd = sdRoundedRect(centeredCoord, halfSize, radius);\n"
-            + "    if (-sd >= refractionHeight) {\n"
+            // NEWTUBE(pills): the lens never reaches the pill's middle line. On a short pill (the
+            // navigation tucked in) it did, and the edge's slope flips there: a line through it.
+            + "    float lensHeight = min(refractionHeight, min(halfSize.x, halfSize.y) * 0.85);\n"
+            + "    if (-sd >= lensHeight) {\n"
             + "        return content.eval(coord);\n"
             + "    }\n"
             + "    sd = min(sd, 0.0);\n"
-            + "    float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;\n"
+            + "    float d = circleMap(1.0 - -sd / lensHeight) * refractionAmount;\n"
             + "    float gradRadius = min(radius * 1.5, min(halfSize.x, halfSize.y));\n"
             + "    float2 grad = normalize(gradSdRoundedRect(centeredCoord, halfSize, gradRadius) + depthEffect * normalize(centeredCoord));\n"
             + "    float2 refractedCoord = coord + d * grad;\n"

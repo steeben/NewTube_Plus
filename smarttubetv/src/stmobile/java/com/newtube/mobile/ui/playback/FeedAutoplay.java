@@ -112,10 +112,24 @@ public final class FeedAutoplay {
     private boolean mShown;
 
     private final Runnable mEvaluate = this::evaluate;
+    /** The badge's glass: a small copy of the preview's frame, taken this often. */
+    private static final long LIVE_FRAME_MS = 66;
+    private static final int LIVE_FRAME_WIDTH = 96;
+    private static final int LIVE_FRAME_HEIGHT = 54;
+    @Nullable
+    private Bitmap mLiveFrame;
+    private long mLiveAt;
+    /** The duration badge counting down, and the length it showed before. */
+    @Nullable
+    private android.widget.TextView mBadge;
+    @Nullable
+    private CharSequence mBadgeText;
+
     private final Runnable mTick = new Runnable() {
         @Override
         public void run() {
             updateLine();
+            updateBadge();
             mHandler.postDelayed(this, TICK_MS);
         }
     };
@@ -270,6 +284,9 @@ public final class FeedAutoplay {
         OkHttpDataSource.Factory http = new OkHttpDataSource.Factory(
                 MediaHttpClient.create(OkHttpManager.instance().getClient()))
                 .setUserAgent(Media3SourceFactory.MEDIA_USER_AGENT);
+        // Bounded Range reads: one open-ended GET of an adaptive stream is paced to playback speed
+        // and the preview froze a few seconds in (RangedDataSource).
+        RangedDataSource.Factory ranged = new RangedDataSource.Factory(http);
         // NEWTUBE(autoplay): the best picture up to 720p with the sound beside it; the one file with
         // both (360p) only when there is no such picture. The opened player then plays at the
         // quality set in Settings.
@@ -279,13 +296,13 @@ public final class FeedAutoplay {
             return muxed == null ? null
                     : new ProgressiveMediaSource.Factory(http).createMediaSource(MediaItem.fromUri(Uri.parse(muxed.getUrl())));
         }
-        MediaSource picture = new ProgressiveMediaSource.Factory(http)
+        MediaSource picture = new ProgressiveMediaSource.Factory(ranged)
                 .createMediaSource(MediaItem.fromUri(Uri.parse(video.getUrl())));
         MediaFormat audio = pickAudio(info.getAdaptiveFormats());
         if (audio == null) {
             return picture;
         }
-        MediaSource sound = new ProgressiveMediaSource.Factory(http)
+        MediaSource sound = new ProgressiveMediaSource.Factory(ranged)
                 .createMediaSource(MediaItem.fromUri(Uri.parse(audio.getUrl())));
         return new MergingMediaSource(true, picture, sound);
     }
@@ -491,7 +508,20 @@ public final class FeedAutoplay {
             }
             mGate.onPreviewFrame(frame);
             // The duration badge's glass shows the playing picture, not the still thumbnail.
-            com.newtube.mobile.ui.common.BadgeGlassDrawable.invalidateIn(frame);
+            long now = android.os.SystemClock.uptimeMillis();
+            TextureView texture = mTexture;
+            if (texture != null && texture.isAvailable() && now - mLiveAt >= LIVE_FRAME_MS) {
+                mLiveAt = now;
+                if (mLiveFrame == null) {
+                    mLiveFrame = Bitmap.createBitmap(LIVE_FRAME_WIDTH, LIVE_FRAME_HEIGHT, Bitmap.Config.ARGB_8888);
+                }
+                try {
+                    texture.getBitmap(mLiveFrame);
+                    com.newtube.mobile.ui.common.BadgeGlassDrawable.setLiveIn(frame, mLiveFrame, texture);
+                } catch (RuntimeException e) {
+                    // the texture went away under us: the badge keeps its last picture
+                }
+            }
             frame.postOnAnimation(this);
         }
     };
@@ -513,6 +543,48 @@ public final class FeedAutoplay {
         if (watch != null) {
             watch.animate().alpha(0f).setDuration(200).start();
         }
+    }
+
+    /** NEWTUBE(autoplay): the duration badge counts down the time left while the preview plays. */
+    private void updateBadge() {
+        ViewGroup frame = mFrame;
+        if (mPlayer == null || frame == null || !mShown) {
+            return;
+        }
+        if (mBadge == null) {
+            View badge = frame.findViewById(R.id.video_badge);
+            if (badge == null) {
+                badge = frame.findViewById(R.id.related_badge);
+            }
+            if (!(badge instanceof android.widget.TextView) || badge.getVisibility() != View.VISIBLE) {
+                return;
+            }
+            CharSequence text = ((android.widget.TextView) badge).getText();
+            if (text == null || !text.toString().trim().matches("\\d+(:\\d{2}){1,2}")) {
+                return; // LIVE, SHORTS and the like: nothing to count
+            }
+            mBadge = (android.widget.TextView) badge;
+            mBadgeText = text;
+        }
+        long duration = mPlayer.getDuration();
+        if (duration <= 0 || duration == C.TIME_UNSET) {
+            return;
+        }
+        long left = Math.max(0, (duration - mPlayer.getCurrentPosition() + 999) / 1000);
+        String value = left >= 3600
+                ? String.format(java.util.Locale.US, "%d:%02d:%02d", left / 3600, left / 60 % 60, left % 60)
+                : String.format(java.util.Locale.US, "%d:%02d", left / 60, left % 60);
+        if (!android.text.TextUtils.equals(mBadge.getText(), value)) {
+            mBadge.setText(value);
+        }
+    }
+
+    private void restoreBadge() {
+        if (mBadge != null && mBadgeText != null) {
+            mBadge.setText(mBadgeText);
+        }
+        mBadge = null;
+        mBadgeText = null;
     }
 
     private void updateLine() {
@@ -550,8 +622,9 @@ public final class FeedAutoplay {
                 watch.animate().cancel();
                 watch.setAlpha(1f);
             }
-            // Back to the still thumbnail under the badge.
-            com.newtube.mobile.ui.common.BadgeGlassDrawable.invalidateIn(frame);
+            // Back to the still thumbnail under the badge, and its whole length.
+            com.newtube.mobile.ui.common.BadgeGlassDrawable.setLiveIn(frame, null, null);
+            restoreBadge();
         }
         mTexture = null;
         mSpeaker = null;
