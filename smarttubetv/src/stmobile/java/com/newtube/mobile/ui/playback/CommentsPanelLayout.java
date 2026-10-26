@@ -20,7 +20,6 @@ import androidx.core.view.NestedScrollingParent3;
 import androidx.core.view.NestedScrollingParentHelper;
 import androidx.core.view.ViewCompat;
 
-import com.google.android.material.motion.MaterialBottomContainerBackHelper;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.newtube.mobile.ui.common.Haptics;
 
@@ -77,7 +76,8 @@ public class CommentsPanelLayout extends FrameLayout implements NestedScrollingP
     @Nullable
     private Callback mCallback;
     @Nullable
-    private MaterialBottomContainerBackHelper mBackHelper;
+    /** NEWTUBE(pills): back slides the sheet down (Material's helper shrank it). */
+    private com.newtube.mobile.ui.common.SheetBackSlide mBackHelper;
 
     private boolean mOpen;
     /** NEWTUBE(haptics): the dragged sheet is past the line where letting go closes it. */
@@ -120,7 +120,7 @@ public class CommentsPanelLayout extends FrameLayout implements NestedScrollingP
         mScrim = findViewById(R.id.comments_scrim);
         mSheet = findViewById(R.id.comments_sheet);
         mHeader = findViewById(R.id.comments_header);
-        mBackHelper = new MaterialBottomContainerBackHelper(mSheet);
+        mBackHelper = new com.newtube.mobile.ui.common.SheetBackSlide(mSheet);
     }
 
     public void setCallback(@Nullable Callback callback) {
@@ -535,19 +535,19 @@ public class CommentsPanelLayout extends FrameLayout implements NestedScrollingP
             return;
         }
         mBackInProgress = true;
-        mBackHelper.startBackProgress(event);
+        mBackHelper.start();
     }
 
     public void updateBackProgress(@NonNull BackEventCompat event) {
         if (mBackInProgress && mBackHelper != null) {
-            mBackHelper.updateBackProgress(event);
+            mBackHelper.progress(event.getProgress());
         }
     }
 
     public void cancelBackProgress() {
         if (mBackInProgress && mBackHelper != null) {
             mBackInProgress = false;
-            mBackHelper.cancelBackProgress();
+            mBackHelper.cancel();
         }
     }
 
@@ -563,10 +563,9 @@ public class CommentsPanelLayout extends FrameLayout implements NestedScrollingP
         mBackFinishing = true;
         mScrim.animate().cancel();
         mScrim.animate().alpha(0f).setStartDelay(0).setDuration(SCRIM_OUT_MS).setInterpolator(null).start();
-        mBackHelper.finishBackProgressNotPersistent(lastEvent, new AnimatorListenerAdapter() {
+        mBackHelper.finish(sheetRange(), new Runnable() {
             @Override
-            public void onAnimationEnd(Animator animation) {
-                // The helper has put the sheet back to scale 1, translation 0: park it off-screen.
+            public void run() {
                 mBackFinishing = false;
                 mSheet.setTranslationY(sheetRange());
                 if (!mOpen) {

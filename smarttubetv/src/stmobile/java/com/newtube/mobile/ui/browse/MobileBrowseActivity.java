@@ -1408,6 +1408,7 @@ public class MobileBrowseActivity extends MobileActivity
                     mYouPanel.setPadding(0, mYouPanel.getPaddingTop(), 0, bottomClearance()));
             mYouPanel.setOnScrollChangeListener((v, x, y, ox, oy) -> {
                 invalidateGlass();
+                onPageScrolled(y - oy, v.canScrollVertically(-1));
             });
         }
         // The glass shows what is under it: draw it again as the feed moves.
@@ -1415,8 +1416,75 @@ public class MobileBrowseActivity extends MobileActivity
             @Override
             public void onScrolled(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView recyclerView, int dx, int dy) {
                 invalidateGlass();
+                onPageScrolled(dy, recyclerView.canScrollVertically(-1));
             }
         });
+    }
+
+    // NEWTUBE(pills): the navigation pill tucks in while the page scrolls down - narrower, its
+    // icons closer together - and comes back to full size as soon as the page scrolls up.
+    private static final float NAV_COMPACT_WIDTH = 0.62f;
+    private static final int NAV_COMPACT_TRIGGER_DP = 24;
+    private static final long NAV_COMPACT_MS = 240;
+    private float mNavCompact;
+    private boolean mNavCompactTarget;
+    private int mNavScrollRun;
+    @androidx.annotation.Nullable
+    private android.animation.ValueAnimator mNavCompactAnimator;
+
+    private void onPageScrolled(int dy, boolean canScrollUp) {
+        if (!mPillApplied || dy == 0) {
+            return;
+        }
+        if (!canScrollUp) {
+            setNavCompact(false); // back at the top
+            return;
+        }
+        // A run of scrolling one way: reversed, it starts again.
+        mNavScrollRun = (dy > 0) == (mNavScrollRun > 0) ? mNavScrollRun + dy : dy;
+        int trigger = com.newtube.mobile.ui.common.Pills.px(this, NAV_COMPACT_TRIGGER_DP);
+        if (mNavScrollRun > trigger) {
+            setNavCompact(true);
+        } else if (mNavScrollRun < -trigger / 2) {
+            setNavCompact(false);
+        }
+    }
+
+    private void setNavCompact(boolean compact) {
+        if (mBottomNav == null || compact == mNavCompactTarget) {
+            return;
+        }
+        mNavCompactTarget = compact;
+        if (mNavCompactAnimator != null) {
+            mNavCompactAnimator.cancel();
+        }
+        android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(mNavCompact, compact ? 1f : 0f);
+        animator.setDuration(NAV_COMPACT_MS);
+        animator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
+        animator.addUpdateListener(a -> applyNavCompact((float) a.getAnimatedValue()));
+        mNavCompactAnimator = animator;
+        animator.start();
+    }
+
+    private void applyNavCompact(float compact) {
+        mNavCompact = compact;
+        View parent = (View) mBottomNav.getParent();
+        ViewGroup.LayoutParams params = mBottomNav.getLayoutParams();
+        if (parent == null || parent.getWidth() <= 0 || !(params instanceof ViewGroup.MarginLayoutParams)) {
+            return;
+        }
+        int side = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.SIDE_DP);
+        int full = parent.getWidth() - 2 * side;
+        side += Math.round(full * (1f - NAV_COMPACT_WIDTH) / 2f * compact);
+        ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
+        if (margins.leftMargin != side) {
+            margins.leftMargin = side;
+            margins.rightMargin = side;
+            margins.setMarginStart(side);
+            margins.setMarginEnd(side);
+            mBottomNav.setLayoutParams(margins);
+        }
+        invalidateGlass();
     }
 
     /**
@@ -1469,6 +1537,7 @@ public class MobileBrowseActivity extends MobileActivity
     }
 
     private void onNavItemChosen(int itemId) {
+        setNavCompact(false); // NEWTUBE(pills): a new page starts with the whole navigation
         if (itemId == YOU_ITEM_ID) {
             showYouPanel();
         } else if (mYouShowing && !mSectionFromYou && itemId - ITEM_ID_OFFSET == mCurrentSectionId
@@ -2565,6 +2634,11 @@ public class MobileBrowseActivity extends MobileActivity
             recreate();
             return;
         }
+        // NEWTUBE(pills): the navigation's glass and its selected-tab pill, as they were left.
+        if (mLiquidNav != null) {
+            mLiquidNav.resync();
+        }
+        invalidateGlass();
         // NEWTUBE(ui-options): Branding and the Playlists tab may have changed in Settings.
         mTopBar.applyBranding();
         applyNavLabels();

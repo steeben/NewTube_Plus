@@ -3712,7 +3712,7 @@ public class MobilePlaybackActivity extends MobileActivity
                     this::showReceiverCaptionsSheet);
         }
 
-        sheet.setContentView(content);
+        sheet.setContentView(scrollableSheet(content));
         showPlayerSheet(sheet);
     }
 
@@ -4295,7 +4295,7 @@ public class MobilePlaybackActivity extends MobileActivity
         addMenuRow(content, sheet, R.drawable.ic_mobile_settings, R.string.mobile_menu_more,
                 null, true, this::openPlayerMoreMenu);
 
-        sheet.setContentView(content);
+        sheet.setContentView(scrollableSheet(content));
         sheet.setOnDismissListener(d -> armAutoHide());
         showPlayerSheet(sheet);
     }
@@ -4360,9 +4360,25 @@ public class MobilePlaybackActivity extends MobileActivity
         addMenuRow(content, sheet, R.drawable.ic_player_stats, R.string.mobile_menu_stats,
                 stateLabel(statsOn), false, () -> openPlayerOption(R.id.action_video_stats, false));
 
-        sheet.setContentView(content);
+        sheet.setContentView(scrollableSheet(content));
         sheet.setOnDismissListener(d -> armAutoHide());
         showPlayerSheet(sheet);
+    }
+
+    /**
+     * NEWTUBE(pills): a gear sheet's rows in a scroll view, which carries the sheet's surface. In
+     * landscape the rows are taller than the screen, and the last ones (Detect black bars, More)
+     * could not be reached.
+     */
+    private View scrollableSheet(LinearLayout content) {
+        androidx.core.widget.NestedScrollView scroll = new androidx.core.widget.NestedScrollView(this);
+        scroll.setBackground(content.getBackground());
+        content.setBackground(null);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.setFillViewport(false);
+        scroll.addView(content, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return scroll;
     }
 
     /** Shared scaffold for the gear sheets: rounded background + drag handle, no title. */
@@ -4442,9 +4458,19 @@ public class MobilePlaybackActivity extends MobileActivity
             if (sheetView != null) {
                 BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(sheetView);
                 behavior.setSkipCollapsed(true);
+                // NEWTUBE(pills): never taller than the screen under the status bar - a taller
+                // sheet ran off the bottom, its last rows out of reach (its rows scroll instead).
+                View decor = getWindow().getDecorView();
+                androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(decor);
+                int top = insets != null ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top : 0;
+                if (decor.getHeight() > 0) {
+                    behavior.setMaxHeight(Math.max(dp(160), decor.getHeight() - top));
+                    sheetView.requestLayout();
+                }
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
             }
             com.newtube.mobile.ui.common.FrostedDialog.applySheet(dialog, sheetView);
+            com.newtube.mobile.ui.common.SheetBackSlide.install(dialog, sheetView); // NEWTUBE(pills)
             if (immersive && window != null) {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             }
@@ -6330,7 +6356,7 @@ public class MobilePlaybackActivity extends MobileActivity
             reveal = (float) Math.pow(back, NAV_EASE);
         }
         MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
-        if (host != null && mBarNavHeight > 0f) {
+        if (host != null && mBarNavHeight > 0f && !mBarPill) {
             host.setBottomBarReveal(reveal);
         }
         float clipBottom = mBarClipBottom + (1f - reveal) * mBarNavHeight;
@@ -6338,6 +6364,16 @@ public class MobilePlaybackActivity extends MobileActivity
         // The page under the video goes down with it.
         if (mWatchArea != null) {
             float areaShift = bandBottom - video.bottom;
+            if (mBarPill) {
+                // NEWTUBE(pills): the page rises from the screen's bottom edge over the navigation
+                // pill (which stays put) and catches up with the video as it opens; on the way
+                // down it slides off the bottom.
+                float open = 1f - down;
+                float catchUp = 1f - (1f - open) * (1f - open);
+                float pageTop = mContainer.getHeight() + (bandBottom - mContainer.getHeight()) * catchUp;
+                areaShift = Math.max(bandBottom, pageTop) - video.bottom;
+                clipBottom = mContainer.getHeight();
+            }
             mWatchArea.setTranslationY(areaShift);
             int visible = Math.round(clipBottom - (mBarAreaTop + areaShift));
             if (mBarPill && sideways > 0f) {

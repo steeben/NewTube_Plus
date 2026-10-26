@@ -66,12 +66,33 @@ public final class FrostedDialog {
     }
 
     /**
+     * NEWTUBE(pills): keep the sheet frame's rounded top corners. Expanded, BottomSheetBehavior
+     * animates its frame's corners square (Material 1.5 does it for every expanded sheet), while
+     * the content's own surface keeps its rounded ones: the frame's square corners poked out
+     * behind them (the landscape gear sheet). The corners are put back before every frame.
+     */
+    public static void keepCorners(@androidx.annotation.Nullable android.view.View sheet) {
+        if (sheet == null) {
+            return;
+        }
+        sheet.getViewTreeObserver().addOnPreDrawListener(() -> {
+            Drawable background = sheet.getBackground();
+            if (background instanceof MaterialShapeDrawable
+                    && ((MaterialShapeDrawable) background).getInterpolation() != 1f) {
+                ((MaterialShapeDrawable) background).setInterpolation(1f);
+            }
+            return true;
+        });
+    }
+
+    /**
      * A bottom sheet as frosted glass: call from its show listener. The sheet's surface is the
      * MaterialShapeDrawable its behavior re-sets on every layout, so its fill is changed on that
      * same drawable (a new background would be thrown away); the blur is of the whole screen
      * behind, seen through the sheet.
      */
     public static void applySheet(Dialog dialog, android.view.View sheet) {
+        keepCorners(sheet);
         if (dialog == null || sheet == null || !UiPrefs.isFrostedGlass(dialog.getContext())) {
             return;
         }

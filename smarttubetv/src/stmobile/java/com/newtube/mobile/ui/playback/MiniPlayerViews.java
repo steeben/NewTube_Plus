@@ -369,6 +369,13 @@ final class MiniPlayerViews {
         // zoomed video is larger than the bar), and its video clips nothing of its own.
         boolean plainPill = style == MiniPlayerStyle.BAR && pill;
         clipTo(frame, plainPill ? mThumbOutline : null);
+        // The clip still let the video's square right corners through on some frames (the video's
+        // TextureView is redrawn on its own, every frame): the thumbnail is drawn into a layer of
+        // its own, video and all, and that whole picture is cut to the outline.
+        int layer = plainPill ? View.LAYER_TYPE_HARDWARE : View.LAYER_TYPE_NONE;
+        if (frame.getLayerType() != layer) {
+            frame.setLayerType(layer, null);
+        }
         clipTo(backdrop, plainPill ? com.newtube.mobile.ui.common.Pills.OUTLINE : null);
         clipTo(progress, plainPill ? mLineOutline : null);
         if (frame.getParent() instanceof View) {
@@ -404,7 +411,7 @@ final class MiniPlayerViews {
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setMaxWidth(Integer.MAX_VALUE);
             textParams.setMarginStart((pill ? pillInset + pillThumbWidth : thumbWidth) + px(12, density));
-            textParams.setMarginEnd(2 * buttonSize + nextSlot + endPad + px(4, density));
+            textParams.setMarginEnd(buttonSize + nextSlot + endPad + px(8, density)); // no X: swiped away
             text.setBackground(null);
             text.setPadding(0, 0, 0, 0);
             title.setTextColor(onSurface);
@@ -421,8 +428,8 @@ final class MiniPlayerViews {
             play.width = buttonSize;
             play.height = buttonSize;
             play.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-            // The video-background bar has no X (it closes by swiping): play/pause takes its place.
-            play.setMarginEnd((style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize) + nextSlot + endPad);
+            // The bars have no X (they close by swiping down or sideways): play/pause takes its place.
+            play.setMarginEnd(px(4, density) + nextSlot + endPad);
             closeParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
             closeParams.setMarginEnd(endPad);
         } else {
@@ -435,13 +442,13 @@ final class MiniPlayerViews {
         }
         FrameLayout.LayoutParams nextParams = (FrameLayout.LayoutParams) next.getLayoutParams();
         if (bar) {
-            // Right after play/pause: at the end of the video bar, before the plain bar's X.
+            // Right after play/pause, at the bar's end.
             nextParams.width = buttonSize;
             nextParams.height = buttonSize;
             nextParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
             nextParams.leftMargin = 0;
             nextParams.setMarginStart(0);
-            nextParams.setMarginEnd((style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize) + endPad);
+            nextParams.setMarginEnd(px(4, density) + endPad);
         } else {
             // On the card, the same circle beside the centred play/pause.
             nextParams.width = px(40, density);
@@ -513,7 +520,7 @@ final class MiniPlayerViews {
         }
         int buttons = style == MiniPlayerStyle.CARD_GESTURE ? View.GONE : View.VISIBLE;
         playPause.setVisibility(buttons);
-        close.setVisibility(style == MiniPlayerStyle.BAR_VIDEO ? View.GONE : buttons);
+        close.setVisibility(bar ? View.GONE : buttons);
         next.setVisibility(showNext ? View.VISIBLE : View.GONE);
 
         // The tap answer: over the gesture card's middle, or a soft light ring on the video bar's

@@ -86,6 +86,24 @@ public final class LiquidNav {
         });
     }
 
+    /**
+     * NEWTUBE(pills): the screen is back in front (Settings closed over it): drop any touch or
+     * motion left half-done when it went behind, and put the pill on the selected tab, at rest.
+     */
+    public void resync() {
+        mTracking = false;
+        mDragging = false;
+        mHeld = false;
+        int index = selectedIndex();
+        if (index >= 0 && !items().isEmpty()) {
+            mMotion.snapTo(index);
+            mPlaced = true;
+        } else {
+            mPlaced = false;
+        }
+        invalidate();
+    }
+
     /** The flat pill, for the navigation's background: between its glass and its rim. */
     public Drawable flatPill() {
         return mFlat;
