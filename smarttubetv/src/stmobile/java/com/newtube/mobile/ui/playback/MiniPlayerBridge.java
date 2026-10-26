@@ -174,11 +174,41 @@ public final class MiniPlayerBridge {
      * SurfaceTexture.
      */
     /** NEWTUBE(pills): see {@link MiniHost#showMiniShell}. */
-    static void showHostShell(boolean show) {
+    static void showHostShell(MobilePlaybackActivity source, boolean show) {
+        sShellSource = new WeakReference<>(show ? source : null);
         MiniHost host = sMiniHost.get();
         if (host != null) {
             host.showMiniShell(show);
         }
+    }
+
+    /**
+     * NEWTUBE(pills): the watch page whose video is sliding over the host's pill shell. A minimize
+     * shows the shell long before this bridge is activated (that is the hand-over, at the end), so
+     * the shell reads its title, position and buttons from the sliding page.
+     */
+    private static WeakReference<MobilePlaybackActivity> sShellSource = new WeakReference<>(null);
+
+    @Nullable
+    private static MobilePlaybackActivity shellSource() {
+        return isActive() ? sActivity.get() : sShellSource.get();
+    }
+
+    @Nullable
+    static ExoPlayer getShellPlayer() {
+        MobilePlaybackActivity source = shellSource();
+        return source != null ? source.getSharedPlayer() : null;
+    }
+
+    @Nullable
+    static Video getShellVideo() {
+        MobilePlaybackActivity source = shellSource();
+        return source != null ? source.getVideo() : null;
+    }
+
+    static boolean shellHasNext() {
+        MobilePlaybackActivity source = shellSource();
+        return source != null && source.hasQueueNext();
     }
 
     static boolean prepareMiniHostForHandoff(Runnable onDrawn) {

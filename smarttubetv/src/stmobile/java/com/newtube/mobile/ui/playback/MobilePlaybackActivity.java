@@ -6370,10 +6370,10 @@ public class MobilePlaybackActivity extends MobileActivity
             if (inPill != mHostPillShown) {
                 mHostPillShown = inPill;
                 if (inPill) {
-                    MiniPlayerBridge.showHostShell(true);
+                    MiniPlayerBridge.showHostShell(this, true);
                 } else {
                     MiniPlayerBridge.foldHostCard(null); // the expand's docked bar
-                    MiniPlayerBridge.showHostShell(false); // or the minimize's shell
+                    MiniPlayerBridge.showHostShell(this, false); // or the minimize's shell
                 }
             }
         }
@@ -6408,19 +6408,20 @@ public class MobilePlaybackActivity extends MobileActivity
             float areaShift = bandBottom - video.bottom;
             if (mBarPill) {
                 // NEWTUBE(pills): the page rises from the screen's bottom edge over the navigation
-                // pill (which stays put) and catches up with the video as it opens; on the way
-                // down it slides off the bottom.
-                float open = 1f - down;
-                float catchUp = 1f - (1f - open) * (1f - open);
-                float pageTop = mContainer.getHeight() + (bandBottom - mContainer.getHeight()) * catchUp;
-                areaShift = Math.max(bandBottom, pageTop) - video.bottom;
+                // pill (which stays put) from the expand's first frame - while the thumbnail still
+                // grows inside the pill - and meets the video under it as it opens; it never
+                // passes the video's bottom edge. The minimize runs the same backwards: it slides
+                // off the bottom as the video shrinks into the pill.
+                float open = 1f - settled;
+                float rise = 1f - (1f - open) * (1f - open);
+                float pageTop = mContainer.getHeight() + (video.bottom - mContainer.getHeight()) * rise;
+                // Inside the pill, the page stops at the pill's bottom edge, not the thumbnail's.
+                float floor = sideways > 0f ? mBarTop + mBarHeight : bandBottom;
+                areaShift = Math.max(floor, pageTop) - video.bottom;
                 clipBottom = mContainer.getHeight();
             }
             mWatchArea.setTranslationY(areaShift);
             int visible = Math.round(clipBottom - (mBarAreaTop + areaShift));
-            if (mBarPill && sideways > 0f) {
-                visible = 0; // inside the pill: none of the page below the video shows
-            }
             mWatchArea.setClipBounds(new Rect(0, 0, mWatchArea.getWidth(),
                     Math.max(0, Math.min(mWatchArea.getHeight(), visible))));
         }

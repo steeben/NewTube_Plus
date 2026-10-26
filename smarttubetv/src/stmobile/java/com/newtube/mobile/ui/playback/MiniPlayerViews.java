@@ -858,6 +858,19 @@ final class MiniPlayerViews {
         return ContextCompat.getDrawable(context, value.resourceId);
     }
 
+    /**
+     * NEWTUBE(pills): each new video frame on the plain pill bar, the whole pill is drawn again,
+     * not the video alone. The thumbnail's square corners only ever flickered through while the
+     * page sat still - when the video's own frames were the only thing on screen being redrawn -
+     * and never while it scrolled, when the pill's glass is redrawn with every frame too.
+     */
+    void onVideoFrame() {
+        if (mPill && style == MiniPlayerStyle.BAR && card.getVisibility() == View.VISIBLE) {
+            backdrop.invalidate();
+            frame.invalidate();
+        }
+    }
+
     /** Clip {@code view} to {@code outline}, or (null) let it draw unclipped with its usual outline. */
     private static void clipTo(View view, @Nullable android.view.ViewOutlineProvider outline) {
         view.setOutlineProvider(outline != null ? outline : android.view.ViewOutlineProvider.BACKGROUND);

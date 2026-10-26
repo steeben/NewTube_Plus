@@ -422,8 +422,9 @@ public final class MobileMiniPlayerController {
             }
             return;
         }
-        ExoPlayer player = MiniPlayerBridge.getPlayer();
-        if (mShell || mBar.getVisibility() == View.VISIBLE || player == null
+        // The sliding watch page's player: a minimize shows the shell before the hand-over.
+        ExoPlayer player = MiniPlayerBridge.getShellPlayer();
+        if (mShell || mBar.getVisibility() == View.VISIBLE
                 || MiniPlayerStyle.get(mActivity) != MiniPlayerStyle.BAR || !MiniPlayerStyle.isPill(mActivity)) {
             return;
         }
@@ -434,14 +435,18 @@ public final class MobileMiniPlayerController {
         mBar.animate().cancel();
         resetTransform(); // also every control at full opacity
         mBar.setAlpha(1f);
-        updateText();
-        mViews.setHasNext(MiniPlayerBridge.hasNext());
+        Video video = MiniPlayerBridge.getShellVideo();
+        setTextIfChanged(mTitle, video != null ? video.getTitle() : null);
+        setTextIfChanged(mChannel, video != null ? video.getAuthor() : null);
+        mViews.setHasNext(MiniPlayerBridge.shellHasNext());
         mViews.updateProgressColors();
-        long duration = player.getDuration();
-        if (duration > 0) {
-            mProgress.setProgress((int) (player.getCurrentPosition() * 1000 / duration));
+        if (player != null) {
+            long duration = player.getDuration();
+            if (duration > 0) {
+                mProgress.setProgress((int) (player.getCurrentPosition() * 1000 / duration));
+            }
+            updatePlayPause(player);
         }
-        updatePlayPause(player);
         mFrame.setVisibility(View.INVISIBLE);
         mBar.setVisibility(View.VISIBLE);
     }
@@ -662,6 +667,7 @@ public final class MobileMiniPlayerController {
                 public void onSurfaceTextureUpdated(SurfaceTexture texture) {
                     mTextureHasFrame = true;
                     hideFreezeWhenReady();
+                    mViews.onVideoFrame();
                     updateFrost();
                     if (mActivity instanceof MiniPlayerBridge.MiniHost) {
                         ((MiniPlayerBridge.MiniHost) mActivity).onMiniVideoFrame();

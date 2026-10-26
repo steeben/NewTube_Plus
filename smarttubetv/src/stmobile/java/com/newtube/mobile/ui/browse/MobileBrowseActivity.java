@@ -1428,9 +1428,15 @@ public class MobileBrowseActivity extends MobileActivity
         });
     }
 
-    // NEWTUBE(pills): the navigation pill tucks in while the page scrolls down - narrower, its
-    // icons closer together - and comes back to full size as soon as the page scrolls up.
+    // NEWTUBE(pills): the navigation pill tucks in while the page scrolls down - narrower and
+    // shorter, its icons a little smaller and closer together, the tab names (when shown) gone -
+    // and comes back to full size as soon as the page scrolls up.
     private static final float NAV_COMPACT_WIDTH = 0.62f;
+    private static final float NAV_COMPACT_HEIGHT = 0.74f;
+    private static final float NAV_COMPACT_ICON = 0.86f;
+    /** The pill's full height and icon size, taken before it first tucks in. */
+    private int mNavFullHeight;
+    private int mNavFullIcon;
     private static final int NAV_COMPACT_TRIGGER_DP = 24;
     private static final long NAV_COMPACT_MS = 240;
     private float mNavCompact;
@@ -1465,6 +1471,17 @@ public class MobileBrowseActivity extends MobileActivity
         if (mNavCompactAnimator != null) {
             mNavCompactAnimator.cancel();
         }
+        if (mNavCompact == 0f && mBottomNav.getHeight() > 0) {
+            mNavFullHeight = mBottomNav.getHeight();
+            mNavFullIcon = mBottomNav.getItemIconSize();
+        }
+        // The tab names go as it starts to tuck in, and come back as it starts to grow.
+        if (compact) {
+            mBottomNav.setLabelVisibilityMode(
+                    com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_UNLABELED);
+        } else {
+            applyNavLabels();
+        }
         android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(mNavCompact, compact ? 1f : 0f);
         animator.setDuration(NAV_COMPACT_MS);
         animator.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
@@ -1484,12 +1501,21 @@ public class MobileBrowseActivity extends MobileActivity
         int full = parent.getWidth() - 2 * side;
         side += Math.round(full * (1f - NAV_COMPACT_WIDTH) / 2f * compact);
         ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;
-        if (margins.leftMargin != side) {
+        int height = compact <= 0f || mNavFullHeight <= 0 ? ViewGroup.LayoutParams.WRAP_CONTENT
+                : Math.round(mNavFullHeight * (1f - (1f - NAV_COMPACT_HEIGHT) * compact));
+        if (margins.leftMargin != side || margins.height != height) {
             margins.leftMargin = side;
             margins.rightMargin = side;
             margins.setMarginStart(side);
             margins.setMarginEnd(side);
+            margins.height = height;
             mBottomNav.setLayoutParams(margins);
+        }
+        if (mNavFullIcon > 0) {
+            int icon = Math.round(mNavFullIcon * (1f - (1f - NAV_COMPACT_ICON) * compact));
+            if (mBottomNav.getItemIconSize() != icon) {
+                mBottomNav.setItemIconSize(icon);
+            }
         }
         invalidateGlass();
     }
@@ -1502,7 +1528,8 @@ public class MobileBrowseActivity extends MobileActivity
         if (mBottomNav == null) {
             return;
         }
-        int mode = com.newtube.mobile.ui.common.UiPrefs.isNavLabels(this)
+        // Tucked in (pills), the navigation shows no tab names whatever the setting.
+        int mode = com.newtube.mobile.ui.common.UiPrefs.isNavLabels(this) && !mNavCompactTarget
                 ? com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_LABELED
                 : com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_UNLABELED;
         if (mBottomNav.getLabelVisibilityMode() != mode) {
