@@ -46,6 +46,13 @@ public final class MiniPlayerBridge {
         /** @return true when the mini card was made visible and scheduled for drawing. */
         boolean prepareMiniPlayerForHandoff(Runnable onDrawn);
 
+        /**
+         * NEWTUBE(pills): show (or take away) the docked pill bar without its video - its glass,
+         * title and buttons - under the player's video while a minimize or expand covers it.
+         */
+        default void showMiniShell(boolean show) {
+        }
+
         /** The ViewManager view class that reorders this host's Activity to the front. */
         Class<?> getMiniHostViewClass();
 
@@ -166,6 +173,14 @@ public final class MiniPlayerBridge {
      * navigation has a different mini-player host and must not let this host claim the shared
      * SurfaceTexture.
      */
+    /** NEWTUBE(pills): see {@link MiniHost#showMiniShell}. */
+    static void showHostShell(boolean show) {
+        MiniHost host = sMiniHost.get();
+        if (host != null) {
+            host.showMiniShell(show);
+        }
+    }
+
     static boolean prepareMiniHostForHandoff(Runnable onDrawn) {
         MiniHost host = sMiniHost.get();
         return host != null && host.prepareMiniPlayerForHandoff(onDrawn);

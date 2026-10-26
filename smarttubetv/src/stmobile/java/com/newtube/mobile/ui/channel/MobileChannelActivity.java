@@ -438,6 +438,13 @@ public class MobileChannelActivity extends MobileActivity
     }
 
     @Override
+    public void showMiniShell(boolean show) {
+        if (mMiniPlayer != null) {
+            mMiniPlayer.showShell(show); // NEWTUBE(pills)
+        }
+    }
+
+    @Override
     public boolean prepareMiniPlayerForHandoff(Runnable onDrawn) {
         return mMiniPlayer != null && mMiniPlayer.prepareForHandoff(onDrawn);
     }

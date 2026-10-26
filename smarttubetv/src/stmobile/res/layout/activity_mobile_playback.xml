@@ -85,9 +85,9 @@
                 <!-- The scrims cover the whole video area: in fullscreen the root is padded to the
                      video's edges and the cutout, and applyControlsInsets gives these two the
                      matching negative margins (clipToPadding=false above). -->
-                <!-- NEWTUBE(frosted): with the controls up the whole video dims as much as the dark
-                     theme's frosted glass (its page colour at 70%), in both themes - the controls
-                     sit on that, not on gradients. -->
+                <!-- NEWTUBE(frosted): with the controls up the whole video dims evenly (black at
+                     50%, set in updateControlsDim), in both themes - the controls sit on that, not
+                     on gradients or a vignette. -->
                 <View
                     android:id="@+id/mobile_player_dim"
                     android:layout_width="match_parent"

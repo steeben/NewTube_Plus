@@ -201,6 +201,54 @@ final class MiniPlayerViews {
         }
     };
 
+    /** NEWTUBE(pills): erases what lies outside the thumbnail's outline (see applyStyle). */
+    private final Drawable mThumbCorners = new Drawable() {
+        private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Path mPath = new android.graphics.Path();
+        private final android.graphics.RectF mRect = new android.graphics.RectF();
+
+        {
+            mPaint.setColor(Color.BLACK);
+            mPaint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT));
+        }
+
+        @Override
+        public void draw(Canvas canvas) {
+            Rect bounds = getBounds();
+            if (bounds.isEmpty()) {
+                return;
+            }
+            float density = card.getResources().getDisplayMetrics().density;
+            float start = bounds.height() / 2f;
+            float end = Math.min(start, MiniPlayerStyle.PILL_THUMB_CORNER_DP * density);
+            mRect.set(bounds);
+            mPath.reset();
+            mPath.setFillType(android.graphics.Path.FillType.INVERSE_WINDING);
+            mPath.addRoundRect(mRect, new float[] {start, start, end, end, end, end, start, start},
+                    android.graphics.Path.Direction.CW);
+            canvas.save();
+            canvas.clipRect(bounds);
+            canvas.drawPath(mPath, mPaint);
+            canvas.restore();
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+        }
+
+        @Override
+        public void setColorFilter(@Nullable android.graphics.ColorFilter colorFilter) {
+        }
+
+        @Override
+        public int getOpacity() {
+            return android.graphics.PixelFormat.TRANSLUCENT;
+        }
+    };
+
+    private final View.OnLayoutChangeListener mThumbCornersBounds = (v, l, t, r, b, ol, ot, or, ob) ->
+            mThumbCorners.setBounds(0, 0, r - l, b - t);
+
     /**
      * NEWTUBE(pills): the plain pill bar's line, cut to the pill it lies along the bottom of: the
      * pill's rounded rectangle, reaching up past the line's top to the pill's.
@@ -376,6 +424,15 @@ final class MiniPlayerViews {
         if (frame.getLayerType() != layer) {
             frame.setLayerType(layer, null);
         }
+        // Even so the square corners came through now and then: the corners are also erased from
+        // that layer outright (an overlay drawn after the video), which no clip can miss.
+        frame.getOverlay().remove(mThumbCorners);
+        frame.removeOnLayoutChangeListener(mThumbCornersBounds);
+        if (plainPill) {
+            mThumbCorners.setBounds(0, 0, frame.getWidth(), frame.getHeight());
+            frame.getOverlay().add(mThumbCorners);
+            frame.addOnLayoutChangeListener(mThumbCornersBounds);
+        }
         clipTo(backdrop, plainPill ? com.newtube.mobile.ui.common.Pills.OUTLINE : null);
         clipTo(progress, plainPill ? mLineOutline : null);
         if (frame.getParent() instanceof View) {
@@ -534,6 +591,19 @@ final class MiniPlayerViews {
             ring.setShape(android.graphics.drawable.GradientDrawable.OVAL);
             ring.setColor(ContextCompat.getColor(context, R.color.mobile_mini_play_flash));
             flash.setBackground(ring);
+            flash.setImageDrawable(null);
+        } else if (style == MiniPlayerStyle.BAR) {
+            // NEWTUBE(pills): a soft glow of the accent behind play/pause when it is tapped.
+            flashParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+            flashParams.setMarginEnd(px(4, density) + nextSlot + endPad + (buttonSize - px(44, density)) / 2);
+            android.graphics.drawable.GradientDrawable glow = new android.graphics.drawable.GradientDrawable();
+            glow.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            glow.setGradientType(android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT);
+            glow.setGradientRadius(px(22, density));
+            int accent = MiniPlayerStyle.accent(context);
+            glow.setColors(new int[] {(accent & 0x00FFFFFF) | 0x8C000000, (accent & 0x00FFFFFF) | 0x33000000,
+                    accent & 0x00FFFFFF});
+            flash.setBackground(glow);
             flash.setImageDrawable(null);
         } else {
             flashParams.gravity = Gravity.CENTER;

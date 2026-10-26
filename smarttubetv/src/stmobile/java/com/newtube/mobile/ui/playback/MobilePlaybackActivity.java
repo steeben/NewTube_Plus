@@ -2486,7 +2486,10 @@ public class MobilePlaybackActivity extends MobileActivity
     @Nullable
     private Boolean mDimLight;
 
-    /** The dim under the controls: a black vignette, a faint white one in the light theme. */
+    /**
+     * The dim under the controls: the whole video evenly darkened (black at 50%), in both themes -
+     * no longer a vignette, which left the middle of the picture bright behind play/pause.
+     */
     private void updateControlsDim() {
         View dim = findViewById(R.id.mobile_player_dim);
         boolean light = com.newtube.mobile.ui.common.ThemeMode.isLight(this);
@@ -2494,7 +2497,7 @@ public class MobilePlaybackActivity extends MobileActivity
             return;
         }
         mDimLight = light;
-        dim.setBackground(light ? new VignetteDrawable(0xFFFFFF, 0x38) : new VignetteDrawable(0x000000, 0xA6));
+        dim.setBackground(new android.graphics.drawable.ColorDrawable(0x80000000));
     }
 
     private static void bleedScrim(@Nullable View scrim, int left, int top, int right, int bottom) {
@@ -4366,13 +4369,14 @@ public class MobilePlaybackActivity extends MobileActivity
     }
 
     /**
-     * NEWTUBE(pills): a gear sheet's rows in a scroll view, which carries the sheet's surface. In
+     * NEWTUBE(pills): a gear sheet's rows in a scroll view, on the sheet frame's surface. In
      * landscape the rows are taller than the screen, and the last ones (Detect black bars, More)
      * could not be reached.
      */
     private View scrollableSheet(LinearLayout content) {
         androidx.core.widget.NestedScrollView scroll = new androidx.core.widget.NestedScrollView(this);
-        scroll.setBackground(content.getBackground());
+        // One surface: the sheet's own frame (themed, rounded, frosted with the glass). The rows'
+        // own panel on top of it was a second background, its corners out of line with the frame's.
         content.setBackground(null);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         scroll.setFillViewport(false);
@@ -4458,14 +4462,33 @@ public class MobilePlaybackActivity extends MobileActivity
             if (sheetView != null) {
                 BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(sheetView);
                 behavior.setSkipCollapsed(true);
-                // NEWTUBE(pills): never taller than the screen under the status bar - a taller
-                // sheet ran off the bottom, its last rows out of reach (its rows scroll instead).
-                View decor = getWindow().getDecorView();
-                androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(decor);
-                int top = insets != null ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top : 0;
-                if (decor.getHeight() > 0) {
-                    behavior.setMaxHeight(Math.max(dp(160), decor.getHeight() - top));
-                    sheetView.requestLayout();
+                // NEWTUBE(pills): never taller than the room the sheet's window gives it, under
+                // the status bar - a taller sheet ran off the bottom, its last rows out of reach
+                // (they scroll instead). The window's room, not the screen's: in landscape the
+                // dialog's window stops above the navigation bar, and a sheet sized to the
+                // screen lost its last half row under it.
+                if (sheetView.getParent() instanceof View) {
+                    View room = (View) sheetView.getParent();
+                    Runnable cap = () -> {
+                        if (room.getHeight() <= 0) {
+                            return;
+                        }
+                        androidx.core.view.WindowInsetsCompat insets = androidx.core.view.ViewCompat.getRootWindowInsets(room);
+                        int status = insets != null ? insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top : 0;
+                        int[] at = new int[2];
+                        room.getLocationOnScreen(at);
+                        int max = Math.max(dp(160), room.getHeight() - Math.max(0, status - at[1]));
+                        if (behavior.getMaxHeight() != max) {
+                            behavior.setMaxHeight(max);
+                            sheetView.requestLayout();
+                        }
+                    };
+                    cap.run();
+                    room.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                        if (b - t != ob - ot) {
+                            v.post(cap);
+                        }
+                    });
                 }
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
             }
@@ -6035,6 +6058,12 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mBarPillWidth;
     /** The plain pill's thumbnail's right corners, px on screen. */
     private float mBarThumbEndRadius;
+    /**
+     * NEWTUBE(pills): the host's plain pill bar is up under the slide. It is there exactly while
+     * the video is inside the pill: it goes in the frame the expanding video has covered all of
+     * it, and (a minimize) comes, glass and all, in the frame the video has covered all of it.
+     */
+    private boolean mHostPillShown;
     /** The fraction at which the slide down ends and the sideways shrink begins. */
     private float mBarSplit = 1f;
     /** Finger travel for the whole bar minimize. */
@@ -6255,6 +6284,7 @@ public class MobilePlaybackActivity extends MobileActivity
         mBarInset = pill ? MiniPlayerStyle.pillInsetPx(barStyle, pillDensity) : 0f;
         mBarLeft = pill ? MiniPlayerStyle.pillSidePx(pillDensity) + mBarInset : 0f;
         mBarPill = pill;
+        mHostPillShown = pill && barStyle == MiniPlayerStyle.BAR && mBarExpanding; // an expand starts on it
         mBarPillLeft = MiniPlayerStyle.pillSidePx(pillDensity);
         mBarPillWidth = mContainer.getWidth() - 2f * mBarPillLeft;
         mBarThumbEndRadius = Math.min(barHeight / 2f, MiniPlayerStyle.PILL_THUMB_CORNER_DP * pillDensity);
@@ -6335,6 +6365,18 @@ public class MobilePlaybackActivity extends MobileActivity
         mVideoArea.setTranslationZ(0f);
         mOutlineCropLocalPx = cropLocal;
         mOutlineTopRadiusPx = mBarRoundedTop ? MiniPlayerStyle.CARD_CORNER_DP * density * down / scale : 0f;
+        if (mBarPill && mBarSplit < 1f) {
+            boolean inPill = settled >= mBarSplit - 0.0005f;
+            if (inPill != mHostPillShown) {
+                mHostPillShown = inPill;
+                if (inPill) {
+                    MiniPlayerBridge.showHostShell(true);
+                } else {
+                    MiniPlayerBridge.foldHostCard(null); // the expand's docked bar
+                    MiniPlayerBridge.showHostShell(false); // or the minimize's shell
+                }
+            }
+        }
         mOutlinePerEnd = mBarPill;
         mOutlineStartRadiusPx = startRadius / scale;
         mOutlineEndRadiusPx = endRadius / scale;
@@ -6445,8 +6487,8 @@ public class MobilePlaybackActivity extends MobileActivity
         if (!MiniPlayerStyle.isBar(style) || mContainer == null) {
             return;
         }
-        if (mBarExpanding && style == MiniPlayerStyle.BAR && MiniPlayerStyle.isPill(this)) {
-            return; // NEWTUBE(pills): the host's own pill stays up under the expand
+        if (style == MiniPlayerStyle.BAR && MiniPlayerStyle.isPill(this)) {
+            return; // NEWTUBE(pills): the host's own pill is under the slide (mHostPillShown)
         }
         try {
             View card = getLayoutInflater().inflate(R.layout.mobile_mini_player_overlay, mContainer, false);
@@ -9162,6 +9204,27 @@ public class MobilePlaybackActivity extends MobileActivity
             if (glass && mWatchScroll != null) {
                 commentsSheet.setBackground(new com.newtube.mobile.ui.common.BackdropBlurDrawable(
                         mWatchScroll, commentsSheet, page, (page & 0x00FFFFFF) | 0xC7000000));
+                // NEWTUBE(pills): the glass is a picture of the page under it, taken when the sheet
+                // draws: take it again whenever the sheet or the page under it moves (it showed a
+                // stale picture until the comments were scrolled).
+                if (commentsSheet.getTag(R.id.mobile_pill_applied) == null) {
+                    commentsSheet.setTag(R.id.mobile_pill_applied, Boolean.TRUE);
+                    int[] last = new int[] {Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+                    int[] at = new int[2];
+                    commentsSheet.getViewTreeObserver().addOnPreDrawListener(() -> {
+                        if (commentsSheet.isShown()) {
+                            commentsSheet.getLocationInWindow(at);
+                            int scroll = mWatchScroll != null ? mWatchScroll.getScrollY() : 0;
+                            if (at[0] != last[0] || at[1] != last[1] || scroll != last[2]) {
+                                last[0] = at[0];
+                                last[1] = at[1];
+                                last[2] = scroll;
+                                commentsSheet.invalidate();
+                            }
+                        }
+                        return true;
+                    });
+                }
             } else {
                 commentsSheet.setBackgroundColor(page);
             }

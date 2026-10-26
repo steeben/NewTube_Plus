@@ -121,8 +121,8 @@ public final class MobileMiniPlayerController {
 
         mPlayPause.setOnClickListener(v -> {
             togglePlayback(false);
-            if (mStyle == MiniPlayerStyle.BAR_VIDEO) {
-                pulsePlayButton();
+            if (mStyle == MiniPlayerStyle.BAR_VIDEO || mStyle == MiniPlayerStyle.BAR) {
+                pulsePlayButton(); // NEWTUBE(pills): the plain bar glows too
             }
         });
         mClose.setOnClickListener(v -> close());
@@ -404,8 +404,54 @@ public final class MobileMiniPlayerController {
         hide();
     }
 
+    /** NEWTUBE(pills): the bar is up without its video (see {@link #showShell}). */
+    private boolean mShell;
+
+    /**
+     * NEWTUBE(pills): the plain pill bar's glass, title and buttons, without the video, while the
+     * player's own video covers its place: put up the moment a minimize's video has come down
+     * over the whole pill (so the glass is there, live, as the video shrinks into it), taken away
+     * if the video leaves it again. The handoff's sync then brings the video in.
+     */
+    public void showShell(boolean show) {
+        if (!show) {
+            if (mShell) {
+                mShell = false;
+                mBar.setVisibility(View.GONE);
+                mFrame.setVisibility(View.VISIBLE);
+            }
+            return;
+        }
+        ExoPlayer player = MiniPlayerBridge.getPlayer();
+        if (mShell || mBar.getVisibility() == View.VISIBLE || player == null
+                || MiniPlayerStyle.get(mActivity) != MiniPlayerStyle.BAR || !MiniPlayerStyle.isPill(mActivity)) {
+            return;
+        }
+        mShell = true;
+        if (mStyle != MiniPlayerStyle.BAR) {
+            applyStyle(MiniPlayerStyle.BAR);
+        }
+        mBar.animate().cancel();
+        resetTransform(); // also every control at full opacity
+        mBar.setAlpha(1f);
+        updateText();
+        mViews.setHasNext(MiniPlayerBridge.hasNext());
+        mViews.updateProgressColors();
+        long duration = player.getDuration();
+        if (duration > 0) {
+            mProgress.setProgress((int) (player.getCurrentPosition() * 1000 / duration));
+        }
+        updatePlayPause(player);
+        mFrame.setVisibility(View.INVISIBLE);
+        mBar.setVisibility(View.VISIBLE);
+    }
+
     /** Show the live mini session. Optionally animate it down from the watch-page video box. */
     public void sync(boolean animateFromPlayer) {
+        if (mShell) {
+            mShell = false; // the video comes in now
+            mFrame.setVisibility(View.VISIBLE);
+        }
         finishClose(); // a card closing when this runs is closed, not brought back
         MiniPlayerBridge.clearPendingCardFold(mCardFold);
         ExoPlayer player = MiniPlayerBridge.getPlayer();
@@ -526,6 +572,10 @@ public final class MobileMiniPlayerController {
      * Activity can then reclaim the same session texture during Back/expand without a black beat.
      */
     public void hide() {
+        if (mShell) {
+            mShell = false;
+            mFrame.setVisibility(View.VISIBLE);
+        }
         finishClose();
         MiniPlayerBridge.clearPendingCardFold(mCardFold);
         detachTexture();

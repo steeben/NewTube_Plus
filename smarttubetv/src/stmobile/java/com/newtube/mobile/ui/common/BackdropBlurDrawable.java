@@ -336,7 +336,8 @@ public final class BackdropBlurDrawable extends Drawable {
             try {
                 recording.drawColor(pageColor);
                 recording.save();
-                recording.translate(dx, dy);
+                // draw() leaves out the source's own scroll (a scrolled watch page).
+                recording.translate(dx - source.getScrollX(), dy - source.getScrollY());
                 source.draw(recording);
                 recording.restore();
                 if (extra != null) {

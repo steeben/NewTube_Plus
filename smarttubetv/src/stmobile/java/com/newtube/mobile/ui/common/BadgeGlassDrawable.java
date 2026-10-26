@@ -62,6 +62,22 @@ public final class BadgeGlassDrawable extends Drawable {
         badge.setPadding(l, t, r, b);
     }
 
+    /**
+     * Redraw the glass badges among {@code frame}'s children: a playing preview over the thumbnail
+     * changes what is under them every frame.
+     */
+    public static void invalidateIn(@Nullable android.view.ViewGroup frame) {
+        if (frame == null) {
+            return;
+        }
+        for (int i = 0; i < frame.getChildCount(); i++) {
+            Drawable background = frame.getChildAt(i).getBackground();
+            if (background instanceof BadgeGlassDrawable) {
+                background.invalidateSelf();
+            }
+        }
+    }
+
     @Override
     public void draw(@NonNull Canvas canvas) {
         Rect bounds = getBounds();
@@ -77,7 +93,7 @@ public final class BadgeGlassDrawable extends Drawable {
                 && mSource.getParent() == mHost.getParent()) {
             float dx = mSource.getX() - mHost.getX() - bounds.left;
             float dy = mSource.getY() - mHost.getY() - bounds.top;
-            Api31.drawBlur(mNode, canvas, bounds, mSource, dx, dy, mBlurPx, mAlpha);
+            Api31.drawBlur(mNode, canvas, bounds, mSource, mHost, dx, dy, mBlurPx, mAlpha);
         }
         int tintAlpha = mTint.getAlpha();
         mTint.setAlpha(Math.round(tintAlpha * mAlpha / 255f));
@@ -92,7 +108,7 @@ public final class BadgeGlassDrawable extends Drawable {
             return new android.graphics.RenderNode("newtube-badge");
         }
 
-        static void drawBlur(Object nodeObject, Canvas canvas, Rect bounds, View source,
+        static void drawBlur(Object nodeObject, Canvas canvas, Rect bounds, View source, View host,
                              float dx, float dy, float blurPx, int alpha) {
             android.graphics.RenderNode node = (android.graphics.RenderNode) nodeObject;
             int width = bounds.width();
@@ -103,6 +119,7 @@ public final class BadgeGlassDrawable extends Drawable {
                 recording.drawColor(0xFF000000);
                 recording.translate(dx, dy);
                 source.draw(recording);
+                drawPreviews(recording, source, host);
             } finally {
                 node.endRecording();
             }
@@ -113,6 +130,38 @@ public final class BadgeGlassDrawable extends Drawable {
             canvas.translate(bounds.left, bounds.top);
             canvas.drawRenderNode(node);
             canvas.restore();
+        }
+
+        /**
+         * A feed preview plays in a TextureView laid over the thumbnail, between it and the badge:
+         * draw those too (at their alpha, as they fade in), so the glass shows the moving picture.
+         */
+        private static void drawPreviews(Canvas recording, View source, View host) {
+            if (!(source.getParent() instanceof android.view.ViewGroup)) {
+                return;
+            }
+            android.view.ViewGroup parent = (android.view.ViewGroup) source.getParent();
+            for (int i = 0; i < parent.getChildCount(); i++) {
+                View child = parent.getChildAt(i);
+                if (child == host) {
+                    break;
+                }
+                if (!(child instanceof android.view.TextureView) || child.getVisibility() != View.VISIBLE
+                        || child.getAlpha() <= 0f || child.getWidth() == 0) {
+                    continue;
+                }
+                recording.save();
+                recording.translate(child.getX() - source.getX(), child.getY() - source.getY());
+                int save = child.getAlpha() < 1f
+                        ? recording.saveLayerAlpha(0, 0, child.getWidth(), child.getHeight(),
+                                Math.round(child.getAlpha() * 255))
+                        : -1;
+                child.draw(recording);
+                if (save != -1) {
+                    recording.restoreToCount(save);
+                }
+                recording.restore();
+            }
         }
     }
 

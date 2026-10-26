@@ -412,6 +412,13 @@ public class MobileBrowseActivity extends MobileActivity
         return Math.round(56 * getResources().getDisplayMetrics().density);
     }
 
+    @Override
+    public void showMiniShell(boolean show) {
+        if (mMiniPlayer != null) {
+            mMiniPlayer.showShell(show); // NEWTUBE(pills)
+        }
+    }
+
     /**
      * The translucent playback Activity is still on top when this runs. Make the endpoint card
      * visible now so Browse can draw it underneath before Android reorders Browse to the front.

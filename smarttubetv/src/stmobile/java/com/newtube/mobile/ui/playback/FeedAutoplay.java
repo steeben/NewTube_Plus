@@ -84,7 +84,7 @@ public final class FeedAutoplay {
     private static final float READING_LINE = 0.45f; // from the top: 55% up the screen
     private static final long SETTLE_MS = 450;
     private static final long TICK_MS = 250;
-    private static final int MAX_HEIGHT = 480;
+    private static final int MAX_HEIGHT = 720; // NEWTUBE(autoplay): was 480
     private static boolean sMuted = true;
     private static WeakReference<FeedAutoplay> sCurrent = new WeakReference<>(null);
 
@@ -270,14 +270,14 @@ public final class FeedAutoplay {
         OkHttpDataSource.Factory http = new OkHttpDataSource.Factory(
                 MediaHttpClient.create(OkHttpManager.instance().getClient()))
                 .setUserAgent(Media3SourceFactory.MEDIA_USER_AGENT);
-        // One file with sound and picture (360p) when there is one; else a low picture + the sound.
-        MediaFormat muxed = pickMuxed(info.getUrlFormats());
-        if (muxed != null) {
-            return new ProgressiveMediaSource.Factory(http).createMediaSource(MediaItem.fromUri(Uri.parse(muxed.getUrl())));
-        }
+        // NEWTUBE(autoplay): the best picture up to 720p with the sound beside it; the one file with
+        // both (360p) only when there is no such picture. The opened player then plays at the
+        // quality set in Settings.
         MediaFormat video = pickVideo(info.getAdaptiveFormats());
         if (video == null) {
-            return null;
+            MediaFormat muxed = pickMuxed(info.getUrlFormats());
+            return muxed == null ? null
+                    : new ProgressiveMediaSource.Factory(http).createMediaSource(MediaItem.fromUri(Uri.parse(muxed.getUrl())));
         }
         MediaSource picture = new ProgressiveMediaSource.Factory(http)
                 .createMediaSource(MediaItem.fromUri(Uri.parse(video.getUrl())));
@@ -490,6 +490,8 @@ public final class FeedAutoplay {
                 return;
             }
             mGate.onPreviewFrame(frame);
+            // The duration badge's glass shows the playing picture, not the still thumbnail.
+            com.newtube.mobile.ui.common.BadgeGlassDrawable.invalidateIn(frame);
             frame.postOnAnimation(this);
         }
     };
@@ -548,6 +550,8 @@ public final class FeedAutoplay {
                 watch.animate().cancel();
                 watch.setAlpha(1f);
             }
+            // Back to the still thumbnail under the badge.
+            com.newtube.mobile.ui.common.BadgeGlassDrawable.invalidateIn(frame);
         }
         mTexture = null;
         mSpeaker = null;
