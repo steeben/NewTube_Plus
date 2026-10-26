@@ -37,9 +37,9 @@ public final class MiniPlayerStyle {
      * NEWTUBE(pills): with Floating pills on, a bar is a wide pill: in from the screen's sides by
      * Pills.SIDE_DP, resting Pills.GAP_DP above the navigation pill (or the content's bottom), its
      * ends fully rounded. The plain bar's video sits inside it, this far from its top, bottom and
-     * start, with the video cards' corners.
+     * start, with the video cards' corners (its left ones cut by the pill's rounded end).
      */
-    public static final int PILL_THUMB_INSET_DP = 6;
+    public static final int PILL_THUMB_INSET_DP = 4;
     public static final float PILL_THUMB_CORNER_DP = CARD_CORNER_DP;
     /** NEWTUBE(mini-style): the video-background bar is 40% taller - it is mostly picture. */
     public static final int BAR_VIDEO_HEIGHT_DP = 90;

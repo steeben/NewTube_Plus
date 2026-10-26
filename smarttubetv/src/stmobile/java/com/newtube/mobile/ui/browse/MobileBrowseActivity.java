@@ -225,6 +225,7 @@ public class MobileBrowseActivity extends MobileActivity
 
         // NEWTUBE(pills): the pills float over the feed, which runs under them as under the glass.
         mPillApplied = com.newtube.mobile.ui.common.UiPrefs.isPillLayout(this);
+        mGlassStyle = com.newtube.mobile.ui.common.UiPrefs.getGlassStyle(this);
         mFrostedApplied = com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) || mPillApplied; // before the insets
         setContentView(R.layout.activity_mobile_browse);
 
@@ -968,6 +969,10 @@ public class MobileBrowseActivity extends MobileActivity
 
     @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent event) {
+        // NEWTUBE(liquid): a sideways drag on the navigation pill carries its selected-tab pill.
+        if (mLiquidNav != null && mLiquidNav.onTouch(event)) {
+            return true;
+        }
         if (mTabSlider == null) {
             return super.dispatchTouchEvent(event);
         }
@@ -1074,11 +1079,34 @@ public class MobileBrowseActivity extends MobileActivity
 
     /** NEWTUBE(pills): {@code view} becomes a glass pill over what scrolls under it. */
     private void makeGlassPill(View view, int page, int tint) {
+        com.newtube.mobile.ui.common.Pills.shape(view, pillSurface(view, page, tint), isLiquid());
+        mPillGlass.add(view);
+    }
+
+    /** NEWTUBE(glass): Settings > Appearance > Glass, as this screen was laid out with it. */
+    private int mGlassStyle;
+    /** NEWTUBE(liquid): the navigation pill's travelling selected-tab pill (Liquid glass only). */
+    @Nullable
+    private com.newtube.mobile.ui.common.LiquidNav mLiquidNav;
+
+    private boolean isLiquid() {
+        return mGlassStyle == com.newtube.mobile.ui.common.UiPrefs.GLASS_LIQUID;
+    }
+
+    /**
+     * NEWTUBE(glass): a pill's surface for the Glass setting - glass over what scrolls under
+     * {@code view} (frosted or liquid), or null for the solid surface.
+     */
+    @Nullable
+    private com.newtube.mobile.ui.common.BackdropBlurDrawable pillSurface(View view, int page, int tint) {
+        if (mGlassStyle == com.newtube.mobile.ui.common.UiPrefs.GLASS_SOLID) {
+            return null;
+        }
         com.newtube.mobile.ui.common.BackdropBlurDrawable glass =
                 new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, view, page, tint);
         glass.setLayers(mGlassLayers);
-        com.newtube.mobile.ui.common.Pills.shape(view, glass);
-        mPillGlass.add(view);
+        glass.setLiquid(isLiquid() && com.newtube.mobile.ui.common.LiquidGlass.isSupported());
+        return glass;
     }
 
     /**
@@ -1198,7 +1226,8 @@ public class MobileBrowseActivity extends MobileActivity
 
         final int titleHeight = getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height);
         int page = getResources().getColor(R.color.mobile_color_background);
-        int tint = mPillApplied ? com.newtube.mobile.ui.common.Pills.glassTint(this) // NEWTUBE(pills)
+        int tint = mPillApplied ? (isLiquid() ? com.newtube.mobile.ui.common.LiquidGlass.tint(this) // NEWTUBE(liquid)
+                : com.newtube.mobile.ui.common.Pills.glassTint(this)) // NEWTUBE(pills)
                 : (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
         float density = getResources().getDisplayMetrics().density;
         // The top bar's glass ends in a soft edge (fading out over this), not a sharp line.
@@ -1245,10 +1274,14 @@ public class MobileBrowseActivity extends MobileActivity
         View navGlass = mPillApplied ? null : new View(this);
         if (mPillApplied) {
             // NEWTUBE(pills): the navigation is a glass pill itself, floating over the feed.
-            com.newtube.mobile.ui.common.BackdropBlurDrawable navPillGlass =
-                    new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, mBottomNav, page, tint);
-            navPillGlass.setLayers(mGlassLayers);
-            com.newtube.mobile.ui.common.Pills.applyToNav(mBottomNav, navPillGlass);
+            android.graphics.drawable.Drawable navSurface = pillSurface(mBottomNav, page, tint);
+            if (isLiquid() && navSurface != null) {
+                // NEWTUBE(liquid): the selected tab's pill travels, lifts and can be dragged.
+                mLiquidNav = new com.newtube.mobile.ui.common.LiquidNav(mBottomNav, root, mGlassLayers, page);
+                navSurface = new android.graphics.drawable.LayerDrawable(
+                        new android.graphics.drawable.Drawable[] {navSurface, mLiquidNav.flatPill()});
+            }
+            com.newtube.mobile.ui.common.Pills.applyToNav(mBottomNav, navSurface, mLiquidNav != null);
             mPillGlass.add(mBottomNav);
         } else {
             androidx.constraintlayout.widget.ConstraintLayout.LayoutParams navGlassParams =
@@ -1285,11 +1318,16 @@ public class MobileBrowseActivity extends MobileActivity
             mini.bringToFront();
             // The plain mini bar's surface: the same glass as the bottom navigation under it.
             View miniBackdrop = mini.findViewById(R.id.mobile_mini_backdrop);
-            if (miniBackdrop != null) {
+            if (miniBackdrop != null && mPillApplied && mGlassStyle == com.newtube.mobile.ui.common.UiPrefs.GLASS_SOLID) {
+                // NEWTUBE(glass): Solid - the pills' own surface.
+                miniBackdrop.setBackgroundColor(com.newtube.mobile.ui.common.Pills.solidSurface(this));
+            } else if (miniBackdrop != null) {
                 mMiniGlass = miniBackdrop;
                 mMiniGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(
                         mContentGrid, miniBackdrop, page, tint);
                 mMiniGlassDrawable.setLayers(mGlassLayers);
+                mMiniGlassDrawable.setLiquid(mPillApplied && isLiquid()
+                        && com.newtube.mobile.ui.common.LiquidGlass.isSupported()); // NEWTUBE(liquid)
                 miniBackdrop.setBackground(mMiniGlassDrawable);
             }
         }
@@ -2522,7 +2560,8 @@ public class MobileBrowseActivity extends MobileActivity
         // NEWTUBE(frosted): the feed runs under the bars or it does not - a new layout either way.
         boolean wantPills = com.newtube.mobile.ui.common.UiPrefs.isPillLayout(this);
         if ((com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) || wantPills) != mFrostedApplied
-                || wantPills != mPillApplied) {
+                || wantPills != mPillApplied
+                || (mPillApplied && com.newtube.mobile.ui.common.UiPrefs.getGlassStyle(this) != mGlassStyle)) {
             recreate();
             return;
         }

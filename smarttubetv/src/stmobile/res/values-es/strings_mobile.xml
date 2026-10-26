@@ -452,6 +452,9 @@
     <string name="mobile_appearance_ambient_not_fullscreen">Activado, salvo en pantalla completa</string>
     <string name="mobile_appearance_frosted">Cristal esmerilado</string>
     <string name="mobile_appearance_frosted_summary">Las barras superior e inferior, y los botones de la página del vídeo</string>
+    <string name="mobile_appearance_glass">Cristal</string>
+    <string name="mobile_appearance_glass_solid">Sólido</string>
+    <string name="mobile_appearance_glass_liquid">Cristal líquido</string>
     <string name="mobile_appearance_pills">Píldoras flotantes</string>
     <string name="mobile_appearance_pills_summary">La navegación, la barra superior y el minirreproductor flotan sobre el feed como píldoras de cristal</string>
     <string name="mobile_appearance_branding">Marca</string>

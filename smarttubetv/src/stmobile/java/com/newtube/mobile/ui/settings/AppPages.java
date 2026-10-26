@@ -95,10 +95,12 @@ final class AppPages {
                         : AccentDialog.hex(UiPrefs.getAccent(context)),
                 page -> AccentDialog.show(page.requireContext(), page::rebuild)));
 
-        // NEWTUBE(frosted): glass bars on Home, glass buttons on the watch page.
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_appearance_frosted),
-                context.getString(R.string.mobile_appearance_frosted_summary),
-                () -> UiPrefs.isFrostedGlass(context), on -> UiPrefs.setFrostedGlass(context, on)));
+        // NEWTUBE(glass): the bars' and buttons' surface - solid, frosted glass or liquid glass.
+        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_appearance_glass))
+                .option(context.getString(R.string.mobile_appearance_glass_solid), UiPrefs.GLASS_SOLID)
+                .option(context.getString(R.string.mobile_appearance_frosted), UiPrefs.GLASS_FROSTED)
+                .option(context.getString(R.string.mobile_appearance_glass_liquid), UiPrefs.GLASS_LIQUID)
+                .bind(() -> UiPrefs.getGlassStyle(context), style -> UiPrefs.setGlassStyle(context, style)));
 
         // NEWTUBE(pills): floating glass pills instead of full-width bars.
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_appearance_pills),

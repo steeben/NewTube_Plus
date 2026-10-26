@@ -85,16 +85,34 @@ public final class Pills {
 
     /** The rim, drawn over the pill's surface. */
     public static Drawable rimDrawable(Context context) {
+        return rimDrawable(context, false);
+    }
+
+    /**
+     * {@code liquid}: Liquid glass's hairline (BitChord's GLASS_EDGE: 0.5dp of 10% white) - the
+     * glass draws its own rim of light inside it.
+     */
+    public static Drawable rimDrawable(Context context, boolean liquid) {
         GradientDrawable rim = new GradientDrawable();
         rim.setShape(GradientDrawable.RECTANGLE);
         rim.setCornerRadius(px(context, 999));
         rim.setColor(0);
-        rim.setStroke(Math.max(1, px(context, 1)), rim(context));
+        if (liquid) {
+            float density = context.getResources().getDisplayMetrics().density;
+            rim.setStroke(Math.max(1, Math.round(0.5f * density)), 0x1AFFFFFF);
+        } else {
+            rim.setStroke(Math.max(1, px(context, 1)), rim(context));
+        }
         return rim;
     }
 
     /** Make {@code view} a pill over {@code surface} (glass, or null for the solid surface). */
     public static void shape(View view, @Nullable Drawable surface) {
+        shape(view, surface, false);
+    }
+
+    /** As above; {@code liquid} - the surface is Liquid glass (its own hairline). */
+    public static void shape(View view, @Nullable Drawable surface, boolean liquid) {
         Context context = view.getContext();
         if (surface == null) {
             GradientDrawable solid = new GradientDrawable();
@@ -102,7 +120,7 @@ public final class Pills {
             solid.setColor(solidSurface(context));
             surface = solid;
         }
-        view.setBackground(new LayerDrawable(new Drawable[] {surface, rimDrawable(context)}));
+        view.setBackground(new LayerDrawable(new Drawable[] {surface, rimDrawable(context, liquid)}));
         view.setOutlineProvider(OUTLINE);
         view.setClipToOutline(true);
         view.setElevation(0f);
@@ -114,8 +132,22 @@ public final class Pills {
      * {@code surface}: its glass, or null for the solid surface.
      */
     public static void applyToNav(BottomNavigationView nav, @Nullable Drawable surface) {
+        applyToNav(nav, surface, false);
+    }
+
+    /**
+     * As above; {@code liquid} - Liquid glass, whose selected tab is drawn by {@link LiquidNav}
+     * (the travelling pill that lifts into a lens), so the tabs get no pill or ripple of their own.
+     */
+    public static void applyToNav(BottomNavigationView nav, @Nullable Drawable surface, boolean liquid) {
         Context context = nav.getContext();
-        shape(nav, surface);
+        shape(nav, surface, liquid);
+        applyMargins(nav);
+        if (liquid) {
+            nav.setItemBackground(null);
+            nav.setItemRippleColor(null);
+            return;
+        }
         // The selected tab: a softer pill inside, under the ripple.
         GradientDrawable selected = new GradientDrawable();
         selected.setCornerRadius(px(context, 999));
@@ -129,7 +161,11 @@ public final class Pills {
         mask.setColor(0xFFFFFFFF);
         nav.setItemBackground(new RippleDrawable(ColorStateList.valueOf(indicator(context)), states,
                 new InsetDrawable(mask, px(context, 6), px(context, 5), px(context, 6), px(context, 5))));
+    }
 
+    /** The navigation pill's place: in from the sides, above the gesture area. */
+    private static void applyMargins(BottomNavigationView nav) {
+        Context context = nav.getContext();
         ViewGroup.LayoutParams params = nav.getLayoutParams();
         if (params instanceof ViewGroup.MarginLayoutParams) {
             ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) params;

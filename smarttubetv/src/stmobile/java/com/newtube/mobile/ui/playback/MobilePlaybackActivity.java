@@ -6299,7 +6299,12 @@ public class MobilePlaybackActivity extends MobileActivity
             chrome.applyStyle(style, false);
             if (MiniPlayerStyle.isPill(this)) {
                 // NEWTUBE(pills): the host's pill bar is glass on Home: its tint.
-                chrome.backdrop.setBackgroundColor(com.newtube.mobile.ui.common.Pills.glassTint(this));
+                int glass = com.newtube.mobile.ui.common.UiPrefs.getGlassStyle(this);
+                chrome.backdrop.setBackgroundColor(glass == com.newtube.mobile.ui.common.UiPrefs.GLASS_SOLID
+                        ? com.newtube.mobile.ui.common.Pills.solidSurface(this)
+                        : glass == com.newtube.mobile.ui.common.UiPrefs.GLASS_LIQUID
+                        ? com.newtube.mobile.ui.common.LiquidGlass.tint(this)
+                        : com.newtube.mobile.ui.common.Pills.glassTint(this));
             } else if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this)) {
                 // The host's plain bar is glass: its tint, so the hand-over does not flash solid.
                 int page = getResources().getColor(R.color.mobile_color_background);

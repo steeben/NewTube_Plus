@@ -53,6 +53,11 @@ public final class UiPrefs {
     private static final String KEY_AMBIENT = "ambient";
     private static final String KEY_FROSTED = "frosted_glass";
     private static final String KEY_PILLS = "pill_layout";
+    /** NEWTUBE(glass): Solid, Frosted glass or Liquid glass (replaced the frosted_glass switch). */
+    private static final String KEY_GLASS = "glass_style";
+    public static final int GLASS_SOLID = 0;
+    public static final int GLASS_FROSTED = 1;
+    public static final int GLASS_LIQUID = 2;
     private static final String KEY_NAV_LABELS = "nav_labels";
     private static final String KEY_DEFAULTS = "fresh_install_defaults";
     private static final String KEY_HIDE_ERROR_TOASTS = "hide_error_toasts";
@@ -335,6 +340,7 @@ public final class UiPrefs {
         SharedPreferences.Editor editor = prefs.edit().putBoolean(KEY_DEFAULTS, true);
         if (!existingInstall) {
             editor.putBoolean(KEY_FROSTED, true)
+                    .putInt(KEY_GLASS, GLASS_LIQUID)
                     .putInt(KEY_AMBIENT, AMBIENT_NOT_FULLSCREEN)
                     .putBoolean(KEY_FULL_WIDTH_THUMBS, true)
                     .putBoolean(KEY_ROUNDED_THUMBS, true)
@@ -386,13 +392,29 @@ public final class UiPrefs {
                 .setSkipToastsEnabled(isSegmentToasts(context));
     }
 
-    /** NEWTUBE(frosted): glass bars on Home and glass buttons on the watch page. */
+    /**
+     * NEWTUBE(frosted): glass bars on Home and glass buttons on the watch page - either glass
+     * style (see {@link #getGlassStyle}); Solid is off.
+     */
     public static boolean isFrostedGlass(Context context) {
-        return prefs(context).getBoolean(KEY_FROSTED, false);
+        return getGlassStyle(context) != GLASS_SOLID;
     }
 
-    public static void setFrostedGlass(Context context, boolean on) {
-        prefs(context).edit().putBoolean(KEY_FROSTED, on).apply();
+    /**
+     * NEWTUBE(glass): Settings > Appearance > Glass. An install from before this setting keeps its
+     * Frosted glass switch's answer, as Liquid glass when it was on (the look it was replaced for).
+     */
+    public static int getGlassStyle(Context context) {
+        SharedPreferences prefs = prefs(context);
+        int style = prefs.getInt(KEY_GLASS, -1);
+        if (style == GLASS_SOLID || style == GLASS_FROSTED || style == GLASS_LIQUID) {
+            return style;
+        }
+        return prefs.getBoolean(KEY_FROSTED, false) ? GLASS_LIQUID : GLASS_SOLID;
+    }
+
+    public static void setGlassStyle(Context context, int style) {
+        prefs(context).edit().putInt(KEY_GLASS, style).putBoolean(KEY_FROSTED, style != GLASS_SOLID).apply();
         notifyChanged();
     }
 

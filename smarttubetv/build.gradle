@@ -224,6 +224,11 @@ android {
         debug {
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
+                // The fork's CI test builds (-PdebugSuffix): the permanent key, so each one installs
+                // over the last and keeps its sign-in, but still beside the release app.
+                if (project.hasProperty('debugSuffix')) {
+                    applicationIdSuffix ".debug"
+                }
             } else {
                 // No keystore.properties on this machine, so debug falls back to the auto-generated
                 // debug key and can NOT replace an installed release build (INSTALL_FAILED_UPDATE_

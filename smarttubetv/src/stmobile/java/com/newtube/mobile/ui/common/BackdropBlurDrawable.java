@@ -55,7 +55,12 @@ public final class BackdropBlurDrawable extends Drawable {
         mHost = host;
         mPageColor = pageColor;
         mTint.setColor(tintColor);
-        mBlurPx = BLUR_DP * host.getResources().getDisplayMetrics().density;
+        float density = host.getResources().getDisplayMetrics().density;
+        mBlurPx = BLUR_DP * density;
+        mLiquidBlurPx = LiquidGlass.BLUR_DP * density;
+        mLensHeightPx = LiquidGlass.LENS_HEIGHT_DP * density;
+        mLensAmountPx = LiquidGlass.LENS_AMOUNT_DP * density;
+        mRimWidthPx = (float) Math.ceil(LiquidGlass.RIM_DP * density) * 2f;
         mNode = Build.VERSION.SDK_INT >= 31 ? Api31.newNode() : null;
     }
 
@@ -101,6 +106,25 @@ public final class BackdropBlurDrawable extends Drawable {
             mBlurScale = blurScale;
             invalidateSelf();
         }
+    }
+
+    /**
+     * NEWTUBE(liquid): Liquid glass (Settings > Appearance > Glass), ported from BitChord Dial's
+     * (Kyant0/backdrop, Apache-2.0): the backdrop is saturated, lightly blurred and bent at the
+     * rim by a lens with a little colour dispersion (Android 13), then tinted, with a light rim
+     * that catches the light at 45 degrees. The shape is a pill (rounded ends).
+     */
+    private boolean mLiquid;
+    private final float mLiquidBlurPx;
+    private final float mLensHeightPx;
+    private final float mLensAmountPx;
+    @Nullable
+    private Paint mRimPaint;
+    private final float mRimWidthPx;
+
+    public void setLiquid(boolean liquid) {
+        mLiquid = liquid;
+        invalidateSelf();
     }
 
     @Nullable
@@ -183,11 +207,21 @@ public final class BackdropBlurDrawable extends Drawable {
                 mLayerViews.clear();
                 mLayers.collect(mLayerViews);
                 mHost.getLocationInWindow(mHostOffset);
-                Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mLayers, mHostOffset, mPageColor,
-                        Math.max(1f, mBlurPx * mBlurScale), mAlpha);
+                if (mLiquid) {
+                    float pad = mLensHeightPx;
+                    Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mLayers, mHostOffset, mPageColor,
+                            LiquidGlass.effect(bounds.width(), bounds.height(), pad, mLiquidBlurPx,
+                                    mLensHeightPx, mLensAmountPx), pad, mAlpha);
+                } else {
+                    Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mLayers, mHostOffset, mPageColor,
+                            Api31.blur(Math.max(1f, mBlurPx * mBlurScale)), 0f, mAlpha);
+                }
                 mLayerViews.clear();
             }
             drawTint(canvas, bounds);
+            if (mLiquid) {
+                drawRim(canvas, bounds);
+            }
             return;
         }
         if (Build.VERSION.SDK_INT >= 31 && mNode != null && canvas.isHardwareAccelerated()
@@ -209,6 +243,16 @@ public final class BackdropBlurDrawable extends Drawable {
         drawTint(canvas, bounds);
     }
 
+    /** NEWTUBE(liquid): the rim's light, inside the pill's edge. */
+    private void drawRim(Canvas canvas, Rect bounds) {
+        if (mRimPaint == null) {
+            mRimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mRimPaint.setStyle(Paint.Style.STROKE);
+        }
+        LiquidGlass.drawRim(canvas, mRimPaint, bounds.left, bounds.top, bounds.right, bounds.bottom,
+                mRimWidthPx, mAlpha / 255f);
+    }
+
     private void drawTint(Canvas canvas, Rect bounds) {
         int tintAlpha = mTint.getAlpha();
         mTint.setAlpha(Math.round(tintAlpha * mAlpha / 255f * mTintScale));
@@ -223,16 +267,27 @@ public final class BackdropBlurDrawable extends Drawable {
             return new RenderNode("newtube-backdrop");
         }
 
+        static Object blur(float px) {
+            return RenderEffect.createBlurEffect(px, px, Shader.TileMode.CLAMP);
+        }
+
+        /**
+         * {@code pad}: the backdrop is recorded this far past every edge (NEWTUBE(liquid): the lens
+         * reaches out there for what it bends in), and the effect sees it at that offset.
+         */
         static void drawLayers(Object nodeObject, Canvas canvas, Rect bounds, java.util.List<View> layers,
-                               Layers source, int[] hostOffset, int pageColor, float blurPx, int alpha) {
+                               Layers source, int[] hostOffset, int pageColor, Object effect,
+                               float pad, int alpha) {
             RenderNode node = (RenderNode) nodeObject;
-            int width = bounds.width();
-            int height = bounds.height();
+            int p = Math.round(pad);
+            int width = bounds.width() + 2 * p;
+            int height = bounds.height() + 2 * p;
             node.setPosition(0, 0, width, height);
             RecordingCanvas recording = node.beginRecording(width, height);
             int[] at = new int[2];
             try {
                 recording.drawColor(pageColor);
+                recording.translate(p, p);
                 for (int i = 0; i < layers.size(); i++) {
                     View layer = layers.get(i);
                     float layerAlpha = Math.max(0f, Math.min(1f, layer.getAlpha() * source.alphaOf(layer)));
@@ -243,7 +298,7 @@ public final class BackdropBlurDrawable extends Drawable {
                     layer.getLocationInWindow(at);
                     float x = at[0] - hostOffset[0] - bounds.left;
                     float y = at[1] - hostOffset[1] - bounds.top;
-                    if (x >= width || y >= height || x + layer.getWidth() <= 0 || y + layer.getHeight() <= 0) {
+                    if (x >= width - p || y >= height - p || x + layer.getWidth() <= -p || y + layer.getHeight() <= -p) {
                         continue; // nowhere under this glass
                     }
                     int save = recording.save();
@@ -259,10 +314,11 @@ public final class BackdropBlurDrawable extends Drawable {
             } finally {
                 node.endRecording();
             }
-            node.setRenderEffect(RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
+            node.setRenderEffect((RenderEffect) effect);
             node.setAlpha(alpha / 255f);
             canvas.save();
-            canvas.translate(bounds.left, bounds.top);
+            canvas.clipRect(bounds);
+            canvas.translate(bounds.left - p, bounds.top - p);
             canvas.drawRenderNode(node);
             canvas.restore();
         }

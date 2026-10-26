@@ -336,6 +336,16 @@ final class MiniPlayerViews {
         boolean roundThumb = style == MiniPlayerStyle.BAR && pill;
         frame.setOutlineProvider(roundThumb ? mThumbOutline : android.view.ViewOutlineProvider.BACKGROUND);
         frame.setClipToOutline(roundThumb);
+        // NEWTUBE(pills): everything in the bar - the video, the line - is cut to the pill's shape
+        // (the card's own clip did not hold the video in on the device): the thumbnail's left
+        // corners follow the pill's rounded end.
+        if (frame.getParent() instanceof View) {
+            View inner = (View) frame.getParent();
+            inner.setOutlineProvider(pill ? com.newtube.mobile.ui.common.Pills.OUTLINE
+                    : android.view.ViewOutlineProvider.BACKGROUND);
+            inner.setClipToOutline(pill);
+            inner.invalidateOutline();
+        }
         if (frame instanceof AspectRatioFrameLayout) {
             ((AspectRatioFrameLayout) frame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
                     ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
@@ -503,15 +513,13 @@ final class MiniPlayerViews {
             setBottomMargin(view, under / 2);
         }
         setBottomMargin(progress, under);
-        // NEWTUBE(pills): the line can not run along a rounded bottom edge - it sits inside the pill,
-        // under the title (the plain bar) or across the middle of the video bar.
+        // NEWTUBE(pills): the line runs the pill's whole width along its bottom edge; the pill's
+        // shape cuts it where the ends round off.
         FrameLayout.LayoutParams progressParams = (FrameLayout.LayoutParams) progress.getLayoutParams();
         int lineStart = 0;
         int lineEnd = 0;
         if (pill) {
-            lineStart = style == MiniPlayerStyle.BAR ? pillInset + pillThumbWidth + px(12, density) : barHeight / 2;
-            lineEnd = barHeight / 2;
-            setBottomMargin(progress, px(style == MiniPlayerStyle.BAR ? 2 : 1, density));
+            setBottomMargin(progress, 0); // the whole width, on the bottom edge, cut by the pill
         }
         progressParams.leftMargin = lineStart;
         progressParams.rightMargin = lineEnd;

@@ -1,11 +1,14 @@
 name: Fork debug build
 
-# Builds an unsigned-key debug APK and uploads it as a workflow artifact, so you can
-# sideload and test a branch without an Android SDK on your own machine.
+# Builds a debug APK and uploads it as a workflow artifact, so you can sideload and test a
+# branch without an Android SDK on your own machine.
 #
 # Run it from the Actions tab (Run workflow), or let it fire on a push to a branch.
-# With no keystore.properties, the debug build uses the `.debug` application ID, so it
-# installs alongside a release NewTube instead of clashing with it.
+# The debug build uses the `.debug` application ID, so it installs alongside a release
+# NewTube instead of clashing with it. It is signed with the fork's permanent key (the
+# FORK_KEYSTORE_* secrets, as the release workflow) so every test build installs over the
+# previous one and keeps its sign-in; without the secrets (a fork) it falls back to a
+# one-off debug key.
 
 on:
   push:
@@ -37,10 +40,33 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      - name: Configure signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FORK_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.FORK_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::warning title=No signing key::Debug build signed with a one-off key; it will not install over an earlier test build."
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=newtube"
+            echo "keyPassword=$KEYSTORE_PASSWORD"
+          } > keystore.properties
+
       - name: Build the debug APKs
         run: |
           set -o pipefail
-          ./gradlew --no-daemon --stacktrace :smarttubetv:assembleStmobileDebug 2>&1 | tee build.log
+          # -PdebugSuffix: the .debug app id even with the permanent key (beside the release app).
+          ./gradlew --no-daemon --stacktrace :smarttubetv:assembleStmobileDebug -PdebugSuffix 2>&1 | tee build.log
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f keystore.properties "$RUNNER_TEMP/release.jks"
 
       # A failed build's errors as annotations too, so they can be read without the full log.
       - name: Report build errors
