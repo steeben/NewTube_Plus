@@ -641,6 +641,9 @@ public class MobileSearchActivity extends MobileActivity
     public int getMiniCardBottomOffsetPx() {
         // Overlay card (mobile_mini_player_overlay.xml) sits flush at the results' bottom: above
         // the tabs (56dp, like Home's) when they show.
+        if (mNav != null && mNav.getVisibility() == View.VISIBLE && com.newtube.mobile.ui.common.Pills.isOn(this)) {
+            return com.newtube.mobile.ui.common.Pills.miniOffsetAboveNav(mNav); // NEWTUBE(pills)
+        }
         return mNav != null && mNav.getVisibility() == View.VISIBLE
                 ? Math.round(56 * getResources().getDisplayMetrics().density) : 0;
     }
@@ -657,6 +660,9 @@ public class MobileSearchActivity extends MobileActivity
         mNav = findViewById(R.id.mobile_search_bottom_nav);
         if (mNav == null) {
             return;
+        }
+        if (com.newtube.mobile.ui.common.Pills.isOn(this)) {
+            com.newtube.mobile.ui.common.Pills.applyToNavOnce(mNav); // NEWTUBE(pills)
         }
         boolean shown = mNavShown && com.newtube.mobile.ui.browse.BrowseNavMirror.populate(this, mNav);
         mNav.setVisibility(shown ? View.VISIBLE : View.GONE);
@@ -678,12 +684,18 @@ public class MobileSearchActivity extends MobileActivity
     public void setBottomBarReveal(float reveal) {
         if (mNav != null && mNav.getVisibility() == View.VISIBLE) {
             float clamped = Math.max(0f, Math.min(1f, reveal));
-            mNav.setTranslationY((1f - clamped) * mNav.getHeight());
+            // NEWTUBE(pills): the floating pill goes all the way down, its margin included.
+            int travel = mNav.getHeight() + (com.newtube.mobile.ui.common.Pills.isOn(this)
+                    ? com.newtube.mobile.ui.common.Pills.navBottomMargin(mNav) : 0);
+            mNav.setTranslationY((1f - clamped) * travel);
         }
     }
 
     @Override
     public int getBottomBarHeightPx() {
+        if (mNav != null && mNav.getVisibility() == View.VISIBLE && com.newtube.mobile.ui.common.Pills.isOn(this)) {
+            return com.newtube.mobile.ui.common.Pills.navExtent(mNav); // NEWTUBE(pills)
+        }
         return mNav != null && mNav.getVisibility() == View.VISIBLE ? mNav.getHeight() : 0;
     }
 

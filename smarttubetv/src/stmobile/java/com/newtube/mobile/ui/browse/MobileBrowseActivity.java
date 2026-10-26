@@ -223,7 +223,9 @@ public class MobileBrowseActivity extends MobileActivity
         // translucent player. The final zero-duration reorder only hands the live texture to the
         // mini card; ordinary navigation still uses BrowseWindowAnimation's quick fade.
 
-        mFrostedApplied = com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this); // before the insets
+        // NEWTUBE(pills): the pills float over the feed, which runs under them as under the glass.
+        mPillApplied = com.newtube.mobile.ui.common.UiPrefs.isPillLayout(this);
+        mFrostedApplied = com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) || mPillApplied; // before the insets
         setContentView(R.layout.activity_mobile_browse);
 
         registerBackHandler(this::handleBack);
@@ -381,7 +383,10 @@ public class MobileBrowseActivity extends MobileActivity
     public void setBottomBarReveal(float reveal) {
         if (mBottomNav != null) {
             float clamped = Math.max(0f, Math.min(1f, reveal));
-            mBottomNav.setTranslationY((1f - clamped) * mBottomNav.getHeight());
+            // NEWTUBE(pills): the floating pill goes all the way down, its margin included.
+            int travel = mBottomNav.getHeight()
+                    + (mPillApplied ? com.newtube.mobile.ui.common.Pills.navBottomMargin(mBottomNav) : 0);
+            mBottomNav.setTranslationY((1f - clamped) * travel);
             if (mNavGlass != null) {
                 mNavGlass.setTranslationY(mBottomNav.getTranslationY()); // NEWTUBE(frosted)
             }
@@ -390,11 +395,18 @@ public class MobileBrowseActivity extends MobileActivity
 
     @Override
     public int getBottomBarHeightPx() {
+        if (mPillApplied && mBottomNav != null) {
+            return com.newtube.mobile.ui.common.Pills.navExtent(mBottomNav); // NEWTUBE(pills)
+        }
         return mBottomNav != null ? mBottomNav.getHeight() : 0;
     }
 
     @Override
     public int getMiniCardBottomOffsetPx() {
+        if (mPillApplied && mBottomNav != null) {
+            // NEWTUBE(pills): above the floating navigation pill and the gap under it.
+            return com.newtube.mobile.ui.common.Pills.miniOffsetAboveNav(mBottomNav);
+        }
         // The card floats above the 56dp Material bottom-nav row (see activity_mobile_browse.xml).
         return Math.round(56 * getResources().getDisplayMetrics().density);
     }
@@ -609,7 +621,8 @@ public class MobileBrowseActivity extends MobileActivity
 
     @Override
     public int getMiniUnderlapPx() {
-        return mFrostedApplied && mBottomNav != null ? mBottomNav.getHeight() : 0;
+        // NEWTUBE(pills): a pill bar rests above the navigation pill, never behind it.
+        return mFrostedApplied && !mPillApplied && mBottomNav != null ? mBottomNav.getHeight() : 0;
     }
 
     @Override
@@ -705,6 +718,9 @@ public class MobileBrowseActivity extends MobileActivity
         if (mMiniGlass != null && mMiniGlass.isShown()) {
             mMiniGlass.invalidate();
         }
+        for (View pill : mPillGlass) {
+            pill.invalidate();
+        }
     }
 
     /** NEWTUBE(frosted): the bars show the You panel while it is up, else the feed. */
@@ -798,7 +814,11 @@ public class MobileBrowseActivity extends MobileActivity
         view.getLocationInWindow(mGlassProbe);
         int top = mGlassProbe[1] - Math.round(12 * getResources().getDisplayMetrics().density); // the dot
         int bottom = mGlassProbe[1] + view.getHeight() + Math.round(12 * getResources().getDisplayMetrics().density);
-        for (View glass : new View[] {mTopGlass, mNavGlass, mMiniGlass}) {
+        java.util.List<View> glasses = new ArrayList<>(mPillGlass);
+        glasses.add(mTopGlass);
+        glasses.add(mNavGlass);
+        glasses.add(mMiniGlass);
+        for (View glass : glasses) {
             if (glass == null || !glass.isShown()) {
                 continue;
             }
@@ -1030,6 +1050,124 @@ public class MobileBrowseActivity extends MobileActivity
 
     /** NEWTUBE(frosted): this screen was laid out with the feed under glass bars. */
     private boolean mFrostedApplied;
+    /** NEWTUBE(pills): ...as floating glass pills (Settings > Appearance > Floating pills). */
+    private boolean mPillApplied;
+    /** NEWTUBE(pills): the glass pills - the title, the back arrow, the buttons' pill, the navigation. */
+    private final List<View> mPillGlass = new ArrayList<>();
+    /** NEWTUBE(pills): the pill behind the cast and search buttons. */
+    @Nullable
+    private View mTopButtonsPill;
+    /** NEWTUBE(pills): how far the soft vignette under the status bar reaches below it. */
+    private static final int STATUS_VIGNETTE_DP = 28;
+
+    /** NEWTUBE(pills): room the feed's last row and the You panel keep under them for the navigation. */
+    private int bottomClearance() {
+        if (mBottomNav == null) {
+            return 0;
+        }
+        if (mPillApplied) {
+            return mBottomNav.getHeight() + com.newtube.mobile.ui.common.Pills.navBottomMargin(mBottomNav)
+                    + com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.GAP_DP);
+        }
+        return mBottomNav.getHeight();
+    }
+
+    /** NEWTUBE(pills): {@code view} becomes a glass pill over what scrolls under it. */
+    private void makeGlassPill(View view, int page, int tint) {
+        com.newtube.mobile.ui.common.BackdropBlurDrawable glass =
+                new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, view, page, tint);
+        glass.setLayers(mGlassLayers);
+        com.newtube.mobile.ui.common.Pills.shape(view, glass);
+        mPillGlass.add(view);
+    }
+
+    /**
+     * NEWTUBE(pills): the top row as pills - the logo/title in one (the back arrow, on a sub-screen,
+     * a round one before it), cast and search together in another - each glass over the feed.
+     */
+    private void applyTopPills(View title, int page, int tint) {
+        androidx.constraintlayout.widget.ConstraintLayout root = findViewById(R.id.mobile_browse_root);
+        int pillHeight = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.TOP_HEIGHT_DP);
+        int side = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.SIDE_DP);
+        int topMargin = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.TOP_MARGIN_DP);
+        int gap = com.newtube.mobile.ui.common.Pills.px(this, 8);
+        int iconPadding = com.newtube.mobile.ui.common.Pills.px(this, 10);
+
+        // The title: as wide as its logo and text, at the start (long sub-screen names ellipsize).
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams titleParams =
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) title.getLayoutParams();
+        titleParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        titleParams.height = pillHeight;
+        titleParams.constrainedWidth = true;
+        titleParams.horizontalBias = 0f;
+        titleParams.setMarginStart(gap);
+        titleParams.goneStartMargin = side;
+        titleParams.setMarginEnd(gap);
+        titleParams.topMargin = topMargin;
+        title.setLayoutParams(titleParams);
+        makeGlassPill(title, page, tint);
+        if (mTopBar != null) {
+            mTopBar.setPill(com.newtube.mobile.ui.common.Pills.px(this, 14), com.newtube.mobile.ui.common.Pills.px(this, 16));
+        }
+
+        View back = findViewById(R.id.mobile_title_back);
+        if (back != null) {
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams backParams =
+                    (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) back.getLayoutParams();
+            backParams.width = pillHeight;
+            backParams.height = pillHeight;
+            backParams.setMarginStart(side);
+            backParams.topMargin = topMargin;
+            back.setLayoutParams(backParams);
+            back.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+            android.graphics.drawable.Drawable ripple = back.getBackground();
+            makeGlassPill(back, page, tint);
+            back.setForeground(ripple);
+        }
+
+        // Cast and search: one pill behind the two (behind search alone while cast is hidden).
+        for (View button : new View[] {mCastButton, mSearchButton}) {
+            if (button == null) {
+                continue;
+            }
+            ViewGroup.LayoutParams params = button.getLayoutParams();
+            params.width = pillHeight;
+            params.height = pillHeight;
+            button.setLayoutParams(params);
+            button.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+        }
+        if (mSearchButton != null) {
+            ((ViewGroup.MarginLayoutParams) mSearchButton.getLayoutParams()).setMarginEnd(side);
+            mSearchButton.requestLayout();
+        }
+        if (root != null && mCastButton != null && mSearchButton != null) {
+            View buttons = new View(this);
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams params =
+                    new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, 0);
+            params.startToStart = R.id.mobile_cast_button;
+            params.endToEnd = R.id.mobile_search_button;
+            params.topToTop = R.id.mobile_search_button;
+            params.bottomToBottom = R.id.mobile_search_button;
+            buttons.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            root.addView(buttons, params);
+            makeGlassPill(buttons, page, tint);
+            mTopButtonsPill = buttons;
+        }
+    }
+
+    /** The top row's views above the feed and the glass, in their order (the buttons' pill first). */
+    private void bringTopRowToFront() {
+        if (mTopButtonsPill != null) {
+            mTopButtonsPill.bringToFront();
+        }
+        for (int id : new int[] {R.id.mobile_title_back, R.id.mobile_title_bar, R.id.mobile_cast_button,
+                R.id.mobile_search_button}) {
+            View view = findViewById(id);
+            if (view != null) {
+                view.bringToFront();
+            }
+        }
+    }
     /** NEWTUBE(frosted): the status bar's height, which the glass top bar now reaches up under. */
     private int mStatusInset;
 
@@ -1060,12 +1198,14 @@ public class MobileBrowseActivity extends MobileActivity
 
         final int titleHeight = getResources().getDimensionPixelSize(R.dimen.mobile_title_bar_height);
         int page = getResources().getColor(R.color.mobile_color_background);
-        int tint = (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
+        int tint = mPillApplied ? com.newtube.mobile.ui.common.Pills.glassTint(this) // NEWTUBE(pills)
+                : (page & 0x00FFFFFF) | 0xB3000000; // the page colour, 70%: glass, not a window
         float density = getResources().getDisplayMetrics().density;
         // The top bar's glass ends in a soft edge (fading out over this), not a sharp line.
         final int fade = Math.round(44 * density);
         // The first row starts this far into the fade (the rest of it lies over the row's top).
-        final int fadeInset = Math.round(10 * density);
+        // NEWTUBE(pills): the pills end above the row's bottom; the first row needs little more.
+        final int fadeInset = Math.round((mPillApplied ? 2 : 10) * density);
 
         // The top bar's glass: a view of its own behind the title, the cast and search buttons.
         View glass = new View(this);
@@ -1075,57 +1215,70 @@ public class MobileBrowseActivity extends MobileActivity
         glassParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
         glassParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
         root.addView(glass, glassParams);
-        mTopGlass = glass;
-        mTopGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, glass, page, tint);
-        mTopGlassDrawable.setFadeBottom(fade);
-        mTopGlassDrawable.setLayers(mGlassLayers);
-        glass.setBackground(mTopGlassDrawable);
-        title.setBackground(null);
+        final int vignette = Math.round(STATUS_VIGNETTE_DP * density);
+        if (mPillApplied) {
+            // NEWTUBE(pills): no bar behind the top row - a soft vignette under the status bar (its
+            // icons stay readable over the feed), and the row's own pills.
+            glassParams.height = vignette;
+            glass.setLayoutParams(glassParams);
+            glass.setBackground(new android.graphics.drawable.GradientDrawable(
+                    android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[] {(page & 0x00FFFFFF) | 0xB3000000, (page & 0x00FFFFFF) | 0x59000000,
+                            page & 0x00FFFFFF}));
+            glass.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            applyTopPills(title, page, tint);
+        } else {
+            mTopGlass = glass;
+            mTopGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, glass, page, tint);
+            mTopGlassDrawable.setFadeBottom(fade);
+            mTopGlassDrawable.setLayers(mGlassLayers);
+            glass.setBackground(mTopGlassDrawable);
+            title.setBackground(null);
+        }
         // Above the feed (declared before it), in the order they were.
         glass.bringToFront();
-        for (int id : new int[] {R.id.mobile_title_back, R.id.mobile_title_bar, R.id.mobile_cast_button,
-                R.id.mobile_search_button}) {
-            View view = findViewById(id);
-            if (view != null) {
-                view.bringToFront();
-            }
-        }
+        bringTopRowToFront();
         // Whatever else is declared after the feed stays above it already (the You panel, the mini
         // player, the bottom navigation).
         // The bottom navigation's glass: a view of its own behind it, reaching a soft edge's height
         // above it (the bar itself is see-through).
-        View navGlass = new View(this);
-        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams navGlassParams =
-                new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, fade);
-        navGlassParams.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
-        navGlassParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
-        navGlassParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
-        root.addView(navGlass, navGlassParams);
-        mNavGlass = navGlass;
-        mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, navGlass, page, tint);
-        mNavGlassDrawable.setFadeTop(fade);
-        mNavFadePx = fade;
-        mNavGlassDrawable.setLayers(mGlassLayers);
-        navGlass.setBackground(mNavGlassDrawable);
-        mBottomNav.setBackground(null);
-        mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
-            int height = b - t + (mAppliedNavFade >= 0 ? mAppliedNavFade : fade);
-            if (navGlassParams.height != height) {
-                navGlassParams.height = height;
-                navGlass.setLayoutParams(navGlassParams);
-            }
-        });
+        View navGlass = mPillApplied ? null : new View(this);
+        if (mPillApplied) {
+            // NEWTUBE(pills): the navigation is a glass pill itself, floating over the feed.
+            com.newtube.mobile.ui.common.BackdropBlurDrawable navPillGlass =
+                    new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, mBottomNav, page, tint);
+            navPillGlass.setLayers(mGlassLayers);
+            com.newtube.mobile.ui.common.Pills.applyToNav(mBottomNav, navPillGlass);
+            mPillGlass.add(mBottomNav);
+        } else {
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams navGlassParams =
+                    new androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(0, fade);
+            navGlassParams.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            navGlassParams.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            navGlassParams.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            root.addView(navGlass, navGlassParams);
+            mNavGlass = navGlass;
+            mNavGlassDrawable = new com.newtube.mobile.ui.common.BackdropBlurDrawable(mContentGrid, navGlass, page, tint);
+            mNavGlassDrawable.setFadeTop(fade);
+            mNavFadePx = fade;
+            mNavGlassDrawable.setLayers(mGlassLayers);
+            navGlass.setBackground(mNavGlassDrawable);
+            mBottomNav.setBackground(null);
+            mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                int height = b - t + (mAppliedNavFade >= 0 ? mAppliedNavFade : fade);
+                if (navGlassParams.height != height) {
+                    navGlassParams.height = height;
+                    navGlass.setLayoutParams(navGlassParams);
+                }
+            });
+        }
         // The order, bottom to top: both glass views, the title bar's views, the bottom navigation
         // (a tab slide's picture goes in over the glass but under these).
         glass.bringToFront();
-        navGlass.bringToFront();
-        for (int id : new int[] {R.id.mobile_title_back, R.id.mobile_title_bar, R.id.mobile_cast_button,
-                R.id.mobile_search_button}) {
-            View view = findViewById(id);
-            if (view != null) {
-                view.bringToFront();
-            }
+        if (navGlass != null) {
+            navGlass.bringToFront();
         }
+        bringTopRowToFront();
         mBottomNav.bringToFront();
         View mini = findViewById(R.id.mobile_mini_player);
         if (mini != null) {
@@ -1155,7 +1308,7 @@ public class MobileBrowseActivity extends MobileActivity
                     outRect.top += titleHeight + mStatusInset + fadeInset;
                 }
                 if (position >= state.getItemCount() - spans) {
-                    outRect.bottom += mBottomNav.getHeight();
+                    outRect.bottom += bottomClearance(); // NEWTUBE(pills): and the pill's margins
                 }
             }
         });
@@ -1180,13 +1333,16 @@ public class MobileBrowseActivity extends MobileActivity
                     | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).top;
             if (top != mStatusInset) {
                 mStatusInset = top;
+                // NEWTUBE(pills): the pills a little below the status bar; the vignette under it.
+                int rowTop = top + (mPillApplied ? com.newtube.mobile.ui.common.Pills.px(this,
+                        com.newtube.mobile.ui.common.Pills.TOP_MARGIN_DP) : 0);
                 for (View item : topRow) {
                     if (item != null && item.getLayoutParams() instanceof android.view.ViewGroup.MarginLayoutParams) {
-                        ((android.view.ViewGroup.MarginLayoutParams) item.getLayoutParams()).topMargin = top;
+                        ((android.view.ViewGroup.MarginLayoutParams) item.getLayoutParams()).topMargin = rowTop;
                         item.requestLayout();
                     }
                 }
-                glassParams.height = titleHeight + top + fade;
+                glassParams.height = mPillApplied ? top + vignette : titleHeight + top + fade;
                 glass.setLayoutParams(glassParams);
                 if (mYouPanel != null) {
                     mYouPanel.setPadding(0, titleHeight + top, 0, mYouPanel.getPaddingBottom());
@@ -1211,7 +1367,7 @@ public class MobileBrowseActivity extends MobileActivity
             ((android.view.ViewGroup) mYouPanel).setClipToPadding(false);
             mYouPanel.setPadding(0, titleHeight, 0, 0);
             mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) ->
-                    mYouPanel.setPadding(0, mYouPanel.getPaddingTop(), 0, b - t));
+                    mYouPanel.setPadding(0, mYouPanel.getPaddingTop(), 0, bottomClearance()));
             mYouPanel.setOnScrollChangeListener((v, x, y, ox, oy) -> {
                 invalidateGlass();
             });
@@ -2364,7 +2520,9 @@ public class MobileBrowseActivity extends MobileActivity
 
         updateAccountRow();
         // NEWTUBE(frosted): the feed runs under the bars or it does not - a new layout either way.
-        if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) != mFrostedApplied) {
+        boolean wantPills = com.newtube.mobile.ui.common.UiPrefs.isPillLayout(this);
+        if ((com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this) || wantPills) != mFrostedApplied
+                || wantPills != mPillApplied) {
             recreate();
             return;
         }

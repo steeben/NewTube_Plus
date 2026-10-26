@@ -33,6 +33,14 @@ public final class MiniPlayerStyle {
     public static final int CARD_MARGIN_DP = 12;
     public static final float CARD_CORNER_DP = 12f;
     public static final int BAR_HEIGHT_DP = 64;
+    /**
+     * NEWTUBE(pills): with Floating pills on, a bar is a wide pill: in from the screen's sides by
+     * Pills.SIDE_DP, resting Pills.GAP_DP above the navigation pill (or the content's bottom), its
+     * ends fully rounded. The plain bar's video sits inside it, this far from its top, bottom and
+     * start, with the video cards' corners.
+     */
+    public static final int PILL_THUMB_INSET_DP = 6;
+    public static final float PILL_THUMB_CORNER_DP = CARD_CORNER_DP;
     /** NEWTUBE(mini-style): the video-background bar is 40% taller - it is mostly picture. */
     public static final int BAR_VIDEO_HEIGHT_DP = 90;
     /**
@@ -46,6 +54,8 @@ public final class MiniPlayerStyle {
     private static final String PREFS_NAME = "newtube_mini_player";
     private static final String KEY_STYLE = "style";
     private static final String KEY_CARD_LEFT = "card_left";
+    /** NEWTUBE(pills): the plain bar became the default once, with the pill layout. */
+    private static final String KEY_BAR_DEFAULT = "bar_default_applied";
 
     private MiniPlayerStyle() {
     }
@@ -55,7 +65,7 @@ public final class MiniPlayerStyle {
     }
 
     public static int get(Context context) {
-        int style = prefs(context).getInt(KEY_STYLE, CARD);
+        int style = prefs(context).getInt(KEY_STYLE, BAR);
         switch (style) {
             case CARD_GESTURE:
             case BAR:
@@ -66,11 +76,15 @@ public final class MiniPlayerStyle {
         }
     }
 
-    /** NEWTUBE(defaults): a new install starts with the video-background bar (see UiPrefs). */
+    /**
+     * NEWTUBE(pills): the plain bar is the default - a new install starts with it, and an install
+     * updated from a version before the pill layout is moved to it once (Settings can change it
+     * back; this never runs again).
+     */
     public static void applyFreshInstallDefault(Context context, boolean existingInstall) {
         SharedPreferences prefs = prefs(context);
-        if (!existingInstall && !prefs.contains(KEY_STYLE)) {
-            prefs.edit().putInt(KEY_STYLE, BAR_VIDEO).apply();
+        if (!prefs.getBoolean(KEY_BAR_DEFAULT, false)) {
+            prefs.edit().putInt(KEY_STYLE, BAR).putBoolean(KEY_BAR_DEFAULT, true).apply();
         }
     }
 
@@ -80,6 +94,35 @@ public final class MiniPlayerStyle {
 
     public static boolean isBar(int style) {
         return style == BAR || style == BAR_VIDEO;
+    }
+
+    /** NEWTUBE(pills): the bars are floating pills (Settings > Appearance > Floating pills). */
+    public static boolean isPill(Context context) {
+        return com.newtube.mobile.ui.common.UiPrefs.isPillLayout(context);
+    }
+
+    /** NEWTUBE(pills): the pill bar's sides and the gap under it, px. */
+    public static float pillSidePx(float density) {
+        return com.newtube.mobile.ui.common.Pills.SIDE_DP * density;
+    }
+
+    public static float pillGapPx(float density) {
+        return com.newtube.mobile.ui.common.Pills.GAP_DP * density;
+    }
+
+    /** NEWTUBE(pills): the plain pill bar's video inset, px (0 for the video-background bar). */
+    public static float pillInsetPx(int style, float density) {
+        return style == BAR ? PILL_THUMB_INSET_DP * density : 0f;
+    }
+
+    /** NEWTUBE(pills): the landed video's corners on a pill bar, dp. */
+    public static float pillCornerDp(int style) {
+        return style == BAR ? PILL_THUMB_CORNER_DP : barHeightDp(style) / 2f;
+    }
+
+    /** NEWTUBE(pills): width of the plain pill bar's 16:9 video, inset in the bar, px. */
+    public static float pillThumbWidthPx(float density) {
+        return (BAR_HEIGHT_DP - 2 * PILL_THUMB_INSET_DP) * density * 16f / 9f;
     }
 
     /** The floating card is docked in the bottom-left corner (else the bottom-right). */
@@ -155,7 +198,26 @@ public final class MiniPlayerStyle {
      */
     public static Target target(int style, float width, float height, float bottomOffsetPx, float density,
             boolean cardLeft) {
+        return target(style, width, height, bottomOffsetPx, density, cardLeft, false);
+    }
+
+    /**
+     * As above; {@code pill} - the bars are floating pills (NEWTUBE(pills)). A pill bar's rect is
+     * the bar's own height (where it rests, above the gap) with the landed video's left and width:
+     * the plain bar's inset video, the video bar's whole pill.
+     */
+    public static Target target(int style, float width, float height, float bottomOffsetPx, float density,
+            boolean cardLeft, boolean pill) {
         float bottom = height - bottomOffsetPx;
+        if (pill && isBar(style)) {
+            float side = pillSidePx(density);
+            float barBottom = bottom - pillGapPx(density);
+            float barTop = barBottom - barHeightDp(style) * density;
+            float left = side + pillInsetPx(style, density);
+            float landedWidth = style == BAR ? pillThumbWidthPx(density) : width - 2 * side;
+            return new Target(new RectF(left, barTop, left + landedWidth, barBottom), style == BAR_VIDEO,
+                    pillCornerDp(style));
+        }
         switch (style) {
             case BAR: {
                 float barHeight = BAR_HEIGHT_DP * density;

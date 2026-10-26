@@ -2,4 +2,6 @@
 <resources>
     <!-- NEWTUBE(mini-next): the mini player's Next button, built in code (MiniPlayerViews). -->
     <item name="mobile_mini_next" type="id" />
+    <!-- NEWTUBE(pills): a list screen's navigation copy already made a pill (Pills.applyToNavOnce). -->
+    <item name="mobile_pill_applied" type="id" />
 </resources>

@@ -22,8 +22,10 @@ final class BrowseTopBar {
 
     private final TextView mTitle;
     private final View mBack;
-    private final int mWordmarkInset;
-    private final int mBesideBackInset;
+    private int mWordmarkInset;
+    private int mBesideBackInset;
+    /** NEWTUBE(pills): the title is a pill of its own (the back arrow is another, beside it). */
+    private boolean mPill;
 
     /** NEWTUBE(logo-tint): the Play logo's circle, blended to the progress bar's colour. */
     @androidx.annotation.Nullable
@@ -56,6 +58,19 @@ final class BrowseTopBar {
         mWordmarkInset = mTitle.getPaddingStart();
         mBesideBackInset = activity.getResources()
                 .getDimensionPixelSize(R.dimen.mobile_dialog_title_inset_with_back);
+    }
+
+    /**
+     * NEWTUBE(pills): the title sits in a pill - the same inset from its start edge whether or not
+     * the back arrow (a pill of its own) is beside it, and room at its end; an empty title (no
+     * logo, no header text) hides its pill.
+     */
+    void setPill(int startInset, int endInset) {
+        mPill = true;
+        mWordmarkInset = startInset;
+        mBesideBackInset = startInset;
+        mTitle.setPaddingRelative(startInset, 0, endInset, 0);
+        applyBranding();
     }
 
     /**
@@ -199,6 +214,10 @@ final class BrowseTopBar {
         }
         CharSequence text = mTitle.getText();
         mTitle.setCompoundDrawablePadding(text != null && text.length() > 0 ? Math.round(8 * density) : 0);
+        if (mPill) {
+            boolean empty = (text == null || text.length() == 0) && mark == null;
+            mTitle.setVisibility(empty ? View.INVISIBLE : View.VISIBLE);
+        }
     }
 
     /** NEWTUBE(branding): a play triangle on a circle of the accent colour. */

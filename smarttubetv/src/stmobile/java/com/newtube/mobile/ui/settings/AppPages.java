@@ -100,6 +100,11 @@ final class AppPages {
                 context.getString(R.string.mobile_appearance_frosted_summary),
                 () -> UiPrefs.isFrostedGlass(context), on -> UiPrefs.setFrostedGlass(context, on)));
 
+        // NEWTUBE(pills): floating glass pills instead of full-width bars.
+        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_appearance_pills),
+                context.getString(R.string.mobile_appearance_pills_summary),
+                () -> UiPrefs.isPillLayout(context), on -> UiPrefs.setPillLayout(context, on)));
+
         // NEWTUBE(ambient): the video's colours around the player.
         rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_appearance_ambient))
                 .option(context.getString(R.string.mobile_appearance_ambient_off), UiPrefs.AMBIENT_OFF)

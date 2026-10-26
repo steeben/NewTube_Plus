@@ -52,6 +52,7 @@ public final class UiPrefs {
     private static final String KEY_ACCENT = "accent";
     private static final String KEY_AMBIENT = "ambient";
     private static final String KEY_FROSTED = "frosted_glass";
+    private static final String KEY_PILLS = "pill_layout";
     private static final String KEY_NAV_LABELS = "nav_labels";
     private static final String KEY_DEFAULTS = "fresh_install_defaults";
     private static final String KEY_HIDE_ERROR_TOASTS = "hide_error_toasts";
@@ -392,6 +393,20 @@ public final class UiPrefs {
 
     public static void setFrostedGlass(Context context, boolean on) {
         prefs(context).edit().putBoolean(KEY_FROSTED, on).apply();
+        notifyChanged();
+    }
+
+    /**
+     * NEWTUBE(pills): Home's bars as floating glass pills - the wordmark and the top buttons each
+     * in a pill, the bottom navigation and a docked mini bar as wide pills over the feed. On by
+     * default (it is the fork's look); off brings back the full-width bars.
+     */
+    public static boolean isPillLayout(Context context) {
+        return prefs(context).getBoolean(KEY_PILLS, true);
+    }
+
+    public static void setPillLayout(Context context, boolean on) {
+        prefs(context).edit().putBoolean(KEY_PILLS, on).apply();
         notifyChanged();
     }
 

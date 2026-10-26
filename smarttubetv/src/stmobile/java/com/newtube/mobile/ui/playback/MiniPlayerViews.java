@@ -158,17 +158,32 @@ final class MiniPlayerViews {
      */
     void refreshBarCorners() {
         Context context = card.getContext();
-        if (style == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(context)) {
+        if (style == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(context) && !mPill) {
             mTopRadiusPx = MiniPlayerStyle.CARD_CORNER_DP * context.getResources().getDisplayMetrics().density;
             card.setOutlineProvider(mTopRoundedOutline);
             card.setClipToOutline(true);
             card.invalidateOutline();
-        } else if (card.getOutlineProvider() == mTopRoundedOutline) {
-            card.setOutlineProvider(mCardOutline);
-            card.setClipToOutline(mCardClips);
-            card.invalidateOutline();
+        } else {
+            if (card.getOutlineProvider() == mTopRoundedOutline) {
+                card.setOutlineProvider(mCardOutline);
+                card.invalidateOutline();
+            }
+            // NEWTUBE(pills): a pill bar clips its video and glass to its rounded ends.
+            card.setClipToOutline(mPill || mCardClips);
         }
     }
+
+    /** NEWTUBE(pills): the bar is a floating pill (see MiniPlayerStyle#isPill). */
+    private boolean mPill;
+    /** NEWTUBE(pills): the plain pill bar's inset video, with the video cards' corners. */
+    private final android.view.ViewOutlineProvider mThumbOutline = new android.view.ViewOutlineProvider() {
+        @Override
+        public void getOutline(View view, android.graphics.Outline outline) {
+            float density = view.getResources().getDisplayMetrics().density;
+            outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(),
+                    MiniPlayerStyle.PILL_THUMB_CORNER_DP * density);
+        }
+    };
 
     private float mAppliedBoxAspect = 16f / 9f;
 
@@ -193,7 +208,7 @@ final class MiniPlayerViews {
 
     /** The part of the card under the host's navigation now (0 unless the video bar reaches there). */
     int underlapPx() {
-        return style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx : 0;
+        return style == MiniPlayerStyle.BAR_VIDEO && !mPill ? mUnderlapPx : 0;
     }
 
     private static void setBottomMargin(View view, int px) {
@@ -211,6 +226,12 @@ final class MiniPlayerViews {
         Context context = card.getContext();
         float density = context.getResources().getDisplayMetrics().density;
         boolean bar = MiniPlayerStyle.isBar(style);
+        // NEWTUBE(pills): a bar is a wide pill, in from the sides and above the navigation pill.
+        boolean pill = bar && MiniPlayerStyle.isPill(context);
+        mPill = pill;
+        int pillInset = pill ? Math.round(MiniPlayerStyle.pillInsetPx(style, density)) : 0;
+        int pillThumbWidth = Math.round(MiniPlayerStyle.pillThumbWidthPx(density));
+        int endPad = pill ? px(4, density) : 0; // the buttons clear of the rounded end
         int barHeight = px(MiniPlayerStyle.barHeightDp(style), density);
         int thumbWidth = Math.round(MiniPlayerStyle.barThumbWidthPx(density));
         int buttonSize = px(48, density);
@@ -225,7 +246,12 @@ final class MiniPlayerViews {
             int margin = bar ? 0 : px(MiniPlayerStyle.CARD_MARGIN_DP, density);
             int startMargin = !bar && cardLeft ? margin : 0;
             int endMargin = !bar && !cardLeft ? margin : 0;
-            int under = style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx : 0;
+            if (pill) {
+                startMargin = Math.round(MiniPlayerStyle.pillSidePx(density));
+                endMargin = startMargin;
+                margin = Math.round(MiniPlayerStyle.pillGapPx(density));
+            }
+            int under = underlapPx();
             margins.height = bar ? barHeight + under : Math.round(MiniPlayerStyle.cardHeightPx(density));
             mAppliedBoxAspect = MiniPlayerBridge.getBoxAspect();
             margins.width = bar ? ViewGroup.LayoutParams.MATCH_PARENT : px(MiniPlayerStyle.CARD_WIDTH_DP, density);
@@ -260,8 +286,11 @@ final class MiniPlayerViews {
         }
         if (card instanceof MaterialCardView) {
             MaterialCardView materialCard = (MaterialCardView) card;
-            materialCard.setRadius(bar ? 0f : MiniPlayerStyle.CARD_CORNER_DP * density);
+            materialCard.setRadius(pill ? barHeight / 2f : bar ? 0f : MiniPlayerStyle.CARD_CORNER_DP * density);
             materialCard.setCardElevation(bar ? 0f : 8f * density);
+            // NEWTUBE(pills): the pill's rim, as on the navigation pill.
+            materialCard.setStrokeWidth(pill ? Math.max(1, px(1, density)) : 0);
+            materialCard.setStrokeColor(com.newtube.mobile.ui.common.Pills.rim(context));
             materialCard.setCardBackgroundColor(style == MiniPlayerStyle.BAR ? Color.TRANSPARENT : Color.BLACK);
         }
         refreshBarCorners();
@@ -277,7 +306,12 @@ final class MiniPlayerViews {
 
         // The video: the whole card, the bar's 16:9 thumbnail slot, or the whole bar cropped.
         FrameLayout.LayoutParams frameParams = (FrameLayout.LayoutParams) frame.getLayoutParams();
-        if (style == MiniPlayerStyle.BAR) {
+        if (style == MiniPlayerStyle.BAR && pill) {
+            // NEWTUBE(pills): inset in the pill, with rounded corners.
+            frameParams.width = pillThumbWidth;
+            frameParams.height = barHeight - 2 * pillInset;
+            frameParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        } else if (style == MiniPlayerStyle.BAR) {
             frameParams.width = thumbWidth;
             frameParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
             frameParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
@@ -295,8 +329,13 @@ final class MiniPlayerViews {
             frameParams.gravity = Gravity.CENTER;
         }
         frameParams.topMargin = 0;
-        frameParams.bottomMargin = style == MiniPlayerStyle.BAR_VIDEO ? mUnderlapPx / 2 : 0;
+        frameParams.bottomMargin = style == MiniPlayerStyle.BAR_VIDEO ? underlapPx() / 2 : 0;
+        frameParams.leftMargin = pillInset;
+        frameParams.setMarginStart(pillInset);
         frame.setLayoutParams(frameParams);
+        boolean roundThumb = style == MiniPlayerStyle.BAR && pill;
+        frame.setOutlineProvider(roundThumb ? mThumbOutline : android.view.ViewOutlineProvider.BACKGROUND);
+        frame.setClipToOutline(roundThumb);
         if (frame instanceof AspectRatioFrameLayout) {
             ((AspectRatioFrameLayout) frame).setResizeMode(style == MiniPlayerStyle.BAR_VIDEO
                     ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
@@ -309,8 +348,8 @@ final class MiniPlayerViews {
         int onSurface = ContextCompat.getColor(context, R.color.mobile_color_on_surface);
         int onVideo = ContextCompat.getColor(context, R.color.mobile_player_on_video);
         if (style == MiniPlayerStyle.BAR_VIDEO) {
-            textParams.setMarginStart(px(12, density));
-            textParams.setMarginEnd(buttonSize + nextSlot + px(12, density)); // only play/pause (and next)
+            textParams.setMarginStart(px(pill ? 16 : 12, density));
+            textParams.setMarginEnd(buttonSize + nextSlot + endPad + px(12, density)); // only play/pause (and next)
             if (mTitleFrost == null) {
                 mTitleFrost = new FrostedScrimDrawable(14f * density,
                         ContextCompat.getColor(context, R.color.mobile_mini_frost_tint));
@@ -326,8 +365,8 @@ final class MiniPlayerViews {
         } else {
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setMaxWidth(Integer.MAX_VALUE);
-            textParams.setMarginStart(thumbWidth + px(12, density));
-            textParams.setMarginEnd(2 * buttonSize + nextSlot + px(4, density));
+            textParams.setMarginStart((pill ? pillInset + pillThumbWidth : thumbWidth) + px(12, density));
+            textParams.setMarginEnd(2 * buttonSize + nextSlot + endPad + px(4, density));
             text.setBackground(null);
             text.setPadding(0, 0, 0, 0);
             title.setTextColor(onSurface);
@@ -345,14 +384,16 @@ final class MiniPlayerViews {
             play.height = buttonSize;
             play.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
             // The video-background bar has no X (it closes by swiping): play/pause takes its place.
-            play.setMarginEnd((style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize) + nextSlot);
+            play.setMarginEnd((style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize) + nextSlot + endPad);
             closeParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+            closeParams.setMarginEnd(endPad);
         } else {
             play.width = px(40, density);
             play.height = px(40, density);
             play.gravity = Gravity.CENTER;
             play.setMarginEnd(0);
             closeParams.gravity = Gravity.TOP | Gravity.END;
+            closeParams.setMarginEnd(0);
         }
         FrameLayout.LayoutParams nextParams = (FrameLayout.LayoutParams) next.getLayoutParams();
         if (bar) {
@@ -362,7 +403,7 @@ final class MiniPlayerViews {
             nextParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
             nextParams.leftMargin = 0;
             nextParams.setMarginStart(0);
-            nextParams.setMarginEnd(style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize);
+            nextParams.setMarginEnd((style == MiniPlayerStyle.BAR_VIDEO ? px(4, density) : buttonSize) + endPad);
         } else {
             // On the card, the same circle beside the centred play/pause.
             nextParams.width = px(40, density);
@@ -443,7 +484,7 @@ final class MiniPlayerViews {
         if (style == MiniPlayerStyle.BAR_VIDEO) {
             flashParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
             // On play/pause - which Next, when there is one, pushes in from the end.
-            flashParams.setMarginEnd(px(4, density) + nextSlot + (buttonSize - px(44, density)) / 2);
+            flashParams.setMarginEnd(px(4, density) + nextSlot + endPad + (buttonSize - px(44, density)) / 2);
             android.graphics.drawable.GradientDrawable ring = new android.graphics.drawable.GradientDrawable();
             ring.setShape(android.graphics.drawable.GradientDrawable.OVAL);
             ring.setColor(ContextCompat.getColor(context, R.color.mobile_mini_play_flash));
@@ -462,6 +503,21 @@ final class MiniPlayerViews {
             setBottomMargin(view, under / 2);
         }
         setBottomMargin(progress, under);
+        // NEWTUBE(pills): the line can not run along a rounded bottom edge - it sits inside the pill,
+        // under the title (the plain bar) or across the middle of the video bar.
+        FrameLayout.LayoutParams progressParams = (FrameLayout.LayoutParams) progress.getLayoutParams();
+        int lineStart = 0;
+        int lineEnd = 0;
+        if (pill) {
+            lineStart = style == MiniPlayerStyle.BAR ? pillInset + pillThumbWidth + px(12, density) : barHeight / 2;
+            lineEnd = barHeight / 2;
+            setBottomMargin(progress, px(style == MiniPlayerStyle.BAR ? 2 : 1, density));
+        }
+        progressParams.leftMargin = lineStart;
+        progressParams.rightMargin = lineEnd;
+        progressParams.setMarginStart(lineStart);
+        progressParams.setMarginEnd(lineEnd);
+        progress.setLayoutParams(progressParams);
 
         updateProgressColors();
 

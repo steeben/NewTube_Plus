@@ -1534,8 +1534,12 @@ public class MobilePlaybackActivity extends MobileActivity
                         MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
                         float bottomNav = host != null ? host.getMiniCardBottomOffsetPx()
                                 : 56 * getResources().getDisplayMetrics().density;
+                        // NEWTUBE(pills): a pill bar rests a gap above the navigation.
+                        float pillGap = MiniPlayerStyle.isPill(this)
+                                ? MiniPlayerStyle.pillGapPx(getResources().getDisplayMetrics().density) : 0f;
                         barSlide = setupBarSlide(miniBounds.top - containerLocation[1],
-                                miniBounds.height(), miniBounds.width(), mContainer.getHeight() - bottomNav);
+                                miniBounds.height(), miniBounds.width(),
+                                mContainer.getHeight() - bottomNav - pillGap);
                         mBarExpanding = barSlide;
                     }
                     if (!barSlide) {
@@ -5963,6 +5967,12 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mBarTop;
     private float mBarHeight;
     private float mBarLandedWidth;
+    /**
+     * NEWTUBE(pills): on a pill bar, the landed video's left edge (the pill's side margin, plus the
+     * plain bar's inset) and how far inside the bar's top and bottom it lands, container px.
+     */
+    private float mBarLeft;
+    private float mBarInset;
     /** The fraction at which the slide down ends and the sideways shrink begins. */
     private float mBarSplit = 1f;
     /** Finger travel for the whole bar minimize. */
@@ -6143,23 +6153,34 @@ public class MobilePlaybackActivity extends MobileActivity
         mBarNavHeight = navHost != null ? navHost.getBottomBarHeightPx() : 0;
         mBarRoundedTop = MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO && MiniPlayerStyle.isBarRounded(this);
         mBarZoomContent = MiniPlayerStyle.get(this) == MiniPlayerStyle.BAR_VIDEO;
+        // NEWTUBE(pills): a pill bar's video lands inside the pill, with rounded corners.
+        int barStyle = MiniPlayerStyle.get(this);
+        boolean pill = MiniPlayerStyle.isPill(this) && MiniPlayerStyle.isBar(barStyle);
+        float pillDensity = getResources().getDisplayMetrics().density;
+        mBarInset = pill ? MiniPlayerStyle.pillInsetPx(barStyle, pillDensity) : 0f;
+        mBarLeft = pill ? MiniPlayerStyle.pillSidePx(pillDensity) + mBarInset : 0f;
+        if (pill) {
+            landedWidth = barStyle == MiniPlayerStyle.BAR ? MiniPlayerStyle.pillThumbWidthPx(pillDensity)
+                    : mContainer.getWidth() - 2f * MiniPlayerStyle.pillSidePx(pillDensity);
+            mBarRoundedTop = false;
+        }
         showBarChrome(barTop, barHeight);
         mBarVideo.set(video);
         mBarTop = barTop;
         mBarHeight = barHeight;
         mBarLandedWidth = Math.min(landedWidth, video.width());
-        float down = Math.max(1f, (barTop + barHeight) - video.bottom);
+        float down = Math.max(1f, (barTop + barHeight - mBarInset) - video.bottom);
         float sideways = mBarLandedWidth < video.width() - 1f
                 ? Math.max(1f, mContainer.getHeight() * 0.18f) : 0f;
         mBarTravelPx = down + sideways;
         mBarSplit = down / mBarTravelPx;
         // The plain morph's terms, for whatever reads them (the settle's speed, the drag travel).
-        mMorphCornerDp = 0f;
+        mMorphCornerDp = pill ? MiniPlayerStyle.pillCornerDp(barStyle) : 0f;
         mMorphCropLocalPx = 0f;
         mMorphScaleX = mBarLandedWidth / video.width();
         mMorphScaleY = mMorphScaleX;
-        mMorphTx = -video.left;
-        mMorphTy = barTop - video.top;
+        mMorphTx = mBarLeft - video.left;
+        mMorphTy = barTop + mBarInset - video.top;
         return true;
     }
 
@@ -6172,8 +6193,9 @@ public class MobilePlaybackActivity extends MobileActivity
         float sideways = mBarSplit < 1f ? Math.max(0f, (settled - mBarSplit) / (1f - mBarSplit)) : 0f;
 
         // The visible band of the video: from the whole box down onto the bar, full width.
-        float barBottom = mBarTop + mBarHeight;
-        float bandTop = video.top + (mBarTop - video.top) * down;
+        // NEWTUBE(pills): onto the pill's inset video, not the whole bar.
+        float barBottom = mBarTop + mBarHeight - mBarInset;
+        float bandTop = video.top + (mBarTop + mBarInset - video.top) * down;
         float bandBottom = video.bottom + (barBottom - video.bottom) * down;
         float bandHeight = Math.max(1f, bandBottom - bandTop);
         // Then narrower, keeping the bar's height: the cut shrinks as the box does.
@@ -6184,7 +6206,7 @@ public class MobilePlaybackActivity extends MobileActivity
         mVideoArea.setPivotY(0f);
         mVideoArea.setScaleX(scale);
         mVideoArea.setScaleY(scale);
-        mVideoArea.setTranslationX(-video.left * sideways);
+        mVideoArea.setTranslationX((mBarLeft - video.left) * sideways);
         mVideoArea.setTranslationY(bandTop - cropLocal * scale - video.top);
         mVideoArea.setTranslationZ(0f);
         mOutlineCropLocalPx = cropLocal;
@@ -6275,7 +6297,10 @@ public class MobilePlaybackActivity extends MobileActivity
             MiniPlayerViews chrome = new MiniPlayerViews(card);
             chrome.setHasNext(hasQueueNext());
             chrome.applyStyle(style, false);
-            if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this)) {
+            if (MiniPlayerStyle.isPill(this)) {
+                // NEWTUBE(pills): the host's pill bar is glass on Home: its tint.
+                chrome.backdrop.setBackgroundColor(com.newtube.mobile.ui.common.Pills.glassTint(this));
+            } else if (com.newtube.mobile.ui.common.UiPrefs.isFrostedGlass(this)) {
                 // The host's plain bar is glass: its tint, so the hand-over does not flash solid.
                 int page = getResources().getColor(R.color.mobile_color_background);
                 chrome.backdrop.setBackgroundColor((page & 0x00FFFFFF) | 0xB3000000);
@@ -6350,7 +6375,7 @@ public class MobilePlaybackActivity extends MobileActivity
         int style = MiniPlayerStyle.get(this);
         MiniPlayerStyle.Target target = MiniPlayerStyle.target(style,
                 mContainer.getWidth(), mContainer.getHeight(), bottomNav, density,
-                MiniPlayerStyle.isCardLeft(this));
+                MiniPlayerStyle.isCardLeft(this), MiniPlayerStyle.isPill(this));
         mBarSlide = false;
         if (MiniPlayerStyle.isBar(style) && host != null
                 && setupBarSlide(target.rect.top, target.rect.height(), target.rect.width(),
