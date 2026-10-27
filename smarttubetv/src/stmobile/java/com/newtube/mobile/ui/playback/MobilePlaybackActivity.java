@@ -5956,6 +5956,9 @@ public class MobilePlaybackActivity extends MobileActivity
     private static final float FULLSCREEN_PULL_SCALE = 0.95f;
     private static final float FULLSCREEN_PULL_SCALE_DP = 38f;
     private static final float FULLSCREEN_PULL_MAX = 0.3f;
+    /** Swiped up in portrait, the video grows to this size over this much finger travel (dp). */
+    private static final float FULLSCREEN_GROW_SCALE = 1.08f;
+    private static final float FULLSCREEN_GROW_DP = 96f;
 
     private SwipeLevels mSwipeLevels;
     private float mSwipeDownRawX;
@@ -6231,11 +6234,16 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         float pulled = Math.min(Math.max(0f, px), mVideoArea.getHeight() * FULLSCREEN_PULL_MAX);
         if (mFullscreenSwipe == SWIPE_ENTER_FULLSCREEN) {
-            // The page passes under the video box: the watch column draws that box last.
-            View page = findViewById(R.id.mobile_watch_area);
-            if (page != null) {
-                page.setTranslationY(-pulled);
-            }
+            // As YouTube's: the page stays put and the video grows a little under the finger (from
+            // its top edge, over the page below - the watch column draws that box last); let go,
+            // it goes fullscreen.
+            float grow = Math.min(1f, Math.max(0f, px) / (FULLSCREEN_GROW_DP * getResources().getDisplayMetrics().density));
+            grow = 1f - (1f - grow) * (1f - grow); // eases out
+            float scale = 1f + (FULLSCREEN_GROW_SCALE - 1f) * grow;
+            mVideoArea.setPivotX(mVideoArea.getWidth() / 2f);
+            mVideoArea.setPivotY(0f);
+            mVideoArea.setScaleX(scale);
+            mVideoArea.setScaleY(scale);
             return;
         }
         float shrink = Math.min(1f, pulled / (FULLSCREEN_PULL_SCALE_DP * getResources().getDisplayMetrics().density));
@@ -6253,7 +6261,10 @@ public class MobilePlaybackActivity extends MobileActivity
         boolean detached = magnet.isDetached();
         magnet.finish();
         boolean go;
-        if (detached) {
+        if (mFullscreenSwipe == SWIPE_ENTER_FULLSCREEN) {
+            // Up into fullscreen goes on release, like the fullscreen button - unless flicked back.
+            go = velocity >= -1200f;
+        } else if (detached) {
             go = velocity >= -1200f; // past the click it goes, unless flicked back
         } else {
             go = velocity > FULLSCREEN_FLICK_DP * getResources().getDisplayMetrics().density;

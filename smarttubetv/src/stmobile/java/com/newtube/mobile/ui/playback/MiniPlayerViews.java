@@ -104,6 +104,8 @@ final class MiniPlayerViews {
 
     /** NEWTUBE(mini-underlap): px the video bar reaches below its bar, behind the host's navigation. */
     private int mUnderlapPx;
+    /** NEWTUBE(pills): what the card's bottom margin adds to clear a floating navigation pill. */
+    private int mNavClearancePx;
     private final int mOrigBottomToTop;
     private final int mOrigBottomToBottom;
 
@@ -283,6 +285,18 @@ final class MiniPlayerViews {
         }
     }
 
+    /** NEWTUBE(pills): see MiniHost.getMiniNavClearancePx; lays the card out again when it changes. */
+    void setNavClearancePx(int px) {
+        px = Math.max(0, px);
+        if (px == mNavClearancePx) {
+            return;
+        }
+        mNavClearancePx = px;
+        if (style >= 0) {
+            applyStyle(style, cardLeft);
+        }
+    }
+
     /** The part of the card under the host's navigation now (0 unless the video bar reaches there). */
     int underlapPx() {
         return style == MiniPlayerStyle.BAR_VIDEO && !mPill ? mUnderlapPx : 0;
@@ -336,7 +350,7 @@ final class MiniPlayerViews {
             margins.rightMargin = endMargin;
             margins.setMarginStart(startMargin);
             margins.setMarginEnd(endMargin);
-            margins.bottomMargin = margin;
+            margins.bottomMargin = margin + mNavClearancePx;
             if (params instanceof ConstraintLayout.LayoutParams) {
                 ConstraintLayout.LayoutParams constraints = (ConstraintLayout.LayoutParams) params;
                 if (bar) {

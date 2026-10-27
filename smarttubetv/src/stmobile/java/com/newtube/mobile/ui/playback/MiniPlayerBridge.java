@@ -84,6 +84,14 @@ public final class MiniPlayerBridge {
             return 0;
         }
 
+        /**
+         * NEWTUBE(pills): how far above the bottom of its parent the mini player must rest to clear
+         * a navigation pill floating over the same area (a playlist's or the search's), px.
+         */
+        default int getMiniNavClearancePx() {
+            return 0;
+        }
+
         /** NEWTUBE(mini-underlap): the mini player drew a new video frame (glass over it redraws). */
         default void onMiniVideoFrame() {
         }

@@ -4,4 +4,5 @@
     <item name="mobile_mini_next" type="id" />
     <!-- NEWTUBE(pills): a list screen's navigation copy already made a pill (Pills.applyToNavOnce). -->
     <item name="mobile_pill_applied" type="id" />
+    <item name="mobile_nav_clearance_hook" type="id" />
 </resources>

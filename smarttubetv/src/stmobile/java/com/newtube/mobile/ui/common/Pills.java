@@ -341,6 +341,19 @@ public final class Pills {
         return nav.getHeight() + navBottomMargin(nav) + px(nav.getContext(), GAP_DP);
     }
 
+    /**
+     * How far above its parent's bottom a list screen's mini player rests its margin on, clear of
+     * a navigation pill floating over the list (applyToFloatingNavOnce): the pill and the gap and
+     * gesture area under it. 0 when the navigation is not floating there.
+     */
+    public static int floatingNavMiniOffset(@Nullable View nav) {
+        if (nav == null || nav.getVisibility() != View.VISIBLE || nav.getTag(R.id.mobile_pill_applied) == null
+                || !(nav.getParent() instanceof android.widget.FrameLayout)) {
+            return 0;
+        }
+        return (nav.getHeight() > 0 ? nav.getHeight() : px(nav.getContext(), 56)) + navBottomMargin(nav);
+    }
+
     /** Apply {@link #applyToNav} to a list screen's copy of the navigation, once. */
     public static void applyToNavOnce(BottomNavigationView nav) {
         if (nav.getTag(R.id.mobile_pill_applied) == null) {

@@ -308,9 +308,7 @@ public final class BackdropBlurDrawable extends Drawable {
                         recording.saveLayerAlpha(0f, 0f, layer.getWidth(), layer.getHeight(),
                                 Math.round(255 * layerAlpha));
                     }
-                    // draw() leaves out the layer's own scroll (a scrolled You panel).
-                    recording.translate(-layer.getScrollX(), -layer.getScrollY());
-                    layer.draw(recording);
+                    ViewRecording.draw(recording, layer); // with its own scroll (a scrolled You panel)
                     recording.restoreToCount(save);
                 }
             } finally {
@@ -336,9 +334,8 @@ public final class BackdropBlurDrawable extends Drawable {
             try {
                 recording.drawColor(pageColor);
                 recording.save();
-                // draw() leaves out the source's own scroll (a scrolled watch page).
-                recording.translate(dx - source.getScrollX(), dy - source.getScrollY());
-                source.draw(recording);
+                recording.translate(dx, dy);
+                ViewRecording.draw(recording, source); // with its own scroll (a scrolled watch page)
                 recording.restore();
                 if (extra != null) {
                     recording.translate(ex, ey);

@@ -889,6 +889,13 @@ public final class MobileMiniPlayerController {
         int under = mActivity instanceof MiniPlayerBridge.MiniHost
                 ? ((MiniPlayerBridge.MiniHost) mActivity).getMiniUnderlapPx() : 0;
         mViews.setUnderlapPx(under);
+        mViews.setNavClearancePx(mActivity instanceof MiniPlayerBridge.MiniHost
+                ? ((MiniPlayerBridge.MiniHost) mActivity).getMiniNavClearancePx() : 0);
+    }
+
+    /** NEWTUBE(pills): the host's navigation moved or changed size; rest the card clear of it again. */
+    public void refreshHostNav() {
+        updateUnderlap();
     }
 
     /** Lay the card and its children out for {@code style} (see MiniPlayerStyle). */

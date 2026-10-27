@@ -561,12 +561,26 @@ public class MobileChannelUploadsActivity extends MobileActivity
         // the tabs (56dp, like Home's) when they show.
         if (mNav != null && mNav.getVisibility() == View.VISIBLE && com.newtube.mobile.ui.common.Pills.isOn(this)) {
             // NEWTUBE(pills): above the pill, which floats over the list (and the gesture area).
-            return com.newtube.mobile.ui.common.Pills.miniOffsetAboveNav(mNav)
-                    + (mNav.getParent() instanceof android.widget.FrameLayout
-                            ? com.newtube.mobile.ui.common.Pills.navBottomMargin(mNav) : 0);
+            int floating = com.newtube.mobile.ui.common.Pills.floatingNavMiniOffset(mNav);
+            return floating > 0 ? floating : com.newtube.mobile.ui.common.Pills.miniOffsetAboveNav(mNav);
         }
         return mNav != null && mNav.getVisibility() == View.VISIBLE
                 ? Math.round(56 * getResources().getDisplayMetrics().density) : 0;
+    }
+
+    private void refreshMiniNavClearance() {
+        if (mMiniPlayer != null) {
+            mMiniPlayer.refreshHostNav();
+        }
+    }
+
+    /**
+     * NEWTUBE(pills): the mini player shares the list's area with the floating navigation pill;
+     * it rests above it, not behind it.
+     */
+    @Override
+    public int getMiniNavClearancePx() {
+        return com.newtube.mobile.ui.common.Pills.floatingNavMiniOffset(mNav);
     }
 
     // ---------------------------------------------------------------------------------
@@ -594,6 +608,11 @@ public class MobileChannelUploadsActivity extends MobileActivity
         }
         boolean shown = mNavShown && com.newtube.mobile.ui.browse.BrowseNavMirror.populate(this, mNav);
         mNav.setVisibility(shown ? View.VISIBLE : View.GONE);
+        if (mNav.getTag(R.id.mobile_nav_clearance_hook) == null) {
+            mNav.setTag(R.id.mobile_nav_clearance_hook, Boolean.TRUE);
+            mNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> v.post(this::refreshMiniNavClearance));
+        }
+        refreshMiniNavClearance();
         com.newtube.mobile.ui.browse.BrowseNavMirror.registerDetail(this);
         if (shown != mNavShown) {
             mNavShown = shown;

@@ -401,8 +401,7 @@ final class TabSlider {
                     canvas.clipRect(0, 0, view.getWidth(), view.getHeight());
                     // draw() leaves out the view's own scroll (its parent applies it): a scrolled
                     // You panel came out as its top, which showed for a moment on the way back.
-                    canvas.translate(-view.getScrollX(), -view.getScrollY());
-                    view.draw(canvas);
+                    com.newtube.mobile.ui.common.ViewRecording.draw(canvas, view);
                     canvas.restore();
                 }
             } finally {
