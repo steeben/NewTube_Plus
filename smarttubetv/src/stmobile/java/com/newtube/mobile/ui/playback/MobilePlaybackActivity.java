@@ -1534,6 +1534,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // bar's glow waits for it (resetMorph fades it in) instead of showing under the morph.
         mAmbientWaitsForPage = fromMini || launch != null;
         mAmbientBandFollowsMorph = false; // a finished minimize's; the expand does not drive it
+        mStatusFadeFollowsMorph = mAmbientWaitsForPage; // NEWTUBE(motion): the status bar fades in
         if (mAmbientWaitsForPage && mAmbient != null) {
             mAmbient.hideBand();
         }
@@ -5163,8 +5164,20 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         long duration = getDurationMs();
         mTimeBar.setDuration(Math.max(duration, 0));
-        mTimeBar.setPosition(Math.max(mExoPlayerController.getPositionMs(), 0));
+        mTimeBar.setPosition(barPositionMs(duration));
         Utils.postDelayed(mLineUpdateRunnable, isPlaying() ? barUpdateDelayMs(100, 1_000) : 1_000);
+    }
+
+    /**
+     * Where the seek bar shows playback: at the very end once the video has ended. The engine's
+     * last position can fall a little short of the duration the bar is drawn against (the
+     * stream's real end is before the advertised length), and the dot jumped back from the end.
+     */
+    private long barPositionMs(long durationMs) {
+        if (mIsEnded && durationMs > 0) {
+            return durationMs;
+        }
+        return Math.max(mExoPlayerController.getPositionMs(), 0);
     }
 
     private static void setTextIfChanged(@Nullable TextView view, CharSequence text) {
@@ -5179,8 +5192,8 @@ public class MobilePlaybackActivity extends MobileActivity
         }
 
         if (!mScrubbing) {
-            long position = mExoPlayerController.getPositionMs();
             long duration = getDurationMs();
+            long position = barPositionMs(duration);
             long buffered = mPlayer.getBufferedPosition();
 
             if (duration < 0) {
@@ -6194,7 +6207,7 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         // The bar only follows playback while the controls are up: bring it to now first.
         mTimeBar.setDuration(duration);
-        mTimeBar.setPosition(Math.max(mExoPlayerController.getPositionMs(), 0));
+        mTimeBar.setPosition(barPositionMs(duration));
         return mTimeBar.startSwipeScrub(rawX) ? SWIPE_SEEK : PlayerContainerLayout.SWIPE_NONE;
     }
 
@@ -7174,8 +7187,48 @@ public class MobilePlaybackActivity extends MobileActivity
     /** NEWTUBE(ambient): a minimize is under way; the status bar's glow follows its fraction. */
     private boolean mAmbientBandFollowsMorph;
 
+    /**
+     * NEWTUBE(motion): an expand (from the mini player or a feed card) is under way. The window's
+     * backdrop - which paints the status bar's band - is clear while the page grows and came back
+     * in one frame at the end, so the status bar went from see-through to black at once. A strip
+     * of the page colour over the band fades in with the expand instead.
+     */
+    private boolean mStatusFadeFollowsMorph;
+    @Nullable
+    private android.graphics.drawable.ColorDrawable mStatusFade;
+
+    private void applyStatusFade(float f) {
+        View decor = getWindow().getDecorView();
+        if (!mStatusFadeFollowsMorph || isLandscape()) {
+            removeStatusFade();
+            return;
+        }
+        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(decor);
+        int band = insets != null ? insets.getInsets(WindowInsetsCompat.Type.statusBars()
+                | WindowInsetsCompat.Type.displayCutout()).top : 0;
+        if (band <= 0 || decor.getWidth() <= 0) {
+            return;
+        }
+        if (mStatusFade == null) {
+            mStatusFade = new android.graphics.drawable.ColorDrawable(
+                    ContextCompat.getColor(this, R.color.mobile_color_background));
+            decor.getOverlay().add(mStatusFade);
+        }
+        mStatusFade.setBounds(0, 0, decor.getWidth(), band);
+        float shown = 1f - Math.max(0f, Math.min(1f, f));
+        mStatusFade.setAlpha(Math.round(255 * shown));
+    }
+
+    private void removeStatusFade() {
+        if (mStatusFade != null) {
+            getWindow().getDecorView().getOverlay().remove(mStatusFade);
+            mStatusFade = null;
+        }
+    }
+
     /** Apply the morph at fraction f (0 = fullscreen player, 1 = sitting on the mini card). */
     private void applyMorph(float f) {
+        applyStatusFade(f);
         if (mAmbientBandFollowsMorph && mAmbient != null) {
             mAmbient.setBandMorph(f);
         }
@@ -7391,6 +7444,8 @@ public class MobilePlaybackActivity extends MobileActivity
             mCommentsPanel.setMorphAlpha(1f);
         }
         mAmbientBandFollowsMorph = false;
+        mStatusFadeFollowsMorph = false; // the backdrop paints the band again
+        removeStatusFade();
         if (mAmbient != null && !isFinishing()) {
             mAmbientWaitsForPage = false;
             mAmbient.showBand(); // NEWTUBE(ambient): the page is open again
@@ -7547,6 +7602,8 @@ public class MobilePlaybackActivity extends MobileActivity
     /** Start a minimize morph: the drag's first move, a back gesture or Back itself. */
     private void beginMinimizeMorph() {
         computeMorphTarget(); // anchor the corner path once per morph
+        mStatusFadeFollowsMorph = false; // NEWTUBE(motion): a minimize leaves the band to the backdrop
+        removeStatusFade();
         if (mAmbient != null) {
             // NEWTUBE(ambient): the page is leaving - the status bar's glow fades with the morph.
             mAmbientBandFollowsMorph = true;
