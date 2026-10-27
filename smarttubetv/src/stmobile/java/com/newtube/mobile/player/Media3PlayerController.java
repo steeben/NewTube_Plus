@@ -738,6 +738,13 @@ public class Media3PlayerController implements Player.Listener {
         // Scrubs, SponsorBlock/chapter skips, share-link timestamps, live-edge jumps: exact (within
         // the player-wide tolerance) and never replaced by a pending resume snap.
         mResumeSnap.onOtherSeek();
+        long durationMs = getDurationMs();
+        if (mPlayer.getPlaybackState() == Player.STATE_ENDED && durationMs > 0 && positionMs >= durationMs) {
+            // Already there. "Pause when the video ends" sends the ended video to its end: the
+            // seek landed on the last keyframe (the seek tolerance), a few seconds back, and the
+            // paused player showed the dot jumped back from the end.
+            return;
+        }
         seekTo(positionMs);
     }
 
