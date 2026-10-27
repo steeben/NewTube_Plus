@@ -431,7 +431,8 @@ public final class UiPrefs {
         if (style == GLASS_SOLID || style == GLASS_FROSTED || style == GLASS_LIQUID) {
             return style;
         }
-        return prefs.getBoolean(KEY_FROSTED, false) ? GLASS_LIQUID : GLASS_SOLID;
+        // Liquid glass is the default look (1.1.0): only a Frosted glass switch turned off says Solid.
+        return prefs.getBoolean(KEY_FROSTED, true) ? GLASS_LIQUID : GLASS_SOLID;
     }
 
     public static void setGlassStyle(Context context, int style) {

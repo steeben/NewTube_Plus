@@ -2,6 +2,48 @@
 
 All notable user-facing changes to NewTube, the phone app built on SmartTube.
 
+## 1.1.0 — 2026-10-27
+
+A new look: floating glass pills, Liquid glass, and a pill mini player.
+
+### New
+
+- **Liquid glass is the default look.** The top row and the bottom navigation
+  are floating glass pills, and the selected tab is a lens that slides between
+  tabs. Settings → Appearance → Glass offers Liquid, Frosted or Solid.
+- **Pill mini player, now the default.** The minimized video is a floating
+  pill above the navigation, with its own progress line. It slides down from
+  the player and back up, and the floating card style is still in Settings.
+- **The navigation tucks in while you scroll down** (narrower, shorter, no tab
+  names) and comes back as soon as you scroll up.
+- **Your profile picture on the You tab.**
+- **App icon: Glass or Flat,** in your accent colour (Settings → Appearance).
+  The logo and splash screen follow the accent too.
+- **Swipe up on the video to go fullscreen,** as on YouTube: the video grows a
+  little under your finger and goes fullscreen when you let go.
+- **Feed autoplay** plays up to 720p without stalling, and its time badge
+  counts down.
+- **Playlist and search pages** get the same glass navigation and mini player
+  as Home.
+- From NewTube 1.16–1.17.1: 1080p for vertical videos, vertical videos go
+  fullscreen upright, channel avatars on Home and Subscriptions cards, a quick
+  double tap on play/pause, and a decoder failure no longer lowers your saved
+  quality.
+
+### Fixed
+
+- **Glass no longer breaks** after pulling a list past its top (the You page
+  in particular), and the navigation icons stay put.
+- **The mini player no longer hides behind the navigation** on playlist and
+  search pages; with the keyboard open it stays put under it.
+- **The progress line follows the video** when it shrinks into the floating
+  card.
+- **The selected tab's highlight stays inside the navigation** when it tucks
+  in, and the icons are no longer cut off.
+- **No scroll bar on Home.**
+- Player sheets stay under the status bar and scroll in landscape, the "More"
+  row in Settings is reachable, and many smaller animation fixes.
+
 ## 1.0.1 — 2026-10-11
 
 NewTube+ (steeben's fork). Updates now come from this fork's own releases.
