@@ -416,7 +416,7 @@ public class MobileAppDialogActivity extends MobileActivity implements AppDialog
             window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
             // Below Android 8.1 the navigation buttons can't turn dark: keep the black bar there.
             window.setNavigationBarColor(Build.VERSION.SDK_INT >= 27 ? android.graphics.Color.TRANSPARENT
-                    : com.newtube.mobile.ui.common.ThemeMode.color(this, R.attr.newtubeColorNavigationBar));
+                    : ContextCompat.getColor(this, R.color.mobile_color_navigation_bar));
             androidx.core.view.WindowCompat.getInsetsController(window, window.getDecorView())
                     .setAppearanceLightStatusBars(false);
         }

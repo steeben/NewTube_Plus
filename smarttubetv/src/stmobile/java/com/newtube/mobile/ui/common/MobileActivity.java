@@ -45,35 +45,15 @@ import com.newtube.mobile.ui.playback.MiniPlayerBridge;
 public abstract class MobileActivity extends MotherActivity {
 
     /**
-     * NEWTUBE(theme): the look (night bits + pure black, {@link ThemeMode#desiredLook}) this
-     * screen's views were built with (see {@link #checkTheme}).
+     * NEWTUBE(theme): the night bits this screen's views were built with (see {@link #checkTheme}).
      */
-    private int mThemedLook;
-
-    /**
-     * NEWTUBE(theme): every style set as this screen's theme, in order (the manifest's, and any
-     * setTheme after it), so {@link ThemeMode#rebuildTheme} can theme it again from scratch.
-     */
-    private final java.util.List<Integer> mAppliedThemeStyles = new java.util.ArrayList<>();
-
-    @Override
-    protected void onApplyThemeResource(android.content.res.Resources.Theme theme, int resid, boolean first) {
-        super.onApplyThemeResource(theme, resid, first);
-        mAppliedThemeStyles.add(resid);
-    }
-
-    java.util.List<Integer> getAppliedThemeStyles() {
-        return mAppliedThemeStyles;
-    }
+    private int mThemedNight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // NEWTUBE(theme): pure black, before anything reads the theme (the window background, the
-        // decor, the first inflation). The night bits are already this screen's (attachBaseContext).
-        ThemeMode.applyPalette(this);
         super.onCreate(savedInstanceState);
         MobileSnackbar.install(getApplication()); // NEWTUBE(snackbar): tracks the screen in front
-        mThemedLook = ThemeMode.currentLook(this);
+        mThemedNight = ThemeMode.currentNight(this);
         ThemeMode.register(this);
     }
 
@@ -102,24 +82,20 @@ public abstract class MobileActivity extends MotherActivity {
         if (isFinishing() || isDestroyed() || mRecreating) {
             return;
         }
-        int desired = ThemeMode.desiredLook(this);
-        int night = ThemeMode.night(desired);
-        if (desired == mThemedLook) {
-            ThemeMode.syncResources(this, night);
+        int desired = ThemeMode.desiredNight(this);
+        if (desired == mThemedNight) {
+            ThemeMode.syncResources(this, desired);
             return;
         }
         com.liskovsoft.smartyoutubetv2.common.misc.NetPath.log("theme screen=" + getClass().getSimpleName()
-                + " night=" + (night == Configuration.UI_MODE_NIGHT_YES ? "y" : "n")
-                + " black=" + ((desired & ThemeMode.LOOK_PURE_BLACK) != 0 ? "y" : "n"));
-        if (onThemeChanged(night)) {
-            mThemedLook = desired;
+                + " night=" + (desired == Configuration.UI_MODE_NIGHT_YES ? "y" : "n"));
+        if (onThemeChanged(desired)) {
+            mThemedNight = desired;
         }
     }
 
     /**
-     * Rebuild this screen for the other side, or for pure black switched on or off (the
-     * resources and theme of a screen that changes in place get both from
-     * {@link ThemeMode#syncResources}). Default: recreate it, which creates it again under
+     * Rebuild this screen for the other side. Default: recreate it, which creates it again under
      * the new override (screens already keep their state across a recreation: Browse its You
      * panel, Settings its level stack). The player overrides this to keep playing.
      *
@@ -412,10 +388,10 @@ public abstract class MobileActivity extends MotherActivity {
         window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
 
-        window.setStatusBarColor(ThemeMode.color(this, R.attr.newtubeColorBackground));
+        window.setStatusBarColor(ContextCompat.getColor(this, R.color.mobile_color_background));
         // NEWTUBE(theme): the page colour, except black below Android 8.1 in the light theme -
         // those can't draw dark navigation buttons (mobile_color_navigation_bar).
-        window.setNavigationBarColor(ThemeMode.color(this, R.attr.newtubeColorNavigationBar));
+        window.setNavigationBarColor(ContextCompat.getColor(this, R.color.mobile_color_navigation_bar));
 
         // NEWTUBE(theme): dark icons over the light theme's white bars, light ones over the dark
         // theme's (and over the player's black status band in both - isStatusBarOverDarkContent).

@@ -326,7 +326,7 @@ public class MobileBrowseActivity extends MobileActivity
 
     private void setupSwipeRefresh() {
         mContentSwipe.setColorSchemeColors(getColorInt(R.color.mobile_color_on_surface));
-        mContentSwipe.setProgressBackgroundColorSchemeColor(com.newtube.mobile.ui.common.ThemeMode.color(this, R.attr.newtubeColorSurface));
+        mContentSwipe.setProgressBackgroundColorSchemeColor(getColorInt(R.color.mobile_color_surface));
         mContentSwipe.setOnRefreshListener(() -> {
             if (mPresenter != null) {
                 mPresenter.refresh(false);

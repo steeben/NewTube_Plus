@@ -84,7 +84,7 @@ public class CommentTextView extends AppCompatTextView {
         mFadeWidth = Math.round(26 * density);
         mReadMoreGap = Math.round(28 * density) - mFadeWidth;
         mReadMore = context.getString(R.string.mobile_comments_read_more);
-        mGroundColor = com.newtube.mobile.ui.common.ThemeMode.color(context, R.attr.newtubeColorBackground);
+        mGroundColor = ContextCompat.getColor(context, R.color.mobile_color_background);
         mReadMoreColor = ContextCompat.getColor(context, R.color.mobile_color_on_surface_secondary);
         mReadMorePaint.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         mGestures = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {

@@ -17,14 +17,14 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/newtubeColorBackground"
+        android:background="@color/mobile_color_background"
         android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/mobile_channel_toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/mobile_title_bar_height"
-        android:background="?attr/newtubeColorBackground"
+        android:background="@color/mobile_color_background"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -62,7 +62,7 @@
         android:id="@+id/mobile_channel_tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/newtubeColorBackground"
+        android:background="@color/mobile_color_background"
         android:visibility="gone"
         app:tabIndicatorColor="@color/mobile_color_on_surface"
         app:tabMaxWidth="0dp"

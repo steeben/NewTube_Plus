@@ -457,8 +457,6 @@
     <string name="mobile_theme_system">System default</string>
     <string name="mobile_theme_light">Light</string>
     <string name="mobile_theme_dark">Dark</string>
-    <string name="mobile_theme_pure_black">Pure black</string>
-    <string name="mobile_theme_pure_black_summary">Black instead of dark grey when the app is dark. Saves battery on OLED screens</string>
 
     <!-- NEWTUBE(about-growth): the last two rows of Settings > About. Tap-only: no prompt, badge
          or counter. Never "ad-free" wording. -->
