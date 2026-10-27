@@ -287,7 +287,6 @@ final class MiniPlayerViews {
 
     /** NEWTUBE(pills): see MiniHost.getMiniNavClearancePx; lays the card out again when it changes. */
     void setNavClearancePx(int px) {
-        px = Math.max(0, px);
         if (px == mNavClearancePx) {
             return;
         }

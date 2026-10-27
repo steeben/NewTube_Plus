@@ -237,7 +237,7 @@ public class MobileSearchActivity extends MobileActivity
         int bottom = Math.max(0, ime - bars);
         if (area.getPaddingBottom() != bottom) {
             area.setPadding(area.getPaddingLeft(), area.getPaddingTop(), area.getPaddingRight(), bottom);
-            refreshMiniNavClearance(); // the keyboard covers the navigation: the mini player comes down to it
+            refreshMiniNavClearance(); // the mini player stays put, under the keyboard
         }
     }
 
@@ -671,11 +671,11 @@ public class MobileSearchActivity extends MobileActivity
      */
     @Override
     public int getMiniNavClearancePx() {
-        // Over the keyboard, the navigation behind it needs no clearing: only what the
-        // keyboard's top edge does not already lift the card by.
+        // The keyboard lifts the results area's bottom (its padding), not the card: the card stays
+        // where it rests without it, and the keyboard covers it.
         View area = mGrid != null ? (View) mGrid.getParent() : null;
         int keyboard = area != null ? area.getPaddingBottom() : 0;
-        return Math.max(0, com.newtube.mobile.ui.common.Pills.floatingNavMiniOffset(mNav) - keyboard);
+        return com.newtube.mobile.ui.common.Pills.floatingNavMiniOffset(mNav) - keyboard;
     }
 
     // ---------------------------------------------------------------------------------

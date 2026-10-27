@@ -86,7 +86,8 @@ public final class MiniPlayerBridge {
 
         /**
          * NEWTUBE(pills): how far above the bottom of its parent the mini player must rest to clear
-         * a navigation pill floating over the same area (a playlist's or the search's), px.
+         * a navigation pill floating over the same area (a playlist's or the search's), px. Negative
+         * when the parent's bottom has risen past that spot (search's results over the keyboard).
          */
         default int getMiniNavClearancePx() {
             return 0;
