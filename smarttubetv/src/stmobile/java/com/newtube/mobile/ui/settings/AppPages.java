@@ -115,6 +115,13 @@ final class AppPages {
                 .bind(() -> UiPrefs.getAmbient(context), mode -> UiPrefs.setAmbient(context, mode)));
 
         rows.add(SettingsRow.header(context.getString(R.string.mobile_appearance_branding)));
+        // NEWTUBE(app-icon): the launcher icon, with the logo and the launch screen to match.
+        rows.add(SettingsRow.<Integer>choice(context.getString(R.string.mobile_appearance_app_icon))
+                .option(context.getString(R.string.mobile_appearance_app_icon_glass),
+                        context.getString(R.string.mobile_appearance_app_icon_note), UiPrefs.APP_ICON_GLASS)
+                .option(context.getString(R.string.mobile_appearance_app_icon_flat),
+                        context.getString(R.string.mobile_appearance_app_icon_note), UiPrefs.APP_ICON_FLAT)
+                .bind(() -> UiPrefs.getAppIcon(context), icon -> UiPrefs.setAppIcon(context, icon)));
         rows.add(SettingsRow.action(0, context.getString(R.string.mobile_appearance_logo),
                 () -> context.getString(logoLabel(UiPrefs.getLogo(context))),
                 page -> showLogoDialog(page)));

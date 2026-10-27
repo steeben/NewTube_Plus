@@ -35,12 +35,25 @@ public final class MiniPlayerListInset implements ViewTreeObserver.OnGlobalLayou
 
     /** Keep {@code list}'s bottom padding clear of {@code card} whenever the card is shown. */
     public static void attach(View card, ViewGroup list) {
+        attach(card, list, null);
+    }
+
+    /**
+     * As above, and clear of {@code nav} too: a navigation pill floating over the list
+     * (Pills.applyToFloatingNavOnce), shown with or without the card.
+     */
+    public static void attach(View card, ViewGroup list, @androidx.annotation.Nullable View nav) {
         if (card == null || list == null) {
             return;
         }
         list.setClipToPadding(false);
-        card.getViewTreeObserver().addOnGlobalLayoutListener(new MiniPlayerListInset(card, list));
+        MiniPlayerListInset inset = new MiniPlayerListInset(card, list);
+        inset.mNav = nav;
+        card.getViewTreeObserver().addOnGlobalLayoutListener(inset);
     }
+
+    @androidx.annotation.Nullable
+    private View mNav;
 
     @Override
     public void onGlobalLayout() {
@@ -53,14 +66,15 @@ public final class MiniPlayerListInset implements ViewTreeObserver.OnGlobalLayou
     }
 
     private int requiredExtra() {
+        int nav = com.newtube.mobile.ui.common.Pills.floatingNavClearance(mNav);
         if (mCard.getVisibility() != View.VISIBLE || mCard.getHeight() <= 0) {
-            return 0;
+            return nav;
         }
         int margin = 0;
         ViewGroup.LayoutParams lp = mCard.getLayoutParams();
         if (lp instanceof ViewGroup.MarginLayoutParams) {
             margin = ((ViewGroup.MarginLayoutParams) lp).bottomMargin;
         }
-        return mCard.getHeight() + margin + mGapPx;
+        return Math.max(nav, mCard.getHeight() + margin + mGapPx);
     }
 }

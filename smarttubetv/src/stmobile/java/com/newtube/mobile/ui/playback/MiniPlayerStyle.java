@@ -69,8 +69,9 @@ public final class MiniPlayerStyle {
         switch (style) {
             case CARD_GESTURE:
             case BAR:
-            case BAR_VIDEO:
                 return style;
+            case BAR_VIDEO:
+                return BAR; // NEWTUBE(pills): the video-background bar is no longer offered
             default:
                 return CARD;
         }

@@ -199,7 +199,8 @@ public class MobileChannelUploadsActivity extends MobileActivity
     private void bindViews() {
         mGrid = findViewById(R.id.mobile_channel_uploads_grid);
         // NEWTUBE(mini-inset): the last row can scroll clear of the docked mini-player card.
-        com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(findViewById(R.id.mobile_mini_player), mGrid);
+        com.newtube.mobile.ui.playback.MiniPlayerListInset.attach(findViewById(R.id.mobile_mini_player), mGrid,
+                findViewById(R.id.mobile_uploads_bottom_nav));
         mProgressBar = findViewById(R.id.mobile_channel_uploads_progress);
         mTitleView = findViewById(R.id.mobile_channel_uploads_title);
         mBackButton = findViewById(R.id.mobile_channel_uploads_back);
@@ -557,7 +558,10 @@ public class MobileChannelUploadsActivity extends MobileActivity
         // Overlay card (mobile_mini_player_overlay.xml) sits flush at the list's bottom: above
         // the tabs (56dp, like Home's) when they show.
         if (mNav != null && mNav.getVisibility() == View.VISIBLE && com.newtube.mobile.ui.common.Pills.isOn(this)) {
-            return com.newtube.mobile.ui.common.Pills.miniOffsetAboveNav(mNav); // NEWTUBE(pills)
+            // NEWTUBE(pills): above the pill, which floats over the list (and the gesture area).
+            return com.newtube.mobile.ui.common.Pills.miniOffsetAboveNav(mNav)
+                    + (mNav.getParent() instanceof android.widget.FrameLayout
+                            ? com.newtube.mobile.ui.common.Pills.navBottomMargin(mNav) : 0);
         }
         return mNav != null && mNav.getVisibility() == View.VISIBLE
                 ? Math.round(56 * getResources().getDisplayMetrics().density) : 0;
@@ -577,7 +581,14 @@ public class MobileChannelUploadsActivity extends MobileActivity
             return;
         }
         if (com.newtube.mobile.ui.common.Pills.isOn(this)) {
-            com.newtube.mobile.ui.common.Pills.applyToNavOnce(mNav); // NEWTUBE(pills)
+            // NEWTUBE(pills): floating over the list, glass like Home's, and so is the mini bar.
+            View glassSource = findViewById(R.id.mobile_channel_uploads_swipe);
+            if (glassSource != null) {
+                com.newtube.mobile.ui.common.Pills.applyToFloatingNavOnce(mNav, glassSource,
+                        findViewById(R.id.mobile_channel_uploads_grid), findViewById(R.id.mobile_mini_backdrop));
+            } else {
+                com.newtube.mobile.ui.common.Pills.applyToNavOnce(mNav);
+            }
         }
         boolean shown = mNavShown && com.newtube.mobile.ui.browse.BrowseNavMirror.populate(this, mNav);
         mNav.setVisibility(shown ? View.VISIBLE : View.GONE);

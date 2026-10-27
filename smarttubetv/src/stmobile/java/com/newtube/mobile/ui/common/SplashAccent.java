@@ -14,6 +14,8 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 public final class SplashAccent {
     private static final int[] COLORS = {0xFFFF0033, 0xFFFF6D00, 0xFFFFC400, 0xFF00C853, 0xFF00BFA5, 0xFF00B8D4, 0xFF2979FF, 0xFF651FFF, 0xFFD500F9, 0xFFF50057, 0xFF9E9E9E};
     private static final int[] THEMES = {R.style.Theme_NewTube_Launch, R.style.Theme_NewTube_Launch_Orange, R.style.Theme_NewTube_Launch_Amber, R.style.Theme_NewTube_Launch_Green, R.style.Theme_NewTube_Launch_Teal, R.style.Theme_NewTube_Launch_Cyan, R.style.Theme_NewTube_Launch_Blue, R.style.Theme_NewTube_Launch_Violet, R.style.Theme_NewTube_Launch_Purple, R.style.Theme_NewTube_Launch_Pink, R.style.Theme_NewTube_Launch_Grey};
+    /** NEWTUBE(app-icon): the same, with the Glass app icon's logo. */
+    private static final int[] GLASS_THEMES = {R.style.Theme_NewTube_Launch_Glass, R.style.Theme_NewTube_Launch_Glass_Orange, R.style.Theme_NewTube_Launch_Glass_Amber, R.style.Theme_NewTube_Launch_Glass_Green, R.style.Theme_NewTube_Launch_Glass_Teal, R.style.Theme_NewTube_Launch_Glass_Cyan, R.style.Theme_NewTube_Launch_Glass_Blue, R.style.Theme_NewTube_Launch_Glass_Violet, R.style.Theme_NewTube_Launch_Glass_Purple, R.style.Theme_NewTube_Launch_Glass_Pink, R.style.Theme_NewTube_Launch_Glass_Grey};
     private static int sApplied;
 
     private SplashAccent() {
@@ -36,7 +38,7 @@ public final class SplashAccent {
                 best = i;
             }
         }
-        int theme = THEMES[best];
+        int theme = (UiPrefs.isGlassAppIcon(activity) ? GLASS_THEMES : THEMES)[best];
         if (theme == sApplied) {
             return;
         }

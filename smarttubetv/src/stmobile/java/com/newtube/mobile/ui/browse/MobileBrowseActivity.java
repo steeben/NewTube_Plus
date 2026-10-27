@@ -1438,9 +1438,70 @@ public class MobileBrowseActivity extends MobileActivity
     private static final float NAV_COMPACT_WIDTH = 0.62f;
     private static final float NAV_COMPACT_HEIGHT = 0.74f;
     private static final float NAV_COMPACT_ICON = 0.86f;
-    /** The pill's full height and icon size, taken before it first tucks in. */
+    /** The pill's full height, taken before it first tucks in. */
     private int mNavFullHeight;
-    private int mNavFullIcon;
+    private boolean mNavIconsWatched;
+
+    /**
+     * The tab icons while the navigation tucks in: drawn a little smaller and in the middle of the
+     * shorter pill. Moved and scaled as drawn, never re-laid out: resizing the icons themselves
+     * (setItemIconSize) cut them off at the sides, and Material keeps each icon a fixed distance
+     * under the tab's top, which put it low in a shorter pill, below the selected tab's pill.
+     */
+    private void fitNavIcons() {
+        if (mBottomNav == null) {
+            return;
+        }
+        if (!mNavIconsWatched) {
+            mNavIconsWatched = true;
+            mBottomNav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> fitNavIcons());
+        }
+        boolean labels = mBottomNav.getLabelVisibilityMode()
+                == com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_LABELED;
+        float scale = 1f - (1f - NAV_COMPACT_ICON) * mNavCompact;
+        ViewGroup menu = null;
+        for (int i = 0; i < mBottomNav.getChildCount(); i++) {
+            if (mBottomNav.getChildAt(i) instanceof ViewGroup) {
+                menu = (ViewGroup) mBottomNav.getChildAt(i);
+                break;
+            }
+        }
+        if (menu == null) {
+            return;
+        }
+        for (int i = 0; i < menu.getChildCount(); i++) {
+            View item = menu.getChildAt(i);
+            View icon = item instanceof ViewGroup ? firstImage((ViewGroup) item) : null;
+            if (icon == null || icon.getHeight() <= 0) {
+                continue;
+            }
+            float top = 0f;
+            for (View v = icon; v != item && v != null; v = (View) v.getParent()) {
+                top += v.getTop();
+            }
+            float shift = labels ? 0f : item.getHeight() / 2f - (top + icon.getHeight() / 2f);
+            icon.setTranslationY(shift);
+            icon.setScaleX(scale);
+            icon.setScaleY(scale);
+        }
+    }
+
+    @Nullable
+    private static View firstImage(ViewGroup group) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof android.widget.ImageView && child.getVisibility() == View.VISIBLE) {
+                return child;
+            }
+            if (child instanceof ViewGroup) {
+                View found = firstImage((ViewGroup) child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
     private static final int NAV_COMPACT_TRIGGER_DP = 24;
     private static final long NAV_COMPACT_MS = 240;
     private float mNavCompact;
@@ -1477,7 +1538,6 @@ public class MobileBrowseActivity extends MobileActivity
         }
         if (mNavCompact == 0f && mBottomNav.getHeight() > 0) {
             mNavFullHeight = mBottomNav.getHeight();
-            mNavFullIcon = mBottomNav.getItemIconSize();
         }
         // The tab names go as it starts to tuck in, and come back as it starts to grow.
         if (compact) {
@@ -1515,12 +1575,7 @@ public class MobileBrowseActivity extends MobileActivity
             margins.height = height;
             mBottomNav.setLayoutParams(margins);
         }
-        if (mNavFullIcon > 0) {
-            int icon = Math.round(mNavFullIcon * (1f - (1f - NAV_COMPACT_ICON) * compact));
-            if (mBottomNav.getItemIconSize() != icon) {
-                mBottomNav.setItemIconSize(icon);
-            }
-        }
+        fitNavIcons();
         invalidateGlass();
     }
 
@@ -1575,7 +1630,6 @@ public class MobileBrowseActivity extends MobileActivity
     }
 
     private void onNavItemChosen(int itemId) {
-        setNavCompact(false); // NEWTUBE(pills): a new page starts with the whole navigation
         if (itemId == YOU_ITEM_ID) {
             showYouPanel();
         } else if (mYouShowing && !mSectionFromYou && itemId - ITEM_ID_OFFSET == mCurrentSectionId

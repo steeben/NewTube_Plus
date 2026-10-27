@@ -502,6 +502,10 @@
     <string name="mobile_appearance_pills">Floating pills</string>
     <string name="mobile_appearance_pills_summary">The navigation, top bar and mini player float over the feed as glass pills</string>
     <string name="mobile_appearance_branding">Branding</string>
+    <string name="mobile_appearance_app_icon">App icon</string>
+    <string name="mobile_appearance_app_icon_flat">Flat</string>
+    <string name="mobile_appearance_app_icon_glass">Glass</string>
+    <string name="mobile_appearance_app_icon_note">The launcher may take a moment to show the new icon, and a home screen shortcut to the old one is removed.</string>
     <string name="mobile_appearance_logo">Logo</string>
     <string name="mobile_appearance_logo_none">None</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>

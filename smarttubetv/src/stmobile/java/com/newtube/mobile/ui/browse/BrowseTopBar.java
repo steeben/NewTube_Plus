@@ -226,6 +226,16 @@ final class BrowseTopBar {
         circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
         circle.setOrientation(android.graphics.drawable.GradientDrawable.Orientation.BL_TR);
         circle.setColors(logoGradient(com.newtube.mobile.ui.common.UiPrefs.getAccent(context)));
+        if (com.newtube.mobile.ui.common.UiPrefs.isGlassAppIcon(context)) {
+            // NEWTUBE(app-icon): the Glass app icon's circle - shaded like glass, in the accent - and
+            // its play triangle. The circle stays layer 0 (the logo-tint colours it).
+            android.graphics.drawable.Drawable shade = androidx.core.content.ContextCompat.getDrawable(context,
+                    R.drawable.logo_glass_shade);
+            android.graphics.drawable.Drawable glassGlyph = androidx.core.content.ContextCompat.getDrawable(context,
+                    R.drawable.logo_glass_glyph);
+            return new android.graphics.drawable.LayerDrawable(
+                    new android.graphics.drawable.Drawable[] {circle, shade, glassGlyph});
+        }
         android.graphics.drawable.Drawable glyph = androidx.core.content.ContextCompat.getDrawable(context,
                 R.drawable.ic_logo_play_glyph);
         return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[] {circle, glyph});

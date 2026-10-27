@@ -221,6 +221,74 @@ public final class Pills {
         return miniOffsetAboveNav(nav) + px(nav.getContext(), GAP_DP);
     }
 
+    /**
+     * A list screen's copy of the navigation as Home's: a pill floating over the list (moved out
+     * of the column it ended, into the screen's frame), of the Glass setting's glass - as is the
+     * screen's mini bar ({@code miniBackdrop}). Both blur {@code source} (the list, never a
+     * parent of the mini player: the glass would draw itself). The list scrolls on under them.
+     * Before this, a playlist or search page's navigation and mini bar were solid.
+     */
+    public static void applyToFloatingNavOnce(BottomNavigationView nav, View source,
+            @Nullable androidx.recyclerview.widget.RecyclerView list, @Nullable View miniBackdrop) {
+        if (nav.getTag(R.id.mobile_pill_applied) != null) {
+            return;
+        }
+        nav.setTag(R.id.mobile_pill_applied, Boolean.TRUE);
+        Context context = nav.getContext();
+        if (nav.getParent() instanceof ViewGroup
+                && ((ViewGroup) nav.getParent()).getParent() instanceof android.widget.FrameLayout) {
+            ViewGroup column = (ViewGroup) nav.getParent();
+            ViewGroup frame = (ViewGroup) column.getParent();
+            column.removeView(nav);
+            frame.addView(nav, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.BOTTOM));
+        }
+        int style = UiPrefs.getGlassStyle(context);
+        boolean liquid = style == UiPrefs.GLASS_LIQUID && LiquidGlass.isSupported();
+        int tint = style == UiPrefs.GLASS_LIQUID ? LiquidGlass.tint(context) : glassTint(context);
+        BackdropBlurDrawable navGlass = null;
+        if (style != UiPrefs.GLASS_SOLID) {
+            navGlass = new BackdropBlurDrawable(source, nav, page(context), tint);
+            navGlass.setLiquid(liquid);
+        }
+        applyToNav(nav, navGlass, false);
+        if (miniBackdrop != null) {
+            if (style == UiPrefs.GLASS_SOLID) {
+                miniBackdrop.setBackgroundColor(solidSurface(context));
+            } else {
+                BackdropBlurDrawable miniGlass = new BackdropBlurDrawable(source, miniBackdrop, page(context), tint);
+                miniGlass.setLiquid(liquid);
+                miniBackdrop.setBackground(miniGlass);
+            }
+        }
+        if (list != null && style != UiPrefs.GLASS_SOLID) {
+            // The glass shows what is under it: drawn again as the list moves.
+            list.addOnScrollListener(new androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+                @Override
+                public void onScrolled(@androidx.annotation.NonNull androidx.recyclerview.widget.RecyclerView view,
+                                       int dx, int dy) {
+                    nav.invalidate();
+                    if (miniBackdrop != null && miniBackdrop.isShown()) {
+                        miniBackdrop.invalidate();
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * The room a list keeps under its last row for a navigation floating over it
+     * ({@link #applyToFloatingNavOnce}): the pill, the gesture area under it and a gap; 0 while
+     * it is hidden.
+     */
+    public static int floatingNavClearance(@Nullable View nav) {
+        if (nav == null || nav.getVisibility() != View.VISIBLE || nav.getTag(R.id.mobile_pill_applied) == null
+                || !(nav.getParent() instanceof android.widget.FrameLayout)) {
+            return 0;
+        }
+        return nav.getHeight() + navBottomMargin(nav) + px(nav.getContext(), GAP_DP);
+    }
+
     /** Apply {@link #applyToNav} to a list screen's copy of the navigation, once. */
     public static void applyToNavOnce(BottomNavigationView nav) {
         if (nav.getTag(R.id.mobile_pill_applied) == null) {

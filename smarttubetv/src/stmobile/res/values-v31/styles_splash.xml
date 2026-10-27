@@ -34,4 +34,39 @@
     <style name="Theme.NewTube.Launch.Grey">
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_play_grey</item>
     </style>
+
+    <!-- NEWTUBE(app-icon): the same, with the Glass app icon's logo. -->
+    <style name="Theme.NewTube.Launch.Glass" parent="Theme.NewTube.Launch">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_red</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Orange">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_orange</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Amber">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_amber</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Green">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_green</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Teal">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_teal</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Cyan">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_cyan</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Blue">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_blue</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Violet">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_violet</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Purple">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_purple</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Pink">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_pink</item>
+    </style>
+    <style name="Theme.NewTube.Launch.Glass.Grey">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_glass_grey</item>
+    </style>
 </resources>

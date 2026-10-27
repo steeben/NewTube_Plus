@@ -14,4 +14,15 @@
     <style name="Theme.NewTube.Launch.Purple" />
     <style name="Theme.NewTube.Launch.Pink" />
     <style name="Theme.NewTube.Launch.Grey" />
+    <style name="Theme.NewTube.Launch.Glass" parent="Theme.NewTube.Launch" />
+    <style name="Theme.NewTube.Launch.Glass.Orange" />
+    <style name="Theme.NewTube.Launch.Glass.Amber" />
+    <style name="Theme.NewTube.Launch.Glass.Green" />
+    <style name="Theme.NewTube.Launch.Glass.Teal" />
+    <style name="Theme.NewTube.Launch.Glass.Cyan" />
+    <style name="Theme.NewTube.Launch.Glass.Blue" />
+    <style name="Theme.NewTube.Launch.Glass.Violet" />
+    <style name="Theme.NewTube.Launch.Glass.Purple" />
+    <style name="Theme.NewTube.Launch.Glass.Pink" />
+    <style name="Theme.NewTube.Launch.Glass.Grey" />
 </resources>

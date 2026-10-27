@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEWTUBE(app-icon): the launch screen's logo with the Glass app icon - the circle in this accent,
+     shaded like glass, with the glass play triangle (see splash_play_pink for the flat one). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="240dp" android:height="240dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+    <item android:left="56dp" android:top="56dp" android:right="56dp" android:bottom="56dp">
+        <shape android:shape="oval">
+            <solid android:color="#FFF50057" />
+        </shape>
+    </item>
+    <item android:left="56dp" android:top="56dp" android:right="56dp" android:bottom="56dp"
+        android:drawable="@drawable/logo_glass_shade" />
+    <item android:left="56dp" android:top="56dp" android:right="56dp" android:bottom="56dp"
+        android:drawable="@drawable/logo_glass_glyph" />
+</layer-list>

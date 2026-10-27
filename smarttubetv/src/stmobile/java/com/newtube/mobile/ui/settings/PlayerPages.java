@@ -89,8 +89,6 @@ final class PlayerPages {
                         MiniPlayerStyle.CARD_GESTURE)
                 .option(context.getString(R.string.mobile_settings_mini_style_bar),
                         context.getString(R.string.mobile_settings_mini_style_bar_desc), MiniPlayerStyle.BAR)
-                .option(context.getString(R.string.mobile_settings_mini_style_bar_video),
-                        context.getString(R.string.mobile_settings_mini_style_bar_video_desc), MiniPlayerStyle.BAR_VIDEO)
                 .bind(() -> MiniPlayerStyle.get(context), style -> MiniPlayerStyle.set(context, style));
     }
 

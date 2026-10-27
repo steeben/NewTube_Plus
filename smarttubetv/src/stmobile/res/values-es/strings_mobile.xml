@@ -458,6 +458,10 @@
     <string name="mobile_appearance_pills">Píldoras flotantes</string>
     <string name="mobile_appearance_pills_summary">La navegación, la barra superior y el minirreproductor flotan sobre el feed como píldoras de cristal</string>
     <string name="mobile_appearance_branding">Marca</string>
+    <string name="mobile_appearance_app_icon">Icono de la app</string>
+    <string name="mobile_appearance_app_icon_flat">Plano</string>
+    <string name="mobile_appearance_app_icon_glass">Cristal</string>
+    <string name="mobile_appearance_app_icon_note">El launcher puede tardar un momento en mostrar el nuevo icono, y se quita el acceso directo al anterior.</string>
     <string name="mobile_appearance_logo">Logotipo</string>
     <string name="mobile_appearance_logo_none">Ninguno</string>
     <string name="mobile_appearance_logo_newtube">NewTube</string>

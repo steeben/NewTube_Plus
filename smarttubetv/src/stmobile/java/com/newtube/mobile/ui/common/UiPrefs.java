@@ -93,6 +93,26 @@ public final class UiPrefs {
         return logo == LOGO_NEWTUBE || logo == LOGO_CUSTOM || logo == LOGO_PLAY ? logo : LOGO_NONE;
     }
 
+    // NEWTUBE(app-icon): Settings > Appearance > App icon - Flat (the first icon) or Glass (the default).
+    public static final int APP_ICON_FLAT = 0;
+    public static final int APP_ICON_GLASS = 1;
+    private static final String KEY_APP_ICON = "app_icon";
+
+    public static int getAppIcon(Context context) {
+        return prefs(context).getInt(KEY_APP_ICON, APP_ICON_GLASS) == APP_ICON_FLAT ? APP_ICON_FLAT : APP_ICON_GLASS;
+    }
+
+    public static boolean isGlassAppIcon(Context context) {
+        return getAppIcon(context) == APP_ICON_GLASS;
+    }
+
+    /** Also switches the launcher's icon (AppIcon) and, at the next launch, the launch screen's. */
+    public static void setAppIcon(Context context, int icon) {
+        prefs(context).edit().putInt(KEY_APP_ICON, icon).apply();
+        AppIcon.apply(context);
+        notifyChanged();
+    }
+
     public static void setLogo(Context context, int logo) {
         prefs(context).edit().putInt(KEY_LOGO, logo).apply();
         notifyChanged();

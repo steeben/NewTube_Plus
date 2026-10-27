@@ -6762,15 +6762,41 @@ public class MobilePlaybackActivity extends MobileActivity
         // background more slowly. This reads as a black sheet becoming transparent while the live
         // video remains fully opaque above it.
         float contentAlpha = Math.max(0f, 1f - f * 5f);
-        if (mWatchContent != null) {
-            mWatchContent.setAlpha(contentAlpha);
-        }
         float backdrop = morphBackdropAlpha(settled, mMorphOverOwnBackdrop); // NEWTUBE(no-host-minimize)
-        if (mWatchScroll != null && mWatchScroll.getBackground() != null) {
-            int backdropAlpha = Math.round(255f * backdrop);
-            mWatchScroll.getBackground().mutate().setAlpha(backdropAlpha);
+        if (mWatchArea == null) {
+            mWatchArea = findViewById(R.id.mobile_watch_area);
         }
-        setWindowBackdropAlpha(backdrop);
+        if (!mMorphOverOwnBackdrop && mWatchArea != null && mContainer != null) {
+            // NEWTUBE(motion): the page under the video slides, it does not fade: down off the
+            // screen's bottom as the video shrinks to the card, and (an expand) up from the
+            // bottom to meet the growing video, opaque all the way - a fade read as a flicker.
+            Rect area = new Rect(0, 0, mWatchArea.getWidth(), mWatchArea.getHeight());
+            mContainer.offsetDescendantRectToMyCoords(mWatchArea, area);
+            float slide = lerp(area.top, mContainer.getHeight(), Math.max(0f, settled));
+            // The video's bottom edge as drawn now (scaled from its top-left, then moved).
+            Rect box = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
+            mContainer.offsetDescendantRectToMyCoords(mVideoArea, box);
+            float videoBottom = box.top + mVideoArea.getTranslationY() + box.height() * mVideoArea.getScaleY();
+            float pageTop = Math.max(Math.min(videoBottom, mContainer.getHeight()), slide);
+            mWatchArea.setTranslationY(Math.max(0f, pageTop - area.top));
+            if (mWatchContent != null) {
+                mWatchContent.setAlpha(1f);
+            }
+            if (mWatchScroll != null && mWatchScroll.getBackground() != null) {
+                mWatchScroll.getBackground().mutate().setAlpha(255);
+            }
+            // Only the window's own backdrop goes (at once): the screen behind shows above the page.
+            setWindowBackdropAlpha(settled > 0f ? 0f : 1f);
+        } else {
+            if (mWatchContent != null) {
+                mWatchContent.setAlpha(contentAlpha);
+            }
+            if (mWatchScroll != null && mWatchScroll.getBackground() != null) {
+                int backdropAlpha = Math.round(255f * backdrop);
+                mWatchScroll.getBackground().mutate().setAlpha(backdropAlpha);
+            }
+            setWindowBackdropAlpha(backdrop);
+        }
         if (mControlsRoot != null && mControlsRoot.getVisibility() == View.VISIBLE) {
             mControlsRoot.setAlpha(contentAlpha);
         }
@@ -6871,10 +6897,12 @@ public class MobilePlaybackActivity extends MobileActivity
         mMorphCropLocalPx = 0f; // NEWTUBE(mini-style)
         mOutlineCropLocalPx = 0f;
         mMorphCornerDp = MORPH_CORNER_DP;
+        if (mWatchArea != null) {
+            mWatchArea.setTranslationY(0f); // NEWTUBE(motion): the card morph slides it too
+        }
         if (mBarSlide) {
             mBarSlide = false;
             if (mWatchArea != null) {
-                mWatchArea.setTranslationY(0f);
                 mWatchArea.setClipBounds(null);
             }
             MiniPlayerBridge.MiniHost host = MiniPlayerBridge.getMiniHost();
