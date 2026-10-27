@@ -150,6 +150,12 @@ public class IntentExtractor {
 
             if (Helpers.startsWith(lastPathSegment, "@")) {
                 channelId = lastPathSegment;
+            } else {
+                // NEWTUBE: https://www.youtube.com/@mkbhd/videos (a tab after the handle)
+                List<String> segments = url.getPathSegments();
+                if (segments != null && !segments.isEmpty() && Helpers.startsWith(segments.get(0), "@")) {
+                    channelId = segments.get(0);
+                }
             }
         }
 

@@ -107,6 +107,8 @@ public final class DownloadMenu {
         new File(parts, item.id + ".video").delete();
         //noinspection ResultOfMethodCallIgnored
         new File(parts, item.id + ".audio").delete();
+        //noinspection ResultOfMethodCallIgnored
+        DownloadOptions.audioIdFile(new File(parts, item.id + ".audio")).delete();
         DownloadRegistry.instance(context).remove(item);
     }
 }

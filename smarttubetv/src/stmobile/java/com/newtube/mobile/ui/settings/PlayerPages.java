@@ -20,7 +20,6 @@ import com.liskovsoft.smartyoutubetv2.common.misc.PhoneBackgroundMode;
 import com.liskovsoft.smartyoutubetv2.common.prefs.AppPrefs;
 import com.liskovsoft.smartyoutubetv2.common.prefs.DeArrowData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.GeneralData;
-import com.liskovsoft.smartyoutubetv2.common.prefs.MainUIData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.NetworkData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData;
@@ -622,14 +621,12 @@ final class PlayerPages {
     static SettingsPages.Page deArrow(Context context) {
         List<SettingsRow> rows = new ArrayList<>();
         DeArrowData data = DeArrowData.instance(context);
-        MainUIData mainUIData = MainUIData.instance(context);
 
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_dearrow_titles),
                 context.getString(R.string.mobile_settings_dearrow_titles_summary),
-                data::isReplaceTitlesEnabled, on -> {
-                    data.setReplaceTitlesEnabled(on);
-                    mainUIData.setUnlocalizedTitlesEnabled(false); // DeArrow's title or the original one
-                }));
+                // NEWTUBE(#45): no longer turns Original titles off - both can be on; DeArrow's
+                // title wins and the original title covers videos DeArrow has none for.
+                data::isReplaceTitlesEnabled, data::setReplaceTitlesEnabled));
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_dearrow_thumbnails),
                 context.getString(R.string.mobile_settings_dearrow_thumbnails_summary),
                 data::isReplaceThumbnailsEnabled, data::setReplaceThumbnailsEnabled));

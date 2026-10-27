@@ -365,11 +365,9 @@ final class AppPages {
 
         rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_original_titles),
                 context.getString(R.string.mobile_settings_original_titles_summary),
-                mainUIData::isUnlocalizedTitlesEnabled, on -> {
-                    mainUIData.setUnlocalizedTitlesEnabled(on);
-                    // The two replace the same title: original wins over DeArrow's.
-                    com.liskovsoft.smartyoutubetv2.common.prefs.DeArrowData.instance(context).setReplaceTitlesEnabled(false);
-                }));
+                // NEWTUBE(#45): no longer turns DeArrow titles off - both can be on; DeArrow's
+                // crowd title wins and the original title is the fallback (Video.getTitle()).
+                mainUIData::isUnlocalizedTitlesEnabled, mainUIData::setUnlocalizedTitlesEnabled));
 
         // On the phone these change what the feed holds, not its layout (both work): kept as choices.
         rows.add(SettingsRow.<Boolean>choice(context.getString(R.string.mobile_settings_pinned_channels))

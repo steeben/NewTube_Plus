@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android Auto Backup rules for Android 6-11 (android:fullBackupContent).
+    Android 12+ reads data_extraction_rules.xml instead; keep the two lists identical.
+
+    Everything is backed up except the files that hold sign-in secrets:
+    - files/global_prefs/media_service_account_data: YouTube accounts with their OAuth
+      refresh tokens (GlobalPreferences.setMediaServiceAccountData -> setData writes one
+      plain file per key under files/global_prefs/, not shared_prefs).
+    - files/global_prefs/oauth2_account_data: the Google Drive backup sign-in (refresh token).
+    - shared_prefs/AuthTokenCache.xml: YouTubeSignInService's cached access header, which
+      also stores the refresh token.
+    files/global_prefs/media_service_data (visitor cookie, device ids, a few switches) holds
+    no sign-in secret and stays in, like the settings (shared_prefs/*, files/app_prefs/).
+    A restored or transferred install therefore comes back signed out.
+-->
+<full-backup-content>
+    <exclude domain="file" path="global_prefs/" />
+    <exclude domain="sharedpref" path="AuthTokenCache.xml" />
+</full-backup-content>

@@ -83,6 +83,8 @@ public class MobileChannelActivity extends MobileActivity
     private TabLayout mTabs;
     private ProgressBar mProgressBar;
     private TextView mTitleView;
+    /** The header holds a real channel name (from the card, or from the loaded videos). */
+    private boolean mTitleFromCard;
     private ImageButton mBackButton;
     private MobileMiniPlayerController mMiniPlayer;
     private boolean mAnimateMiniFromPlayer;
@@ -100,6 +102,8 @@ public class MobileChannelActivity extends MobileActivity
 
     /** Sections in delivery order; iteration order == tab order. */
     private final Map<Integer, Section> mSections = new LinkedHashMap<>();
+    /** NEWTUBE(shorts): sections arrived but the Shorts filter left nothing of them (#63). */
+    private boolean mShortsEmptied;
     /** Group id of the section shown in the grid (its tab is selected). */
     private int mActiveSectionId = -1;
     private int mLastPaginationTriggerCount = -1;
@@ -134,16 +138,41 @@ public class MobileChannelActivity extends MobileActivity
 
         mPresenter = ChannelPresenter.instance(this);
 
-        Video channel = mPresenter.getChannel();
-        if (channel != null) {
-            // Prefer the channel/author name (e.g. "Ibai") over the source item's own title
-            // (which, when a channel is opened from a video, is that video's title). Mirrors the
-            // TV ChannelFragment header (Helpers.firstNonNull(author, title)).
-            mTitleView.setText(Helpers.firstNonNull(channel.getAuthor(), channel.getTitle()));
-        }
+        applyChannelTitle();
 
         mPresenter.setView(this);
         mPresenter.onViewInitialized();
+    }
+
+    /**
+     * Prefer the channel/author name (e.g. "Ibai") over the source item's own title (which, when
+     * a channel is opened from a video, is that video's title). Mirrors the TV ChannelFragment
+     * header (Helpers.firstNonNull(author, title)). NEWTUBE: a channel opened from a link has no
+     * card; keep the default header until {@link #update} names it from the loaded videos.
+     */
+    private void applyChannelTitle() {
+        Video channel = mPresenter != null ? mPresenter.getChannel() : null;
+        String name = channel != null ? Helpers.firstNonNull(channel.getAuthor(), channel.getTitle()) : null;
+        mTitleFromCard = name != null;
+        mTitleView.setText(name != null ? name : getString(R.string.header_channels));
+    }
+
+    /** NEWTUBE: name a link-opened channel once its first videos arrive. */
+    private void maybeNameFromVideos(@Nullable List<Video> videos) {
+        if (mTitleFromCard || videos == null) {
+            return;
+        }
+        List<String> authors = new ArrayList<>();
+        for (Video video : videos) {
+            if (video != null) {
+                authors.add(video.getAuthor());
+            }
+        }
+        String name = ChannelTitle.fromAuthors(authors);
+        if (name != null) {
+            mTitleFromCard = true;
+            mTitleView.setText(name);
+        }
     }
 
     private void bindViews() {
@@ -370,8 +399,9 @@ public class MobileChannelActivity extends MobileActivity
         // Add missing tabs / fix titles in place; section order only ever grows by append.
         int index = 0;
         for (Section section : mSections.values()) {
-            String title = section.title != null && !section.title.isEmpty()
-                    ? section.title : getString(R.string.mobile_channel_tab_videos);
+            String title = section.title != null && !section.title.isEmpty() ? section.title
+                    : getString(ChannelTabShortcuts.isShortcutRow(section.videos) // NEWTUBE(#63)
+                            ? R.string.mobile_channel_tab_more : R.string.mobile_channel_tab_videos);
 
             TabLayout.Tab tab = index < mTabs.getTabCount() ? mTabs.getTabAt(index) : null;
             if (tab == null) {
@@ -527,6 +557,9 @@ public class MobileChannelActivity extends MobileActivity
             boolean isNewSection = section == null;
             List<Video> shown = ShortsFilter.withoutShorts(group.getVideos()); // NEWTUBE(shorts)
             boolean content = group.getAction() != VideoGroup.ACTION_REMOVE && group.getAction() != VideoGroup.ACTION_SYNC;
+            int shortsDropped = (group.getVideos() != null ? group.getVideos().size() : 0)
+                    - (shown != null ? shown.size() : 0);
+            mShortsEmptied |= content && shortsDropped > 0;
             // ...and no Shorts tab: the channel's Shorts section (emptied here, or already by the
             // service under a stored "Hide shorts from a channel") never becomes a tab. Any other
             // section keeps its tab while it has more to load, even if this page was all Shorts
@@ -538,8 +571,9 @@ public class MobileChannelActivity extends MobileActivity
                 return;
             }
 
-            int shortsDropped = (group.getVideos() != null ? group.getVideos().size() : 0)
-                    - (shown != null ? shown.size() : 0);
+            if (content) {
+                maybeNameFromVideos(group.getVideos());
+            }
 
             switch (group.getAction()) {
                 case VideoGroup.ACTION_REPLACE:
@@ -556,6 +590,9 @@ public class MobileChannelActivity extends MobileActivity
                     if (section != null) {
                         syncVideos(section, group.getVideos());
                     }
+                    // NEWTUBE(#45): a SYNC item was mutated in place (Original titles, DeArrow),
+                    // so submitList() sees the same objects and never rebinds - rebind it here.
+                    mAdapter.refreshItems(group.getVideos());
                     break;
                 case VideoGroup.ACTION_PREPEND:
                     if (section == null) {
@@ -645,12 +682,14 @@ public class MobileChannelActivity extends MobileActivity
     public void clear() {
         runOnUiThread(() -> {
             mSections.clear();
+            mShortsEmptied = false;
             mActiveSectionId = -1;
             mLastPaginationTriggerCount = -1;
             mLoadMoreFailedSectionId = -1;
             mPagingSectionId = -1;
             if (!mSwipe.isRefreshing()) {
                 mRestoreSectionTitle = null; // only a refresh's own clear carries the tab over
+                applyChannelTitle(); // NEWTUBE: another channel opened into this page
             }
             mSuppressTabCallback = true;
             mTabs.removeAllTabs();
@@ -672,8 +711,21 @@ public class MobileChannelActivity extends MobileActivity
             mProgressBar.setVisibility(show && !mSwipe.isRefreshing() ? View.VISIBLE : View.GONE);
             if (!show) {
                 mSwipe.setRefreshing(false);
+                showEmptyIfShortsLeftNothing();
             }
         });
+    }
+
+    /**
+     * NEWTUBE(shorts): the page loaded, but the Shorts filter left no card in any tab (a channel of
+     * only Shorts, or a Shorts list reached some other way) - the empty state, never a blank page
+     * (#63). ShortsFilter drops the tiles that lead to a Shorts list; this is the safety net.
+     */
+    private void showEmptyIfShortsLeftNothing() {
+        if (mShortsEmptied && !hasContent() && !mLoadState.isShowing()) {
+            mGrid.setVisibility(View.GONE);
+            mLoadState.show(LoadFailure.EMPTY);
+        }
     }
 
     /**

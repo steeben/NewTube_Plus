@@ -114,7 +114,10 @@ final class DownloadJob {
         // The URLs from the enqueue moment serve a fresh job; a Retry (or a link the server
         // meanwhile refused) resolves the same itags again from a fresh format info.
         if (mItem.videoUrl == null && mItem.audioUrl == null) {
-            resolveUrls();
+            resolveUrls(videoPart, audioPart);
+        } else if (mItem.audioUrl != null) {
+            NetPath.log("download audio enqueue video=" + mItem.videoId + " itag=" + mItem.audioItag
+                    + " track=" + mItem.audioTrack);
         }
 
         for (int attempt = 1; ; attempt++) {
@@ -136,7 +139,7 @@ final class DownloadJob {
                 VideoInfoService.instance().anchorRouteToVideo(mItem.videoId);
                 VideoInfoService.instance().markCurrentPlaybackRouteForbidden();
                 YouTubeServiceManager.instance().applyNoPlaybackFix();
-                resolveUrls();
+                resolveUrls(videoPart, audioPart);
             }
         }
     }
@@ -164,6 +167,8 @@ final class DownloadJob {
             if (mItem.audioUrl == null) {
                 throw new IOException("no audio link");
             }
+            // Synced before any byte: what the part holds must survive a process death.
+            DownloadOptions.writeAudioPartTrack(audioPart, mItem.audioTrack);
             mFetcher.fetch(mItem.audioUrl, audioPart, audioLen, (fileBytes, streamTotal) -> {
                 done[1] = fileBytes;
                 return report(done[0] + done[1]);
@@ -184,8 +189,15 @@ final class DownloadJob {
         return !mItem.cancelRequested;
     }
 
-    /** Fresh links for the itags this item was created with. */
-    private void resolveUrls() throws IOException {
+    /**
+     * Fresh links for the itags this item was created with. A part file kept from an earlier
+     * attempt is only resumed when it provably holds a prefix of the stream just resolved:
+     * {@link StreamFetcher#fetch} appends from the file's length, so bytes of another language
+     * variant (an item saved before the track was recorded, or a variant that vanished and fell
+     * back to the original) would be spliced with the new stream, or skip the fetch outright
+     * when the stale part is already longer.
+     */
+    private void resolveUrls(@Nullable File videoPart, @Nullable File audioPart) throws IOException {
         MediaItemFormatInfo info;
         try {
             info = YouTubeMediaItemService.instance()
@@ -201,7 +213,10 @@ final class DownloadJob {
         if (video == null && mItem.videoItag != null) {
             video = findByItag(info.getUrlFormats(), mItem.videoItag);
         }
-        MediaFormat audio = mItem.audioItag != null ? findByItag(info.getAdaptiveFormats(), mItem.audioItag) : null;
+        // Not findByItag: every language variant of a dubbed video shares the audio itag, and
+        // the first one listed is often an auto-dub (issue #29). Same language as the picker chose.
+        MediaFormat audio = mItem.audioItag != null
+                ? DownloadOptions.pickAudio(info.getAdaptiveFormats(), mItem.audioItag, mItem.audioTrack) : null;
 
         if (mItem.videoItag != null && video == null) {
             throw new StreamFetcher.UrlRefusedException(0);
@@ -212,8 +227,46 @@ final class DownloadJob {
 
         mItem.videoUrl = video != null ? video.getUrl() : null;
         mItem.audioUrl = audio != null ? audio.getUrl() : null;
-        mItem.videoLength = DownloadOptions.lengthOf(video);
-        mItem.audioLength = DownloadOptions.lengthOf(audio);
+        long videoLength = DownloadOptions.lengthOf(video);
+        long audioLength = DownloadOptions.lengthOf(audio);
+        String resolvedTrack = DownloadOptions.audioTrackKey(audio);
+
+        if (videoPart != null && DownloadOptions.mustRestartPart(lengthOfPart(videoPart), videoLength)) {
+            NetPath.log("download part-reset video=" + mItem.videoId + " part=video bytes=" + videoPart.length());
+            deletePart(videoPart);
+        }
+        // The part's identity is its sidecar (written by fetchPartsOnce), not mItem.audioTrack:
+        // the registry write is async and may not land before a process death.
+        if (audioPart != null && audio != null
+                && DownloadOptions.mustRestartAudioPart(audioPart, resolvedTrack, audioLength)) {
+            NetPath.log("download part-reset video=" + mItem.videoId + " part=audio bytes=" + audioPart.length()
+                    + " stored=" + DownloadOptions.readAudioPartTrack(audioPart) + " resolved=" + resolvedTrack);
+            deletePart(audioPart);
+        }
+        if (resolvedTrack != null && !resolvedTrack.equals(mItem.audioTrack)) {
+            mItem.audioTrack = resolvedTrack;
+            mRegistry.notifyChanged();
+        }
+        if (audio != null) {
+            MediaFormat firstByItag = findByItag(info.getAdaptiveFormats(), mItem.audioItag);
+            NetPath.log("download audio resolve video=" + mItem.videoId + " itag=" + audio.getITag()
+                    + " lang=" + audio.getLanguage() + " track=" + audio.getAudioTrackId()
+                    + " wanted=" + mItem.audioTrack
+                    + " firstByItag=" + (firstByItag != null ? firstByItag.getLanguage() : null));
+        }
+        mItem.videoLength = videoLength;
+        mItem.audioLength = audioLength;
+    }
+
+    private static long lengthOfPart(File part) {
+        return part.exists() ? part.length() : 0;
+    }
+
+    private static void deletePart(File part) {
+        //noinspection ResultOfMethodCallIgnored
+        part.delete();
+        //noinspection ResultOfMethodCallIgnored
+        DownloadOptions.audioIdFile(part).delete();
     }
 
     @Nullable
@@ -293,6 +346,8 @@ final class DownloadJob {
         if (audioPart != null) {
             //noinspection ResultOfMethodCallIgnored
             audioPart.delete();
+            //noinspection ResultOfMethodCallIgnored
+            DownloadOptions.audioIdFile(audioPart).delete();
         }
     }
 }

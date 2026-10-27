@@ -17,6 +17,9 @@
   In landscape the content is hidden and the video area is match_parent, restoring the
   PLAYER POLISH immersive full-bleed video with only the custom controls.
 -->
+<!-- No android:keepScreenOn here (#50): a view that always holds it keeps the window awake
+     forever, overriding the player listener that sets it on the PlayerView only while playing
+     or buffering - so an ended or paused video never let the screen turn off. -->
 <com.newtube.mobile.ui.playback.PlayerContainerLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -24,8 +27,7 @@
     android:id="@+id/mobile_player_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent"
-    android:keepScreenOn="true">
+    android:background="@android:color/transparent">
 
     <com.newtube.mobile.ui.playback.WatchRootLayout
         android:id="@+id/mobile_watch_root"

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ backup rules (android:dataExtractionRules). Same exclusions as
+    backup_rules.xml (the Android 6-11 file); see there for what each path holds.
+    Both cloud backup and device-to-device transfer leave the sign-in secrets behind.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="global_prefs/media_service_account_data" />
+        <exclude domain="file" path="global_prefs/oauth2_account_data" />
+        <exclude domain="sharedpref" path="AuthTokenCache.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="global_prefs/media_service_account_data" />
+        <exclude domain="file" path="global_prefs/oauth2_account_data" />
+        <exclude domain="sharedpref" path="AuthTokenCache.xml" />
+    </device-transfer>
+</data-extraction-rules>

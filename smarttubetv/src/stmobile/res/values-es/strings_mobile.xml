@@ -246,6 +246,7 @@
     <string name="mobile_load_more_error">No se ha podido cargar más.</string>
     <string name="mobile_refresh_error">No se ha podido actualizar.</string>
     <string name="mobile_channel_tab_videos">Vídeos</string>
+    <string name="mobile_channel_tab_more">Más</string>
     <string name="mobile_no_browser">No hay ninguna aplicación para abrir este enlace</string>
     <string name="mobile_first_run_setup">Configuración inicial: preparando YouTube…</string>
 

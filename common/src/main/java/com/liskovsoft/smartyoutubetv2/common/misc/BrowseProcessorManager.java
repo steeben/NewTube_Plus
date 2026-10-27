@@ -11,6 +11,8 @@ public class BrowseProcessorManager implements BrowseProcessor {
 
     public BrowseProcessorManager(Context context, OnItemReady onItemReady) {
         mProcessors = new ArrayList<>();
+        // NEWTUBE(#45): independent steps (own processed flag, own title field); their titles
+        // combine in Video.getTitle(): DeArrow's, else the original, else YouTube's.
         mProcessors.add(new DeArrowProcessor(context, onItemReady));
         mProcessors.add(new UnlocalizedTitleProcessor(context, onItemReady));
     }

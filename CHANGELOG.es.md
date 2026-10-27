@@ -4,6 +4,195 @@ Cambios visibles para el usuario, en español. El historial completo de
 versiones anteriores está en [CHANGELOG.md](CHANGELOG.md) (en inglés).
 
 
+## 1.17.1 — 22-10-2026 — Edición Pepe Viyuela
+
+"Algo tropieza con la silla, se levanta, y la calidad sigue donde la dejaste."
+Homenaje ficticio a Pepe Viyuela, para un decodificador que se cae sin
+llevarse tus ajustes por delante.
+
+### Corregido
+
+- **Si el decodificador de vídeo no arranca, ya no baja tu calidad para
+  siempre.** Cuando el decodificador del móvil no podía arrancar (por ejemplo
+  justo al encender la pantalla, o si otra app lo tenía ocupado), NewTube
+  pasaba ese vídeo a 1080p AVC para recuperarse y lo guardaba como tu
+  formato, así que todos los vídeos siguientes quedaban limitados. Ahora el
+  cambio solo vale para el vídeo que falló; el siguiente vuelve a tu
+  elección. Lo mismo con el audio. Gracias al arreglo de SmartTube (#6326).
+
+## 1.17.0 — 20-10-2026 — Edición Florentino Fernández
+
+"Ahora cada vídeo lleva la cara de su canal, y ninguna es una imitación."
+Homenaje ficticio a Florentino Fernández, para los avatares de los canales en
+Inicio y Suscripciones.
+
+### Nuevo
+
+- **Avatares de los canales en Inicio y Suscripciones.** Cada vídeo muestra
+  el avatar de su canal junto al título, como en YouTube. Toca el avatar para
+  ir directo al canal; toca en cualquier otro sitio de la tarjeta para
+  reproducir. Los avatares se recuerdan, así que la próxima vez aparecen al
+  momento. Los mixes y las listas no llevan.
+
+### Corregido
+
+- **Un doble toque rápido en play/pausa reproduce o pausa**, como en YouTube.
+  Con los controles ocultos, el segundo toque los volvía a esconder.
+- **Traducciones:** el rumano ya cubre casi todas las pantallas propias de la
+  app, gracias a quienes traducen en
+  [Weblate](https://hosted.weblate.org/projects/newtube/).
+
+## 1.16.2 — 19-10-2026 — Edición Dani Rovira
+
+"Ocho apellidos vascos no, ocho filas en un menú, y ahora se llega a todas."
+Homenaje ficticio a Dani Rovira, para los menús del reproductor que se quedan
+quietos con el móvil en horizontal y los vídeos que se ven nítidos antes.
+(La 1.16.1 se etiquetó pero nunca se publicó; sus arreglos van aquí.)
+
+### Corregido
+
+- **Los vídeos verticales se ven en 1080p.** Se quedaban en 480p, pusieras
+  la calidad que pusieras.
+- **La calidad máxima llega antes.** El arranque en baja calidad se sustituye
+  en cuanto la conexión da para más, y el 1080p aparece en unos 5 s con Wi-Fi
+  en lugar de unos 10.
+- **Sin tope de 720p en la página del vídeo** cuando los "Datos en segundo
+  plano" de NewTube están desactivados con datos móviles: Android lo comunica
+  igual que el Ahorro de datos, así que bajaba la imagen a quien solo quería
+  decir "no en segundo plano".
+
+- **Los menús del reproductor ya no se mueven en pantalla completa.** El menú
+  de ajustes ya no da un salto un par de segundos después de abrirse: las
+  barras del sistema siguen ocultas y los controles de detrás no se mueven
+  hasta que lo cierras.
+- **"Más" se desplaza en horizontal.** Se llega a todas las filas, la última
+  que cabe sale cortada por la mitad para que se note que la lista sigue, y
+  arrastrar la lista ya no cierra el menú.
+- **Calidad, Subtítulos y Velocidad** dejan fijos el título (y la fila de
+  abajo) mientras la lista se desplaza, y al pasar de un menú al siguiente
+  hay un fundido, sin que el vídeo asome en medio.
+- **La fila de Calidad muestra lo que se está reproduciendo** ("Automática
+  (720p)") en lugar de "Automática (1080p60)" siempre.
+- Detalles: los menús abiertos del todo conservan las esquinas redondeadas, el
+  de Repetición ya no tiene una barra de título vacía y girar el móvil con un
+  menú abierto lo cierra.
+
+## 1.16.0 — 19-10-2026 — Edición Andreu Buenafuente
+
+"Buenas noches, y bienvenidos a una versión en la que la pantalla se pone
+negra a propósito." Homenaje ficticio a Andreu Buenafuente, para el negro
+puro, los vídeos verticales de pie y un minuto que ya no tartamudea.
+
+### Nuevo
+
+- **Negro puro (#73, #74).** Configuración › General › Negro puro pone el
+  tema oscuro en negro (#000000) para pantallas OLED, también cuando el tema
+  sigue al del sistema. Los paneles y tarjetas quedan un tono más claros para
+  que se sigan distinguiendo. Se aplica al momento, sin reiniciar.
+- **Los vídeos verticales van a pantalla completa de pie (#69).** La
+  pantalla completa (botón o deslizar hacia arriba) en un vídeo vertical
+  ahora llena la pantalla en vertical en lugar de girar a horizontal con
+  barras negras. Los vídeos horizontales siguen girando.
+
+### Corregido
+
+- **La app vuelve a abrir en Android 7.0 (#78).** En todos los móviles con
+  Android 7.0 NewTube se cerraba nada más abrirlo, desde la primera versión
+  pública.
+- **Sin pausa ni rebobinado al minuto (#84).** Cuando YouTube corta una
+  sesión a los 60 segundos, el vídeo ya cargado sigue sonando mientras
+  NewTube consigue un enlace válido para el mismo stream, así que no hay
+  parón ni salto atrás. Si eso falla, la recuperación de siempre retoma en el
+  segundo exacto.
+- **⏮ vuelve atrás aunque haya SponsorBlock.** Tras reiniciar el vídeo, un
+  segundo toque vuelve al anterior aunque SponsorBlock se haya saltado una
+  intro, y el vídeo anterior sigue donde lo dejaste.
+- **Pantalla completa en Android 11 (#68).** El primer toque muestra los
+  controles y la barra de gestos ya no se queda en pantalla.
+- **Pistas de audio mejor etiquetadas:** se distinguen "original",
+  "doblada" y audiodescripción, y los subtítulos traducidos automáticamente
+  ya no salen de una pista doblada automáticamente. La búsqueda reintenta con
+  más fiabilidad (arreglos de SmartTube).
+- **Traducciones:** las pantallas propias de la app ya están en ruso y chino
+  simplificado, y a medias en rumano, gracias a quienes traducen en
+  [Weblate](https://hosted.weblate.org/projects/newtube/).
+
+## 1.15.3 — 13-10-2026 — Edición Berto Romero
+
+"No cambia nada, y esa es la noticia." Homenaje ficticio a Berto Romero para
+una versión que no vas a notar: un cambio de compilación camino de F-Droid.
+
+### Cambiado
+
+- **Una biblioteca menos dentro de la app.** Los vídeos se siguen cargando con
+  el mismo motor Cronet integrado (HTTP/3 y HTTP/2), ahora mediante una copia
+  propia del código Cronet de media3, así que la app ya no lleva una
+  biblioteca que declara Google Play Services. No cambia nada en cómo cargan
+  los vídeos.
+- **Las traducciones están abiertas en [Weblate](https://hosted.weblate.org/projects/newtube/).**
+
+## 1.15.2 — 13-10-2026 — Edición Joaquín Reyes
+
+"Esto es un vídeo corto, ¿vale? Pues aquí no hay." Homenaje ficticio a
+Joaquín Reyes para un parche del mismo día: canales sin Shorts y unos cabos
+sueltos de la 1.15.1.
+
+### Arreglado
+
+- **Nada de Shorts en las páginas de canal (#63).** La tarjeta de acceso a
+  Shorts de la última pestaña de un canal ya no está (abría una página en
+  blanco), y esa pestaña ahora se llama "Más" en vez de un segundo "Vídeos".
+- **Descargas: un audio descargado a medias solo se reanuda si es del mismo
+  idioma.** Una descarga parada a mitad podía seguir con otra pista de audio.
+- **Los enlaces youtube.com/@usuario abren el canal,** y un canal abierto
+  desde un enlace muestra su nombre.
+- **Con un menú abierto sobre el minirreproductor, al pausar la pantalla se
+  puede apagar.**
+- **"Quitar de la lista" en tus propias listas, Ver más tarde incluida
+  (#36),** con Deshacer.
+
+## 1.15.1 — 13-10-2026 — Edición José Mota
+
+"Si hay que salir de pantalla completa se sale, pero salir pa'ná es
+tontería." Homenaje ficticio a José Mota para una versión de arreglos de lo
+que ya tendría que funcionar. ¿Apagar la pantalla cuando el vídeo acaba?
+Antes era "hoy no, mañana"; ahora es hoy. Y el doblaje que eliges se queda en
+ese vídeo, que las gallinas que entran por las que salen.
+
+### Arreglado
+
+- **Salir de pantalla completa en tabletas (#44, #60).** En tabletas con
+  Android 16, Atrás, el botón de pantalla completa y deslizar hacia abajo no
+  hacían nada, y el reproductor se quedaba en pantalla completa. Ahora en una
+  tableta la pantalla completa no depende de girar la pantalla: funciona en
+  vertical y en horizontal.
+- **Imagen en imagen en tabletas.** El vídeo ocupa bien la ventana pequeña, y
+  al volver queda como lo dejaste.
+- **La pantalla se puede apagar cuando el vídeo acaba o está en pausa
+  (#50).** El reproductor la mantenía encendida mientras estuviera abierto.
+- **Pista de audio: lo que eliges vale solo para ese vídeo (#52, #53).** Un
+  doblaje elegido una vez te seguía a todos los vídeos doblados. Ahora el
+  siguiente vídeo empieza en su idioma original, como en YouTube.
+- **Las descargas mantienen el audio original (#29),** también tras
+  Reintentar o al reanudar. A veces llegaban dobladas, por ejemplo en árabe.
+- **El ajuste "Títulos originales" vuelve a funcionar (#45).**
+- **Los menús de las listas ya no ofrecen "Bloquear canal" ni "Añadir/quitar
+  canal del grupo de suscripción" (#56).** En una lista no servían para nada.
+
+### Privacidad
+
+- **La copia de seguridad de Android y la transferencia a otro móvil ya no
+  copian tu inicio de sesión.** NewTube restaurado o transferido empieza sin
+  sesión; tus ajustes sí viajan.
+- **El zip de Copia de seguridad de la app ya no lleva los
+  tokens de inicio de sesión.** Al restaurar una copia hay que volver a
+  iniciar sesión.
+
+### Otros
+
+- Solicitud a F-Droid: el nombre de la app en el código y el bloque de firma
+  del APK ya pasan las comprobaciones de F-Droid. En la app no cambia nada.
+
 ## 1.15.0 — 02-10-2026 — Edición Los Morancos
 
 "¿Desliza pa'rriba? — ¡Pa'rriba! ¿Y ahora pa'bajo? — ¡Pa'bajo!" Homenaje

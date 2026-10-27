@@ -169,14 +169,21 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
     private void bootstrapPrepareAndShowDialogSigned() {
         mPlaylistInfos = null;
         RxHelper.disposeActions(mPlaylistsInfoAction);
-        if (isAddToRecentPlaylistButtonEnabled()) {
+        if (isAddToRecentPlaylistButtonEnabled() || isOwnPlaylistCandidate()) {
             mPlaylistsInfoAction = mMediaItemService.getPlaylistsInfoObserve(mVideo.videoId)
                     .subscribe(
                             videoPlaylistInfos -> {
                                 mPlaylistInfos = videoPlaylistInfos;
                                 prepareAndShowDialogSigned();
                             },
-                            error -> Log.e(TAG, "Add to recent playlist error: %s", error.getMessage())
+                            error -> {
+                                Log.e(TAG, "Add to recent playlist error: %s", error.getMessage());
+                                // NEWTUBE(#36): the playlist lookup only adds rows - a failed one
+                                // must not swallow the whole menu (it used to show nothing).
+                                if (PhoneUi.isEnabled()) {
+                                    prepareAndShowDialogSigned();
+                                }
+                            }
                     );
         } else {
             prepareAndShowDialogSigned();
@@ -238,9 +245,76 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
                         getContext().getString(R.string.add_video_to_watch_later),
                         optionItem -> {
                             MediaServiceManager.instance().addToWatchLaterPlaylist(mVideo);
+                            BrowsePresenter.instance(getContext()).onPlaylistEdited(); // #36: pinned Watch later refetches
                             mDialogPresenter.closeDialog();
                         }
                 ));
+    }
+
+    /**
+     * NEWTUBE(#36): the phone had no way to take a video out of a playlist - upstream's
+     * "Remove from" lives in the add-to-playlist dialog and the recent-playlist row, and its
+     * card-menu version was commented out long ago. A card listed inside one of the signed-in
+     * user's own playlists (Watch later included) now gets "Remove from &lt;playlist&gt;". It is
+     * shown only when the account's playlist list (fetched signed in only) has that playlist and
+     * says the video is in it, so mixes, other people's playlists and signed-out use never see it.
+     */
+    private boolean isOwnPlaylistCandidate() {
+        return PhoneUi.isEnabled() && mVideo != null && mVideo.hasVideo() && !mVideo.isPlaylistCard()
+                && mVideo.getPlaylistId() != null;
+    }
+
+    private PlaylistInfo findOwnPlaylist() {
+        return isOwnPlaylistCandidate() ? OwnPlaylistMatch.find(mVideo.getPlaylistId(), mPlaylistInfos) : null;
+    }
+
+    private void appendRemoveFromOwnPlaylistButton() {
+        PlaylistInfo own = findOwnPlaylist();
+        if (own == null) {
+            return;
+        }
+
+        String playlistId = own.getPlaylistId();
+        String playlistTitle = own.getTitle();
+
+        mDialogPresenter.appendSingleButton(
+                UiOptionItem.from(getContext().getString(R.string.dialog_remove_from, playlistTitle),
+                        optionItem -> removeFromOwnPlaylist(playlistId, playlistTitle)));
+    }
+
+    private void removeFromOwnPlaylist(String playlistId, String playlistTitle) {
+        Video video = mVideo; // closeDialog() below may reset the presenter's state
+        VideoMenuCallback callback = mCallback;
+        Context context = getContext();
+        closeDialog();
+
+        RxHelper.disposeActions(mAddToPlaylistAction);
+        mAddToPlaylistAction = RxHelper.execute(mMediaItemService.removeFromPlaylistObserve(playlistId, video.videoId),
+                error -> confirm(context.getString(R.string.feedback_failed)),
+                () -> {
+                    // The card leaves the list it is in; other screens showing the playlist
+                    // (the You tab's pinned Watch later) refetch when next shown.
+                    if (callback != null) {
+                        callback.onItemAction(video, VideoMenuCallback.ACTION_REMOVE_FROM_PLAYLIST);
+                    }
+                    BrowsePresenter.instance(context).onPlaylistEdited();
+                    confirm(context.getString(R.string.removed_from, playlistTitle),
+                            context.getString(R.string.action_undo),
+                            () -> undoRemoveFromOwnPlaylist(context, video, playlistId, playlistTitle));
+                });
+    }
+
+    /** Undo puts the video back in the playlist; the list shows it again on its next load. */
+    private void undoRemoveFromOwnPlaylist(Context context, Video video, String playlistId, String playlistTitle) {
+        Observable<Void> addObserve = video.mediaItem != null ?
+                mMediaItemService.addToPlaylistObserve(playlistId, video.mediaItem) : mMediaItemService.addToPlaylistObserve(playlistId, video.videoId);
+        RxHelper.disposeActions(mAddToPlaylistAction);
+        mAddToPlaylistAction = RxHelper.execute(addObserve,
+                error -> confirm(context.getString(R.string.feedback_failed)),
+                () -> {
+                    BrowsePresenter.instance(context).onPlaylistEdited();
+                    confirm(context.getString(R.string.added_to, playlistTitle));
+                });
     }
 
     private void appendAddToPlaylistButton() {
@@ -289,6 +363,12 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
         String playlistTitle = GeneralData.instance(getContext()).getLastPlaylistTitle();
 
         if (playlistId == null || playlistTitle == null) {
+            return;
+        }
+
+        // NEWTUBE(#36): inside that very playlist the "Remove from" row already says it.
+        PlaylistInfo own = findOwnPlaylist();
+        if (own != null && playlistId.equals(own.getPlaylistId())) {
             return;
         }
 
@@ -562,7 +642,8 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
     }
 
     private void appendBlockChannelButton() {
-        if (mVideo == null || mVideo.isChapter || !mIsBlockChannelEnabled) {
+        // NEWTUBE(#56): not on a playlist card - it would block the playlist owner's channel.
+        if (mVideo == null || mVideo.isChapter || mVideo.isPlaylistCard() || !mIsBlockChannelEnabled) {
             return;
         }
 
@@ -1217,7 +1298,7 @@ public class VideoMenuPresenter extends BaseMenuPresenter {
         mMenuMapping.put(MainUIData.MENU_ITEM_STREAM_REMINDER, new MenuAction(this::appendStreamReminderButton, false));
         mMenuMapping.put(MainUIData.MENU_ITEM_RECENT_PLAYLIST, new MenuAction(this::appendAddToRecentPlaylistButton, false));
         mMenuMapping.put(MainUIData.MENU_ITEM_ADD_TO_WATCH_LATER, new MenuAction(this::appendAddToWatchLaterButton, true));
-        mMenuMapping.put(MainUIData.MENU_ITEM_ADD_TO_PLAYLIST, new MenuAction(this::appendAddToPlaylistButton, false));
+        mMenuMapping.put(MainUIData.MENU_ITEM_ADD_TO_PLAYLIST, new MenuAction(() -> { appendRemoveFromOwnPlaylistButton(); appendAddToPlaylistButton(); }, false));
         mMenuMapping.put(MainUIData.MENU_ITEM_DOWNLOAD, new MenuAction(this::appendDownloadButton, false));
         mMenuMapping.put(MainUIData.MENU_ITEM_CREATE_PLAYLIST, new MenuAction(this::appendCreatePlaylistButton, false));
         mMenuMapping.put(MainUIData.MENU_ITEM_RENAME_PLAYLIST, new MenuAction(this::appendRenamePlaylistButton, false));

@@ -68,6 +68,8 @@ public class PlayerData extends DataChangeBase implements PlayerConstants, Profi
     private FormatItem mAudioFormat;
     // NEWTUBE(pin-rescue): session-scoped audio override, mirrors mTempVideoFormat (never persisted).
     private FormatItem mTempAudioFormat;
+    private FormatItem mVideoAudioFormat;
+    private String mVideoAudioFormatVideoId;
     private FormatItem mSubtitleFormat;
     private int mVideoBufferType;
     private final List<SubtitleStyle> mSubtitleStyles = new ArrayList<>();
@@ -438,6 +440,40 @@ public class PlayerData extends DataChangeBase implements PlayerConstants, Profi
 
     public FormatItem getTempAudioFormat() {
         return mTempAudioFormat;
+    }
+
+    /**
+     * NEWTUBE(issues #52/#53): a manual Audio track pick belongs to the video it was made on. It is
+     * kept in memory for that video id only (so a reload of the same video keeps it) and never
+     * persisted: the next video starts on its own original track again, like YouTube.
+     */
+    public void setVideoAudioFormat(String videoId, FormatItem format) {
+        mVideoAudioFormatVideoId = format != null ? videoId : null;
+        mVideoAudioFormat = videoId != null ? format : null;
+    }
+
+    /** The manual audio pick made on {@code videoId}, or null (another video's pick never applies). */
+    public FormatItem getVideoAudioFormat(String videoId) {
+        return videoId != null && videoId.equals(mVideoAudioFormatVideoId) ? mVideoAudioFormat : null;
+    }
+
+    /**
+     * NEWTUBE(issues #52/#53): the persisted audio format as it may apply to ANY video: a codec
+     * preference only. A concrete track stored by older versions (a language pick from the gear
+     * sheet, saved app-wide) is replaced by the default preset, so it no longer drags every later
+     * dubbed video onto that language.
+     */
+    public FormatItem getStoredAudioPreference() {
+        FormatItem format = getFormat(FormatItem.TYPE_AUDIO);
+        return isConcreteAudioTrack(format) ? getDefaultAudioFormat() : format;
+    }
+
+    private static boolean isConcreteAudioTrack(FormatItem format) {
+        if (format == null || format.isPreset() || FormatItem.NO_AUDIO.equals(format)) {
+            return false;
+        }
+        MediaTrack track = format.getTrack();
+        return track != null && track.format != null && track.format.id != null;
     }
 
     public FormatItem getLastSubtitleFormat() {

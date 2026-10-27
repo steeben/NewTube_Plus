@@ -4,6 +4,13 @@ import androidx.annotation.Nullable;
 
 import com.liskovsoft.mediaserviceinterfaces.data.MediaFormat;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,25 +61,48 @@ public final class DownloadOptions {
     }
 
     /**
-     * Best AAC track of the original language. The format info carries no "default" flag, so the
-     * original is recognized the way YouTube tags it: no track id at all (single-audio videos),
-     * else the {@code .4} track type. A dubbed track is only taken when nothing else exists.
+     * Best AAC track of the original language. Every language variant of a dubbed video shares
+     * the same itag (140), so the variant is recognized the way YouTube tags its URL:
+     * {@code xtags=acont=original:lang=en} (surfaced by {@link MediaFormat#getLanguage()} as
+     * "en (original)", the same mark the player's track adapter uses), and only when the URL
+     * carries no variant at all, the {@code .4} track id. A dubbed or auto-dubbed track is only
+     * taken when nothing else exists (issue #29).
      */
     @Nullable
     static MediaFormat pickAudio(@Nullable List<MediaFormat> formats) {
+        return pickAudio(formats, null, null);
+    }
+
+    /**
+     * The audio track a download resolves to: among AAC tracks (of {@code itag}, when given),
+     * the one whose {@link #audioTrackKey} equals {@code wantedTrack} when that is given and
+     * still offered, else the best by {@link #audioTrackRank}, then bitrate. DRC variants (same
+     * itag, {@code isDrc}) are never taken. A re-resolve after a refused link passes the item's
+     * itag and track, so it lands on the same language, not on whichever variant comes first.
+     */
+    @Nullable
+    static MediaFormat pickAudio(@Nullable List<MediaFormat> formats, @Nullable String itag,
+                                 @Nullable String wantedTrack) {
         if (formats == null) {
             return null;
         }
 
         MediaFormat best = null;
-        int bestRank = -1;
+        long bestRank = -1;
 
         for (MediaFormat format : formats) {
-            if (!isAacAudio(format) || format.isDrc()) {
+            if (format.getUrl() == null || format.isDrc()) {
+                continue;
+            }
+            if (itag != null ? !itag.equals(format.getITag()) : !isAacAudio(format)) {
                 continue;
             }
 
-            int rank = audioTrackRank(format.getAudioTrackId()) * 100_000_000 + bitrateOf(format);
+            if (wantedTrack != null && isSameTrack(wantedTrack, format)) {
+                return format;
+            }
+
+            long rank = audioTrackRank(format) * 1_000_000_000L + bitrateOf(format);
             if (rank > bestRank) {
                 best = format;
                 bestRank = rank;
@@ -136,15 +166,141 @@ public final class DownloadOptions {
                 && mimeContains(format, "mp4a");
     }
 
-    /** 2 = original track (no id, or type 4), 1 = anything else, 0 = unknown. */
-    static int audioTrackRank(@Nullable String audioTrackId) {
+    /**
+     * 3 = the original track ({@code acont=original}, or no variant tag but a {@code .4} id),
+     * 2 = no variant information at all (single-audio videos), 1 = some other untagged variant,
+     * 0 = dubbed, auto-dubbed, descriptive or secondary.
+     */
+    static int audioTrackRank(MediaFormat format) {
+        String variant = audioVariantOf(format.getLanguage());
+        if (variant != null) {
+            return "original".equals(variant) ? 3 : 0;
+        }
+        String audioTrackId = format.getAudioTrackId();
         if (audioTrackId == null || audioTrackId.isEmpty()) {
             return 2;
         }
         if (audioTrackId.endsWith(".4")) {
-            return 2;
+            return 3;
         }
         return 1;
+    }
+
+    /** "original" from "en (original)", "dubbed-auto" from "es (dubbed-auto)"; null when untagged. */
+    @Nullable
+    static String audioVariantOf(@Nullable String language) {
+        if (language == null) {
+            return null;
+        }
+        int mark = language.lastIndexOf(" (");
+        if (mark <= 0 || !language.endsWith(")")) {
+            return null;
+        }
+        return language.substring(mark + 2, language.length() - 1).trim().toLowerCase(Locale.US);
+    }
+
+    /**
+     * What identifies an audio track across fresh format infos (links expire, the itag is shared
+     * by every language): the URL's language/variant tag plus YouTube's track id;
+     * {@link #UNTAGGED_TRACK} for a video with a single, untagged audio track, so that a stored
+     * null always means "not recorded" (items saved before 1.15.1). Null only for no format.
+     */
+    @Nullable
+    public static String audioTrackKey(@Nullable MediaFormat format) {
+        if (format == null) {
+            return null;
+        }
+        String language = format.getLanguage();
+        String id = format.getAudioTrackId();
+        return (language != null ? language : "") + "|" + (id != null ? id : "");
+    }
+
+    /** {@link #audioTrackKey} of an audio format with neither a language tag nor a track id. */
+    public static final String UNTAGGED_TRACK = "|";
+
+    /**
+     * Whether a kept audio part must be thrown away before fetching {@code resolvedTrack}: the
+     * fetcher resumes from the part's length, which is only right when the part holds a prefix
+     * of the very same stream. An unknown stored identity (pre-1.15.1 item), another variant,
+     * or a part longer than the stream all mean the bytes may be another language's.
+     */
+    static boolean mustRestartAudioPart(@Nullable String storedTrack, @Nullable String resolvedTrack,
+                                        long partBytes, long resolvedLength) {
+        if (partBytes <= 0) {
+            return false;
+        }
+        if (storedTrack == null || !storedTrack.equals(resolvedTrack)) {
+            return true;
+        }
+        return mustRestartPart(partBytes, resolvedLength);
+    }
+
+    /**
+     * The identity of an audio part lives next to the part itself ({@code <part>.id}), written
+     * and synced before any byte is fetched: the registry's JSON is written asynchronously, so a
+     * process death right after a fallback could leave it naming the old track while the part
+     * already holds the new one's bytes. A missing sidecar (a 1.15.0 part) reads as unknown.
+     */
+    static File audioIdFile(File part) {
+        return new File(part.getParentFile(), part.getName() + ".id");
+    }
+
+    @Nullable
+    static String readAudioPartTrack(File part) {
+        File id = audioIdFile(part);
+        if (!id.isFile()) {
+            return null;
+        }
+        try (InputStream in = new FileInputStream(id)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[256];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                out.write(buf, 0, n);
+            }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Records, synced to disk, the track the part is about to receive; null clears it. */
+    static void writeAudioPartTrack(File part, @Nullable String track) throws IOException {
+        File id = audioIdFile(part);
+        if (track == null) {
+            //noinspection ResultOfMethodCallIgnored
+            id.delete();
+            return;
+        }
+        try (FileOutputStream out = new FileOutputStream(id)) {
+            out.write(track.getBytes(StandardCharsets.UTF_8));
+            out.getFD().sync();
+        }
+    }
+
+    /** {@link #mustRestartAudioPart} against the identity recorded beside the part file. */
+    static boolean mustRestartAudioPart(File part, @Nullable String resolvedTrack, long resolvedLength) {
+        long bytes = part.exists() ? part.length() : 0;
+        return mustRestartAudioPart(readAudioPartTrack(part), resolvedTrack, bytes, resolvedLength);
+    }
+
+    /** A kept part longer than the stream it is resumed against cannot be a prefix of it. */
+    static boolean mustRestartPart(long partBytes, long resolvedLength) {
+        return partBytes > 0 && resolvedLength > 0 && partBytes > resolvedLength;
+    }
+
+    /**
+     * The URL's language tag decides when the key has one (a track id is not promised to be
+     * stable across /player clients); the track id only for keys without a language.
+     */
+    static boolean isSameTrack(String wantedTrack, MediaFormat format) {
+        int bar = wantedTrack.lastIndexOf('|');
+        String wantedLanguage = bar >= 0 ? wantedTrack.substring(0, bar) : wantedTrack;
+        String wantedId = bar >= 0 ? wantedTrack.substring(bar + 1) : "";
+        if (!wantedLanguage.isEmpty()) {
+            return wantedLanguage.equalsIgnoreCase(format.getLanguage());
+        }
+        return !wantedId.isEmpty() && wantedId.equals(format.getAudioTrackId());
     }
 
     static int bitrateOf(MediaFormat format) {

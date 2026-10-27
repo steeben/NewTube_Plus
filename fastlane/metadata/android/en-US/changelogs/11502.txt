@@ -1,0 +1,1 @@
+Fixed: channel pages show no Shorts tile, and their last tab reads "More" (#63). A partly downloaded audio file is only resumed if it is the same language. youtube.com/@handle links open the channel. Pausing under a menu over the mini player lets the screen sleep. Remove from playlist in your own playlists, Watch later included, with Undo (#36).

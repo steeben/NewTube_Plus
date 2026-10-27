@@ -135,6 +135,11 @@
     <style name="Widget.NewTube.BottomSheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
         <item name="backgroundTint">@color/mobile_color_surface</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.NewTube.BottomSheet</item>
+        <!-- NEWTUBE(sheet-landscape): MaterialComponents squares an EXPANDED sheet's corners
+             (Material3 turns this off), so every sheet that opened fully - the gear and its More
+             level - had square corners and the pickers that opened at their peek round ones.
+             Only a sheet that reaches the top of the screen squares off now, as Material 3. -->
+        <item name="shouldRemoveExpandedCorners">false</item>
     </style>
 
     <style name="ShapeAppearance.NewTube.BottomSheet" parent="">
@@ -506,6 +511,29 @@
         <item name="android:layout_marginTop">12dp</item>
         <item name="android:layout_marginEnd">48dp</item>
         <item name="android:background">@drawable/bg_skeleton_block</item>
+    </style>
+    <!-- NEWTUBE(feed-avatars): avatar + text lines under the thumb; the avatar shows on Home and
+         Subscriptions only (item_video_card's geometry: 36 dp, 4 dp in, 12 dp gap). -->
+    <style name="MobileSkeletonFeedTextRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+    <style name="MobileSkeletonFeedAvatar">
+        <item name="android:layout_width">@dimen/mobile_card_avatar_size</item>
+        <item name="android:layout_height">@dimen/mobile_card_avatar_size</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:layout_marginEnd">8dp</item>
+        <item name="android:background">@drawable/bg_comment_skeleton_avatar</item>
+        <item name="android:tag">avatar</item>
+        <item name="android:visibility">gone</item>
+    </style>
+    <style name="MobileSkeletonFeedText">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
     </style>
     <style name="MobileSkeletonFeedLineNarrow">
         <item name="android:layout_width">180dp</item>

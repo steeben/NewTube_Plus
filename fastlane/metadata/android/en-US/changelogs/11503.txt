@@ -1,0 +1,1 @@
+Changed: NewTube now uses its own copy of media3's Cronet code instead of a library that declares Google Play Services; videos stream over the same built-in Cronet engine as before. Translations are open on Weblate.

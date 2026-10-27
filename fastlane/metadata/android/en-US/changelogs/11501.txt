@@ -1,0 +1,1 @@
+Fixed: leaving fullscreen on Android 16 tablets, and picture-in-picture on tablets. The screen can turn off when a video ends or is paused. A picked audio track applies to that video only; downloads keep the original audio. Original titles works again. Playlist menus: no channel actions. Android backup and the in-app backup zip no longer copy your sign-in.
