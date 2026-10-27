@@ -112,9 +112,9 @@
             </intent-filter>
         </activity>
 
-        <!-- NEWTUBE(app-icon): Settings > Appearance > App icon. The splash screen under one of two
-             launcher entries, each with its icon; AppIcon enables the chosen one (Glass by default)
-             and disables the other. -->
+        <!-- NEWTUBE(app-icon): Settings > Appearance > App icon, in the accent. The splash screen
+             under one of these launcher entries - Glass or Flat, in each preset accent - each with
+             its icon; AppIcon enables the chosen one (Glass, red by default) and disables the rest. -->
         <activity-alias
             android:name="com.newtube.mobile.LauncherGlass"
             android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
@@ -135,6 +135,306 @@
             android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
             android:icon="@mipmap/app_icon"
             android:roundIcon="@mipmap/app_icon"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassOrange"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_orange"
+            android:roundIcon="@mipmap/app_icon_glass_orange"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatOrange"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_orange"
+            android:roundIcon="@mipmap/app_icon_flat_orange"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassAmber"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_amber"
+            android:roundIcon="@mipmap/app_icon_glass_amber"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatAmber"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_amber"
+            android:roundIcon="@mipmap/app_icon_flat_amber"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassGreen"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_green"
+            android:roundIcon="@mipmap/app_icon_glass_green"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatGreen"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_green"
+            android:roundIcon="@mipmap/app_icon_flat_green"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassTeal"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_teal"
+            android:roundIcon="@mipmap/app_icon_glass_teal"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatTeal"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_teal"
+            android:roundIcon="@mipmap/app_icon_flat_teal"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassCyan"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_cyan"
+            android:roundIcon="@mipmap/app_icon_glass_cyan"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatCyan"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_cyan"
+            android:roundIcon="@mipmap/app_icon_flat_cyan"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassBlue"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_blue"
+            android:roundIcon="@mipmap/app_icon_glass_blue"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatBlue"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_blue"
+            android:roundIcon="@mipmap/app_icon_flat_blue"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassViolet"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_violet"
+            android:roundIcon="@mipmap/app_icon_glass_violet"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatViolet"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_violet"
+            android:roundIcon="@mipmap/app_icon_flat_violet"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassPurple"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_purple"
+            android:roundIcon="@mipmap/app_icon_glass_purple"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatPurple"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_purple"
+            android:roundIcon="@mipmap/app_icon_flat_purple"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassPink"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_pink"
+            android:roundIcon="@mipmap/app_icon_glass_pink"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatPink"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_pink"
+            android:roundIcon="@mipmap/app_icon_flat_pink"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherGlassGrey"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_glass_grey"
+            android:roundIcon="@mipmap/app_icon_glass_grey"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name="com.newtube.mobile.LauncherFlatGrey"
+            android:targetActivity="com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity"
+            android:icon="@mipmap/app_icon_flat_grey"
+            android:roundIcon="@mipmap/app_icon_flat_grey"
             android:label="@string/app_name"
             android:enabled="false"
             android:exported="true">

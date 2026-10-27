@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEWTUBE(app-icon): before Android 8 (no adaptive icons) the accent icons are the red one. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@mipmap/app_icon_glass" />
+</layer-list>

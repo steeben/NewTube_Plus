@@ -5,7 +5,6 @@ import android.content.res.ColorStateList;
 import android.graphics.Outline;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.graphics.drawable.StateListDrawable;
@@ -148,19 +147,56 @@ public final class Pills {
             nav.setItemRippleColor(null);
             return;
         }
-        // The selected tab: a softer pill inside, under the ripple.
-        GradientDrawable selected = new GradientDrawable();
-        selected.setCornerRadius(px(context, 999));
-        selected.setColor(indicator(context));
+        // The selected tab: a softer pill inside, under the ripple - sized from the tab's cell as it
+        // is now, so it shrinks with the navigation as that tucks in (a fixed inset did not).
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[] {android.R.attr.state_checked},
-                new InsetDrawable(selected, px(context, 6), px(context, 5), px(context, 6), px(context, 5)));
+        states.addState(new int[] {android.R.attr.state_checked}, new CellPill(context, indicator(context)));
         states.addState(new int[0], new GradientDrawable());
-        GradientDrawable mask = new GradientDrawable();
-        mask.setCornerRadius(px(context, 999));
-        mask.setColor(0xFFFFFFFF);
         nav.setItemBackground(new RippleDrawable(ColorStateList.valueOf(indicator(context)), states,
-                new InsetDrawable(mask, px(context, 6), px(context, 5), px(context, 6), px(context, 5))));
+                new CellPill(context, 0xFFFFFFFF)));
+    }
+
+    /**
+     * The selected tab's pill in its cell: 5dp in from the top and bottom, and no wider than
+     * 1.6 times its height (6dp in from the sides at most) - centred, whatever the cell's shape.
+     */
+    private static final class CellPill extends Drawable {
+        private final android.graphics.Paint mPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.RectF mRect = new android.graphics.RectF();
+        private final float mInsetX;
+        private final float mInsetY;
+
+        CellPill(Context context, int color) {
+            mPaint.setColor(color);
+            mInsetX = px(context, 6);
+            mInsetY = px(context, 5);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            android.graphics.Rect b = getBounds();
+            float h = Math.max(0f, b.height() - 2 * mInsetY);
+            float w = Math.max(0f, Math.min(b.width() - 2 * mInsetX, h * 1.6f));
+            mRect.set(b.exactCenterX() - w / 2f, b.exactCenterY() - h / 2f,
+                    b.exactCenterX() + w / 2f, b.exactCenterY() + h / 2f);
+            float r = Math.min(w, h) / 2f;
+            canvas.drawRoundRect(mRect, r, r, mPaint);
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            mPaint.setAlpha(alpha);
+        }
+
+        @Override
+        public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {
+            mPaint.setColorFilter(filter);
+        }
+
+        @Override
+        public int getOpacity() {
+            return android.graphics.PixelFormat.TRANSLUCENT;
+        }
     }
 
     /** The navigation pill's place: in from the sides, above the gesture area. */
@@ -246,17 +282,33 @@ public final class Pills {
         int style = UiPrefs.getGlassStyle(context);
         boolean liquid = style == UiPrefs.GLASS_LIQUID && LiquidGlass.isSupported();
         int tint = style == UiPrefs.GLASS_LIQUID ? LiquidGlass.tint(context) : glassTint(context);
-        BackdropBlurDrawable navGlass = null;
+        // What the glass shows, as Home's does it (Liquid glass is only drawn from layers).
+        BackdropBlurDrawable.Layers layers = out -> {
+            if (source.isShown() && source.getWidth() > 0) {
+                out.add(source);
+            }
+        };
+        Drawable navSurface = null;
+        boolean liquidNav = false;
         if (style != UiPrefs.GLASS_SOLID) {
-            navGlass = new BackdropBlurDrawable(source, nav, page(context), tint);
+            BackdropBlurDrawable navGlass = new BackdropBlurDrawable(source, nav, page(context), tint);
+            navGlass.setLayers(layers);
             navGlass.setLiquid(liquid);
+            navSurface = navGlass;
+            if (liquid && nav.getParent() instanceof ViewGroup) {
+                // Liquid glass's selected tab, the travelling pill, as on Home.
+                LiquidNav pill = new LiquidNav(nav, (ViewGroup) nav.getParent(), layers, page(context));
+                navSurface = new LayerDrawable(new Drawable[] {navGlass, pill.flatPill()});
+                liquidNav = true;
+            }
         }
-        applyToNav(nav, navGlass, false);
+        applyToNav(nav, navSurface, liquidNav);
         if (miniBackdrop != null) {
             if (style == UiPrefs.GLASS_SOLID) {
                 miniBackdrop.setBackgroundColor(solidSurface(context));
             } else {
                 BackdropBlurDrawable miniGlass = new BackdropBlurDrawable(source, miniBackdrop, page(context), tint);
+                miniGlass.setLayers(layers);
                 miniGlass.setLiquid(liquid);
                 miniBackdrop.setBackground(miniGlass);
             }

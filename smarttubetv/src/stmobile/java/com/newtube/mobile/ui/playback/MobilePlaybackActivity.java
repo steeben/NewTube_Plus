@@ -2305,8 +2305,13 @@ public class MobilePlaybackActivity extends MobileActivity
         }
         mTimeBar.setWaveColors(colors);
         MiniPlayerBridge.setWave(humps, colors);
-        com.newtube.mobile.ui.common.LogoTint.set(colors != null ? colors[0]
-                : com.newtube.mobile.ui.common.UiPrefs.getAccent(this)); // NEWTUBE(logo-tint)
+        // NEWTUBE(logo-tint): the video's colour, or none of its own - the logo then shows the
+        // accent as it is now (set as a colour, it kept the old accent after a change in Settings).
+        if (colors != null) {
+            com.newtube.mobile.ui.common.LogoTint.set(colors[0]);
+        } else {
+            com.newtube.mobile.ui.common.LogoTint.reset();
+        }
     }
 
     /** The live picture's colours, sampled every few seconds (the last ones in between). */

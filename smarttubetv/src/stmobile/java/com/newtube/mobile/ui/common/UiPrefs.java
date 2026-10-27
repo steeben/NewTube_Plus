@@ -106,7 +106,7 @@ public final class UiPrefs {
         return getAppIcon(context) == APP_ICON_GLASS;
     }
 
-    /** Also switches the launcher's icon (AppIcon) and, at the next launch, the launch screen's. */
+    /** Also switches the launcher's icon (AppIcon, in the accent) and, at the next launch, the launch screen's. */
     public static void setAppIcon(Context context, int icon) {
         prefs(context).edit().putInt(KEY_APP_ICON, icon).apply();
         AppIcon.apply(context);
@@ -158,6 +158,7 @@ public final class UiPrefs {
         sAccent = 0xFF000000 | color;
         sAccentRead = true;
         prefs(context).edit().putInt(KEY_ACCENT, sAccent).apply();
+        AppIcon.apply(context); // NEWTUBE(app-icon): the launcher icon in the accent
         notifyChanged();
     }
 

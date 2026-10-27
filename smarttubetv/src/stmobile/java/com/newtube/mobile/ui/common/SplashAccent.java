@@ -21,11 +21,11 @@ public final class SplashAccent {
     private SplashAccent() {
     }
 
-    public static void apply(Activity activity) {
-        if (Build.VERSION.SDK_INT < 33) {
-            return;
-        }
-        int accent = UiPrefs.getAccent(activity);
+    /**
+     * The preset accent nearest to {@code accent}, as an index into the presets (red, orange,
+     * amber, green, teal, cyan, blue, violet, purple, pink, grey) - also the app icon's (AppIcon).
+     */
+    static int nearestPreset(int accent) {
         int best = 0;
         long bestDistance = Long.MAX_VALUE;
         for (int i = 0; i < COLORS.length; i++) {
@@ -38,6 +38,14 @@ public final class SplashAccent {
                 best = i;
             }
         }
+        return best;
+    }
+
+    public static void apply(Activity activity) {
+        if (Build.VERSION.SDK_INT < 33) {
+            return;
+        }
+        int best = nearestPreset(UiPrefs.getAccent(activity));
         int theme = (UiPrefs.isGlassAppIcon(activity) ? GLASS_THEMES : THEMES)[best];
         if (theme == sApplied) {
             return;

@@ -84,6 +84,19 @@ public final class LiquidNav {
             followSelection();
             return true;
         });
+        // NEWTUBE(pills): the bar tucks in and grows back as the page scrolls. A pill left lifted
+        // across that (its last frames recorded at the old size) stayed a lens of a bar that was
+        // no longer there; at rest it is put back flat on its tab, at the new size.
+        nav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if ((r - l != or - ol || b - t != ob - ot) && !mDragging && !mTracking && !mMotion.isRunning()) {
+                int index = selectedIndex();
+                if (index >= 0 && !items().isEmpty()) {
+                    mMotion.snapTo(index);
+                    mPlaced = true;
+                }
+                invalidate();
+            }
+        });
     }
 
     /**
@@ -660,6 +673,10 @@ public final class LiquidNav {
             travelTarget = next;
             travelSign = signOfTravel(travelTarget - travelFrom);
             start();
+        }
+
+        boolean isRunning() {
+            return running;
         }
 
         private void start() {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEWTUBE(app-icon): the Glass launcher icon's foreground in the violet accent: the circle's shadow,
+     the circle in the accent, its glass shading and the glass play triangle (the red one,
+     ic_launcher_glass_foreground, is drawn whole from the artwork). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_launcher_glass_shadow" />
+    <item android:left="29.32dp" android:top="29.32dp" android:right="29.32dp" android:bottom="29.32dp">
+        <shape android:shape="oval">
+            <solid android:color="#FF651FFF" />
+        </shape>
+    </item>
+    <item android:left="29.32dp" android:top="29.32dp" android:right="29.32dp" android:bottom="29.32dp"
+        android:drawable="@drawable/logo_glass_shade" />
+    <item android:left="29.32dp" android:top="29.32dp" android:right="29.32dp" android:bottom="29.32dp"
+        android:drawable="@drawable/logo_glass_glyph" />
+</layer-list>

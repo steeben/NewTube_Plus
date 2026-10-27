@@ -1479,6 +1479,12 @@ public class MobileBrowseActivity extends MobileActivity
             for (View v = icon; v != item && v != null; v = (View) v.getParent()) {
                 top += v.getTop();
             }
+            // Squeezed by a shorter tab, the icon's view got shorter than the icon, which it drew
+            // at full size and cut off top and bottom: fitted, it shrinks into the view instead.
+            if (icon instanceof android.widget.ImageView
+                    && ((android.widget.ImageView) icon).getScaleType() != android.widget.ImageView.ScaleType.FIT_CENTER) {
+                ((android.widget.ImageView) icon).setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            }
             float shift = labels ? 0f : item.getHeight() / 2f - (top + icon.getHeight() / 2f);
             icon.setTranslationY(shift);
             icon.setScaleX(scale);
