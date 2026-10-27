@@ -271,6 +271,9 @@ public class SplashPresenter extends BasePresenter<SplashView> {
 
             if (channelId != null) {
                 ChannelPresenter channelPresenter = ChannelPresenter.instance(getContext());
+                // NEWTUBE: a link has only an id; drop the card a previous channel was opened
+                // from, or the page takes that channel's name (the view names it once loaded).
+                channelPresenter.setChannel(null);
                 channelPresenter.openChannel(channelId);
                 return true;
             }

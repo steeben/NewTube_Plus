@@ -407,7 +407,20 @@ public abstract class MobileActivity extends MotherActivity {
         boolean lightTheme = ThemeMode.isLight(this);
         boolean darkStatusIcons = lightTheme && !isStatusBarOverDarkContent();
         boolean darkNavigationIcons = lightTheme && Build.VERSION.SDK_INT >= 27;
+        int legacyFlags = View.SYSTEM_UI_FLAG_VISIBLE;
+        if (darkStatusIcons) {
+            legacyFlags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        }
+        if (darkNavigationIcons) {
+            legacyFlags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
         if (Build.VERSION.SDK_INT >= 30) {
+            if (Build.VERSION.SDK_INT == 30) {
+                // Android 11 re-derives the bars' state from these legacy flags on window
+                // attribute changes, and the player's fullscreen sets hiding ones there (issue
+                // #68, MobilePlaybackActivity.applyImmersiveSystemBars): clear them first.
+                window.getDecorView().setSystemUiVisibility(legacyFlags);
+            }
             window.setDecorFitsSystemWindows(true);
             WindowInsetsController controller = window.getInsetsController();
             if (controller != null) {
@@ -420,14 +433,7 @@ public abstract class MobileActivity extends MotherActivity {
                                 | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
             }
         } else {
-            int flags = View.SYSTEM_UI_FLAG_VISIBLE;
-            if (darkStatusIcons) {
-                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            }
-            if (darkNavigationIcons) {
-                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            }
-            getWindow().getDecorView().setSystemUiVisibility(flags);
+            getWindow().getDecorView().setSystemUiVisibility(legacyFlags);
         }
     }
 

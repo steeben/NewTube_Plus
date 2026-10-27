@@ -861,6 +861,16 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
         return fetchedMs != null && System.currentTimeMillis() - fetchedMs < SECTION_FRESH_MS;
     }
 
+    /**
+     * NEWTUBE(#36): a video was added to or removed from one of the user's playlists. The
+     * sections that list playlist content - pinned playlists such as the You tab's Watch later,
+     * and the Playlists section (video counts) - would otherwise keep painting their snapshot
+     * for up to {@link #SECTION_FRESH_MS}; drop their freshness so the next visit refetches.
+     */
+    public void onPlaylistEdited() {
+        mSectionFetchTimeMs.keySet().removeIf(id -> id == MediaGroup.TYPE_USER_PLAYLISTS || isPinnedId(id));
+    }
+
     private void markSectionFetched(int sectionId) {
         mSectionFetchTimeMs.put(sectionId, System.currentTimeMillis());
 

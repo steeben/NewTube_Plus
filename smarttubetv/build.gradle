@@ -417,12 +417,14 @@ dependencies {
     stmobileImplementation 'androidx.media3:media3-exoplayer-hls:' + media3Version
     stmobileImplementation 'androidx.media3:media3-datasource-okhttp:' + media3Version
     stmobileImplementation 'androidx.media3:media3-ui:' + media3Version
-    // Cronet leaf transport for the media path (H2/QUIC, like the legacy engine had). The
-    // engine is the embedded org.chromium.net:cronet-embedded already shipped by :sharedutils
-    // (CronetManager); the GMS provider is useless weight here. The exclude stays on the SAME line:
-    // F-Droid's scanner reads build files line by line, and its pending rule (fdroid-suss !55) only
-    // clears this coordinate when the play-services-cronet exclude sits next to it.
-    stmobileImplementation('androidx.media3:media3-datasource-cronet:' + media3Version) { exclude group: 'com.google.android.gms', module: 'play-services-cronet' }
+    // Cronet leaf transport for the media path (H2/QUIC, like the legacy engine had): our copy of
+    // media3's CronetDataSource (player/cronet) on the embedded Cronet engine that :sharedutils
+    // ships (CronetManager). The media3-datasource-cronet artifact is not used: F-Droid rejects the
+    // Play Services provider it declares, which the app never loaded.
+    stmobileImplementation 'org.chromium.net:cronet-api:' + cronetApiVersion
+    // Compile-time-only annotations the copied CronetDataSource carries (media3 does the same).
+    stmobileCompileOnly 'com.google.errorprone:error_prone_annotations:2.48.0'
+    stmobileCompileOnly 'org.checkerframework:checker-qual:3.43.0'
     stmobileImplementation dependencies.project(':doubletapplayerview-media3')
     stmobileImplementation dependencies.project(':sabr-media3')
     // NEWTUBE(update-flow): the phone's update sheet drives the updater directly (AppUpdates)

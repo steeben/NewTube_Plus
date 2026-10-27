@@ -1191,7 +1191,9 @@ public class AppDialogUtil {
         }
 
         // Handle error: Maximum playlist size exceeded (> 5000 items)
-        RxHelper.execute(editObserve, error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(context, error.getMessage()));
+        RxHelper.execute(editObserve, error -> com.liskovsoft.smartyoutubetv2.common.misc.ErrorMessages.showLongMessage(context, error.getMessage()),
+                // NEWTUBE(#36): pinned playlists (Watch later on the You tab) refetch on next visit.
+                () -> BrowsePresenter.instance(context).onPlaylistEdited());
     }
 
     public static void showPlaylistOrderDialog(Context context, Video video, Runnable onClose) {

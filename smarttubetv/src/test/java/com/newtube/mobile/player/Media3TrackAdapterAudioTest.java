@@ -1,6 +1,7 @@
 package com.newtube.mobile.player;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -160,19 +161,84 @@ public class Media3TrackAdapterAudioTest {
     }
 
     @Test
-    public void theStoredDubCarriesToTheNextVideoThatHasIt() {
+    public void aDubPickedOnOneVideoDoesNotCarryToTheNext() {
+        // Issues #52/#53: the pick is per video; the next video's restore applies only the
+        // stored codec preference (PlayerData.getStoredAudioPreference), never the pick.
         adapter.onTracksChanged(dubbedVideo());
-        FormatItem spanish = offered("es (dubbed)", "251");
-        adapter.selectFormat(spanish);
-
-        // Next video: the stored pick is restored before its tracks arrive.
-        adapter.onSourceChanged();
-        adapter.selectFormat(spanish);
-        adapter.onTracksChanged(tracks(Arrays.asList(
-                variant("en (original)", C.ROLE_FLAG_MAIN),
-                variant("es (dubbed)", C.ROLE_FLAG_DUB))));
-
+        adapter.selectFormat(offered("es (dubbed)", "251"));
         assertEquals("es (dubbed)", audioOverride()[0]);
+
+        adapter.onSourceChanged();
+        adapter.selectFormat(FormatItem.AUDIO_51_AC3);
+        adapter.onTracksChanged(tracks(Arrays.asList(
+                variant("es (dubbed)", C.ROLE_FLAG_DUB),
+                variant("en (original)", C.ROLE_FLAG_MAIN))));
+
+        assertEquals("en (original)", audioOverride()[0]);
+    }
+
+    @Test
+    public void aPickSurvivesAReloadOfTheSameVideo() {
+        adapter.onTracksChanged(dubbedVideo());
+        FormatItem french = offered("fr (dubbed-auto)", "251");
+        adapter.selectFormat(french);
+
+        adapter.onSourceChanged();
+        adapter.selectFormat(french); // restoreAudioFormat: this video's pick
+        adapter.onTracksChanged(dubbedVideo());
+
+        String[] playing = audioOverride();
+        assertEquals("fr (dubbed-auto)", playing[0]);
+        assertEquals("251", playing[1]);
+    }
+
+    @Test
+    public void theExactVariantBeatsAnotherVariantOfTheSameLanguage() {
+        adapter.onTracksChanged(tracks(Arrays.asList(
+                variant("es (dubbed-auto)", C.ROLE_FLAG_DUB),
+                variant("es (dubbed)", C.ROLE_FLAG_DUB),
+                variant("en (original)", C.ROLE_FLAG_MAIN))));
+
+        adapter.selectFormat(offered("es (dubbed)", "140"));
+
+        String[] playing = audioOverride();
+        assertEquals("es (dubbed)", playing[0]);
+        assertEquals("140", playing[1]);
+    }
+
+    @Test
+    public void aLanguageIsNotASubstringMatch() {
+        // "en" used to match "ben (dubbed)" (and "de" any "(dubbed)" label).
+        FormatItem english = stored(audio("251", "opus", 158_000, "en (dubbed)", C.ROLE_FLAG_DUB));
+        adapter.selectFormat(english);
+        adapter.onTracksChanged(tracks(Arrays.asList(
+                variant("ben (dubbed)", C.ROLE_FLAG_DUB),
+                variant("es (original)", C.ROLE_FLAG_MAIN))));
+
+        assertEquals("es (original)", audioOverride()[0]);
+    }
+
+    @Test
+    public void aRegionalTagIsTheSameLanguage() {
+        FormatItem english = stored(audio("251", "opus", 158_000, "en-US (dubbed)", C.ROLE_FLAG_DUB));
+        adapter.selectFormat(english);
+        adapter.onTracksChanged(tracks(Arrays.asList(
+                variant("es (original)", C.ROLE_FLAG_MAIN),
+                variant("en (dubbed)", C.ROLE_FLAG_DUB))));
+
+        assertEquals("en (dubbed)", audioOverride()[0]);
+    }
+
+    @Test
+    public void primaryLanguageSubtagComparison() {
+        assertTrue(Media3TrackAdapter.audioLanguageEquals("en", "en-US"));
+        assertTrue(Media3TrackAdapter.audioLanguageEquals("en-GB (dubbed)", "EN (original)"));
+        assertTrue(Media3TrackAdapter.audioLanguageEquals("es", "es-419"));
+        assertTrue(Media3TrackAdapter.audioLanguageEquals(null, null));
+        assertFalse(Media3TrackAdapter.audioLanguageEquals("en", "ben"));
+        assertFalse(Media3TrackAdapter.audioLanguageEquals("de (dubbed)", "fr (dubbed)"));
+        assertFalse(Media3TrackAdapter.audioLanguageEquals("en", null));
+        assertFalse(Media3TrackAdapter.audioLanguageEquals("", ""));
     }
 
     /** The FormatItem a track of another video would have been stored as. */
