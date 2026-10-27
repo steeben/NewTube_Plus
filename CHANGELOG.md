@@ -2,6 +2,15 @@
 
 All notable user-facing changes to NewTube, the phone app built on SmartTube.
 
+## 1.1.1 — 2026-10-27
+
+### Fixed
+
+- **The scrubber stays at the end when a video ends** and pauses there; it
+  used to jump back a few seconds. Play starts the video again.
+- **The status bar fades to black as the mini player opens,** instead of
+  turning black at once at the end.
+
 ## 1.1.0 — 2026-10-27
 
 A new look: floating glass pills, Liquid glass, and a pill mini player.
