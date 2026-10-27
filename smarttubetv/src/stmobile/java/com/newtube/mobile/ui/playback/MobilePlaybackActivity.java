@@ -7244,22 +7244,25 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mControlsRoot != null && mControlsRoot.getVisibility() == View.VISIBLE) {
             mControlsRoot.setAlpha(contentAlpha);
         }
-        if (mTimeBar != null) {
+        if (mTimeBar != null && mContainer != null) {
             // outside the controls since NEWTUBE(seek bar): fade it too - or, when a mini player is
             // the other end, hand it to the line riding the video (NEWTUBE(mini-progress)).
-            boolean line = updateMorphLine(settled, mVideoAreaBottom());
+            // The line rides the video's bottom edge as drawn now - moved, scaled (from its
+            // top-left) and cropped to the card's shape - its ends cut by the card's corners.
+            // (Taken from the box's laid-out place, the line stayed behind there.)
+            Rect drawn = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
+            mContainer.offsetDescendantRectToMyCoords(mVideoArea, drawn);
+            float crop = Math.max(0f, Math.min(drawn.height() / 2f - 1f, mOutlineCropLocalPx));
+            float lineBottom = drawn.top + mVideoArea.getTranslationY() + (drawn.height() - crop) * sy;
+            float lineLeft = drawn.left + mVideoArea.getTranslationX();
+            float band = (drawn.height() - 2f * crop) * sy;
+            float radius = mMorphCornerDp * density * Math.max(0f, settled);
+            boolean line = updateMorphLine(settled, lineBottom, lineLeft, drawn.width() * sx, band, radius);
             mTimeBar.setAlpha(line ? 0f : contentAlpha);
         }
         if (mCommentsPanel != null) {
             mCommentsPanel.setMorphAlpha(contentAlpha);
         }
-    }
-
-    /** The bottom of the video box as it is drawn now, in the container's coordinates. */
-    private float mVideoAreaBottom() {
-        Rect box = new Rect(0, 0, mVideoArea.getWidth(), mVideoArea.getHeight());
-        mContainer.offsetDescendantRectToMyCoords(mVideoArea, box);
-        return box.bottom;
     }
 
     /**
