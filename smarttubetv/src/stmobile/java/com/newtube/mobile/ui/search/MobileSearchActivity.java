@@ -231,12 +231,13 @@ public class MobileSearchActivity extends MobileActivity
                 });
     }
 
-    private static void applyImePadding(View area, WindowInsetsCompat insets) {
+    private void applyImePadding(View area, WindowInsetsCompat insets) {
         int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
         int bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
         int bottom = Math.max(0, ime - bars);
         if (area.getPaddingBottom() != bottom) {
             area.setPadding(area.getPaddingLeft(), area.getPaddingTop(), area.getPaddingRight(), bottom);
+            refreshMiniNavClearance(); // the keyboard covers the navigation: the mini player comes down to it
         }
     }
 
@@ -670,7 +671,11 @@ public class MobileSearchActivity extends MobileActivity
      */
     @Override
     public int getMiniNavClearancePx() {
-        return com.newtube.mobile.ui.common.Pills.floatingNavMiniOffset(mNav);
+        // Over the keyboard, the navigation behind it needs no clearing: only what the
+        // keyboard's top edge does not already lift the card by.
+        View area = mGrid != null ? (View) mGrid.getParent() : null;
+        int keyboard = area != null ? area.getPaddingBottom() : 0;
+        return Math.max(0, com.newtube.mobile.ui.common.Pills.floatingNavMiniOffset(mNav) - keyboard);
     }
 
     // ---------------------------------------------------------------------------------

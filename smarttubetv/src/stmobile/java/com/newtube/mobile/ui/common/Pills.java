@@ -150,10 +150,10 @@ public final class Pills {
         // The selected tab: a softer pill inside, under the ripple - sized from the tab's cell as it
         // is now, so it shrinks with the navigation as that tucks in (a fixed inset did not).
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[] {android.R.attr.state_checked}, new CellPill(context, indicator(context)));
+        states.addState(new int[] {android.R.attr.state_checked}, new CellPill(nav, indicator(context)));
         states.addState(new int[0], new GradientDrawable());
         nav.setItemBackground(new RippleDrawable(ColorStateList.valueOf(indicator(context)), states,
-                new CellPill(context, 0xFFFFFFFF)));
+                new CellPill(nav, 0xFFFFFFFF)));
     }
 
     /**
@@ -165,8 +165,16 @@ public final class Pills {
         private final android.graphics.RectF mRect = new android.graphics.RectF();
         private final float mInsetX;
         private final float mInsetY;
+        /**
+         * The navigation the cell is in. Tucked in, the navigation gets shorter but Material keeps
+         * its tabs at full height, centred on it and cut off by its outline: sized from the cell
+         * alone, the pill reached past the navigation's ends (frosted glass).
+         */
+        private final View mNav;
 
-        CellPill(Context context, int color) {
+        CellPill(View nav, int color) {
+            Context context = nav.getContext();
+            mNav = nav;
             mPaint.setColor(color);
             mInsetX = px(context, 6);
             mInsetY = px(context, 5);
@@ -175,7 +183,8 @@ public final class Pills {
         @Override
         public void draw(android.graphics.Canvas canvas) {
             android.graphics.Rect b = getBounds();
-            float h = Math.max(0f, b.height() - 2 * mInsetY);
+            int cell = mNav.getHeight() > 0 ? Math.min(b.height(), mNav.getHeight()) : b.height();
+            float h = Math.max(0f, cell - 2 * mInsetY);
             float w = Math.max(0f, Math.min(b.width() - 2 * mInsetX, h * 1.6f));
             mRect.set(b.exactCenterX() - w / 2f, b.exactCenterY() - h / 2f,
                     b.exactCenterX() + w / 2f, b.exactCenterY() + h / 2f);
