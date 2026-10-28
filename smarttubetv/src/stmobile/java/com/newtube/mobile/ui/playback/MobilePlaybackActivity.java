@@ -563,6 +563,9 @@ public class MobilePlaybackActivity extends MobileActivity
         if (mPresenter == null) {
             return;
         }
+        if (savedInstanceState != null && mPresenter.getVideo() == null && restoreAfterProcessDeath(savedInstanceState)) {
+            return;
+        }
 
         if (!shouldFinishWithoutVideo(savedInstanceState != null,
                 PlayerTransitionBridge.hasPending(), mPresenter.getVideo() != null)) {
@@ -575,6 +578,50 @@ public class MobilePlaybackActivity extends MobileActivity
         // the root (Browse) when the stack is empty - which is exactly the cold-process case here.
         getViewManager().startDefaultView();
         finishReally();
+    }
+
+    private static final String STATE_VIDEO = "newtube.restore.video";
+    private static final String STATE_POSITION_MS = "newtube.restore.position";
+
+    /**
+     * NEWTUBE(restore): the video this page shows, and where it was, kept with the page's saved
+     * state. Left in the background a while, the process is killed; Android brings the page back
+     * from that state, but the video lived only in memory (the presenter), so the page came back
+     * empty - a spinner at 0:00 with no title, forever.
+     */
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        Video video = mPresenter != null ? mPresenter.getVideo() : null;
+        if (video != null && video.videoId != null) {
+            outState.putString(STATE_VIDEO, video.toString());
+            if (mExoPlayerController != null && !video.isLive) {
+                outState.putLong(STATE_POSITION_MS, Math.max(0, mExoPlayerController.getPositionMs()));
+            }
+        }
+    }
+
+    /** Set by a restore: the video opens paused where it was left, as YouTube's does. */
+    private boolean mRestorePaused;
+
+    /** The page came back without its video (process death): open it again, paused. */
+    private boolean restoreAfterProcessDeath(Bundle savedInstanceState) {
+        Video video = Video.fromString(savedInstanceState.getString(STATE_VIDEO));
+        if (video == null || video.videoId == null) {
+            return false;
+        }
+        long position = savedInstanceState.getLong(STATE_POSITION_MS, -1);
+        if (position > 0) {
+            video.pendingPosMs = position;
+        }
+        NetPath.log("playback-activity restore video=" + video.videoId + " pos=" + position);
+        mRestorePaused = true;
+        mContainer.post(() -> {
+            if (!isFinishing() && !isDestroyed() && mPresenter != null) {
+                mPresenter.openVideo(video);
+            }
+        });
+        return true;
     }
 
     /**
@@ -5303,6 +5350,13 @@ public class MobilePlaybackActivity extends MobileActivity
                 case Player.STATE_READY:
                     showProgressBar(false);
                     mIsEnded = false;
+                    if (mRestorePaused && mPlayer != null) {
+                        // NEWTUBE(restore): back after process death - ready, and waiting for play.
+                        mRestorePaused = false;
+                        if (mPlayer.getPlayWhenReady()) {
+                            mPlayer.setPlayWhenReady(false);
+                        }
+                    }
                     // CASTING: the TV owns playback while a session is active - the local engine
                     // may load/buffer (so disconnect can resume instantly) but must never audibly
                     // play. Re-pause the moment any (re)load reaches READY.
@@ -5970,7 +6024,7 @@ public class MobilePlaybackActivity extends MobileActivity
     private static final float FULLSCREEN_PULL_SCALE_DP = 38f;
     private static final float FULLSCREEN_PULL_MAX = 0.3f;
     /** Swiped up in portrait, the video grows to this size over this much finger travel (dp). */
-    private static final float FULLSCREEN_GROW_SCALE = 1.08f;
+    private static final float FULLSCREEN_GROW_SCALE = 1.15f;
     private static final float FULLSCREEN_GROW_DP = 96f;
 
     private SwipeLevels mSwipeLevels;
@@ -6272,11 +6326,15 @@ public class MobilePlaybackActivity extends MobileActivity
     private void endFullscreenSwipe(float velocity) {
         MagneticDrag magnet = fullscreenMagnet();
         boolean detached = magnet.isDetached();
+        float pulled = magnet.position();
         magnet.finish();
         boolean go;
+        float density = getResources().getDisplayMetrics().density;
         if (mFullscreenSwipe == SWIPE_ENTER_FULLSCREEN) {
-            // Up into fullscreen goes on release, like the fullscreen button - unless flicked back.
-            go = velocity >= -1200f;
+            // Up into fullscreen goes on release, like the fullscreen button - when the finger is
+            // still well up (or flicked up). Slid back down first, the user changed their mind.
+            go = velocity > FULLSCREEN_FLICK_DP * density
+                    || (pulled >= FULLSCREEN_GROW_DP * density * 0.4f && velocity >= -300f * density);
         } else if (detached) {
             go = velocity >= -1200f; // past the click it goes, unless flicked back
         } else {
