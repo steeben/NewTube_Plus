@@ -601,6 +601,180 @@ public class MobilePlaybackActivity extends MobileActivity
         }
     }
 
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(autoplay-handoff): a tapped feed preview plays on into the page (PreviewHandoff)
+    // ---------------------------------------------------------------------------------
+
+    /** The preview, over the video box, until this page's own player takes over. */
+    @Nullable
+    private androidx.media3.exoplayer.ExoPlayer mPreview;
+    @Nullable
+    private TextureView mPreviewView;
+    @Nullable
+    private String mPreviewVideoId;
+    /** This page's player is held (paused once ready) until the preview reaches it. */
+    private boolean mPreviewHold;
+    private int mPreviewSeeks;
+    private long mPreviewStartMs;
+    @Nullable
+    private ValueAnimator mPreviewFade;
+    private final Runnable mPreviewWatch = this::watchPreview;
+    /** Past this the page's player takes over whatever the preview is doing. */
+    private static final long PREVIEW_MAX_MS = 8_000;
+    /** The sound comes in over this long, and the pictures cross over this long. */
+    private static final long PREVIEW_SOUND_IN_MS = 700;
+    private static final long PREVIEW_CROSS_MS = 240;
+
+    private void adoptPreview(@Nullable Video video) {
+        endPreview(false);
+        androidx.media3.exoplayer.ExoPlayer preview = PreviewHandoff.take(video != null ? video.videoId : null);
+        if (preview == null) {
+            return;
+        }
+        if (mPlayerView == null || mPlayer == null) {
+            preview.release();
+            return;
+        }
+        boolean muted = PreviewHandoff.wasMuted();
+        mPreview = preview;
+        mPreviewVideoId = video.videoId;
+        mPreviewHold = true;
+        mPreviewSeeks = 0;
+        mPreviewStartMs = android.os.SystemClock.uptimeMillis();
+        // Over the loading still (the tapped card's picture): the preview's live frames.
+        mPreviewView = new TextureView(this);
+        mPreviewView.setOpaque(false);
+        mPlayerView.getContentFrame().addView(mPreviewView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        preview.setVideoTextureView(mPreviewView);
+        mPlayer.setVolume(0f); // the page's player is silent while it waits (see watchPreview)
+        if (muted) {
+            // The preview played silent: its sound comes in as the page opens.
+            preview.setVolume(0f);
+            mPreviewFade = ValueAnimator.ofFloat(0f, 1f);
+            mPreviewFade.setDuration(PREVIEW_SOUND_IN_MS);
+            mPreviewFade.addUpdateListener(a -> {
+                if (mPreview != null) {
+                    mPreview.setVolume((float) a.getAnimatedValue());
+                }
+            });
+            mPreviewFade.start();
+        }
+        NetPath.log("autoplay-handoff adopt video=" + video.videoId + " at=" + preview.getCurrentPosition());
+        mContainer.postDelayed(mPreviewWatch, 50);
+    }
+
+    /** Hand over once this page's player is ready and the preview has reached its frame. */
+    private void watchPreview() {
+        androidx.media3.exoplayer.ExoPlayer preview = mPreview;
+        if (preview == null || !mPreviewHold) {
+            return;
+        }
+        Video video = mPresenter != null ? mPresenter.getVideo() : null;
+        if (mPlayer == null || video == null || !TextUtils.equals(video.videoId, mPreviewVideoId)) {
+            endPreview(true); // another video opened meanwhile
+            return;
+        }
+        boolean previewGone = preview.getPlayerError() != null
+                || preview.getPlaybackState() == Player.STATE_ENDED
+                || preview.getPlaybackState() == Player.STATE_IDLE;
+        boolean late = android.os.SystemClock.uptimeMillis() - mPreviewStartMs > PREVIEW_MAX_MS;
+        if (mPlayer.getPlaybackState() == Player.STATE_READY) {
+            if (mPlayer.getPlayWhenReady()) {
+                mPlayer.setPlayWhenReady(false); // something set it going: still waiting
+            }
+            mPlayer.setVolume(0f); // the load sets the volume again
+            long main = mPlayer.getCurrentPosition();
+            long at = preview.getCurrentPosition();
+            if (previewGone || late || at >= main - 30) {
+                if (!previewGone && !late && at - main > 600 && mPreviewSeeks < 2) {
+                    // It loaded behind the preview (a keyframe before the asked spot, or slowly):
+                    // ahead again, exactly.
+                    mPreviewSeeks++;
+                    mExoPlayerController.setPositionMs(at + 1_500);
+                } else {
+                    crossToMain();
+                    return;
+                }
+            }
+        } else if (previewGone || late) {
+            endPreview(true); // the page's player plays as soon as it can
+            return;
+        }
+        mContainer.postDelayed(mPreviewWatch, 16);
+    }
+
+    /** The page's player starts on the preview's frame; pictures and sound cross over. */
+    private void crossToMain() {
+        mPreviewHold = false;
+        float volume = mExoPlayerController.getVolume(); // the listener's, as the page set it
+        mExoPlayerController.setVolume(0f);
+        mExoPlayerController.setPlayWhenReady(true);
+        NetPath.log("autoplay-handoff cross main=" + (mPlayer != null ? mPlayer.getCurrentPosition() : -1)
+                + " preview=" + (mPreview != null ? mPreview.getCurrentPosition() : -1));
+        if (mPreviewFade != null) {
+            mPreviewFade.cancel();
+        }
+        float previewVolume = mPreview != null ? mPreview.getVolume() : 0f;
+        ValueAnimator cross = ValueAnimator.ofFloat(0f, 1f);
+        cross.setDuration(PREVIEW_CROSS_MS);
+        cross.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            mExoPlayerController.setVolume(volume * t);
+            if (mPreview != null) {
+                mPreview.setVolume(previewVolume * (1f - t));
+            }
+            if (mPreviewView != null) {
+                mPreviewView.setAlpha(1f - t);
+            }
+        });
+        cross.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mExoPlayerController.setVolume(volume);
+                if (mPreviewFade == animation) {
+                    mPreviewFade = null;
+                }
+                endPreview(false);
+            }
+        });
+        mPreviewFade = cross;
+        cross.start();
+    }
+
+    /**
+     * Take the preview away. {@code release}: the handoff was cut short (the page is leaving,
+     * another video, the preview failed) - a held player of this page plays on.
+     */
+    private void endPreview(boolean release) {
+        if (mContainer != null) {
+            mContainer.removeCallbacks(mPreviewWatch);
+        }
+        if (mPreviewFade != null) {
+            ValueAnimator fade = mPreviewFade;
+            mPreviewFade = null;
+            fade.cancel();
+        }
+        if (mPreviewHold) {
+            mPreviewHold = false;
+            if (release && mExoPlayerController != null) {
+                mExoPlayerController.setVolume(mExoPlayerController.getVolume()); // its sound back
+                mExoPlayerController.setPlayWhenReady(true);
+            }
+        }
+        if (mPreview != null) {
+            mPreview.release();
+            mPreview = null;
+        }
+        if (mPreviewView != null) {
+            if (mPreviewView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) mPreviewView.getParent()).removeView(mPreviewView);
+            }
+            mPreviewView = null;
+        }
+        mPreviewVideoId = null;
+    }
+
     /** Set by a restore: the video opens paused where it was left, as YouTube's does. */
     private boolean mRestorePaused;
 
@@ -1604,6 +1778,7 @@ public class MobilePlaybackActivity extends MobileActivity
             // visible through the rest of our window.
             showHandoffStill(launch.frame, true);
             mStillAwaitFrame = false; // do not lift the source image before the morph completes
+            adoptPreview(mPresenter != null ? mPresenter.getVideo() : null); // NEWTUBE(autoplay-handoff)
             if (fromMini) {
                 // The old stream is still producing frames after its texture was re-parented.
                 // Keep those frames behind the selected video's thumbnail until the new load wins.
@@ -1721,6 +1896,7 @@ public class MobilePlaybackActivity extends MobileActivity
 
     @Override
     protected void onPause() {
+        endPreview(true); // NEWTUBE(autoplay-handoff): leaving mid-handoff, the page's player plays on
         if (mAmbient != null) {
             mAmbient.stop(); // NEWTUBE(ambient): no sampling off screen
         }
@@ -1826,6 +2002,7 @@ public class MobilePlaybackActivity extends MobileActivity
 
     @Override
     protected void onDestroy() {
+        endPreview(false); // NEWTUBE(autoplay-handoff)
         if (isFinishing()) {
             com.newtube.mobile.ui.common.LogoTint.reset(); // NEWTUBE(logo-tint): the video closed
         }
@@ -5350,6 +5527,11 @@ public class MobilePlaybackActivity extends MobileActivity
                 case Player.STATE_READY:
                     showProgressBar(false);
                     mIsEnded = false;
+                    if (mPreviewHold && mPlayer != null && mPlayer.getPlayWhenReady()) {
+                        // NEWTUBE(autoplay-handoff): ready ahead of the preview - wait for it.
+                        mPlayer.setPlayWhenReady(false);
+                        mPlayer.setVolume(0f);
+                    }
                     if (mRestorePaused && mPlayer != null) {
                         // NEWTUBE(restore): back after process death - ready, and waiting for play.
                         mRestorePaused = false;

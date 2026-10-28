@@ -383,20 +383,28 @@ public final class FeedAutoplay {
             mPlayer = new ExoPlayer.Builder(mContext).build();
             mPlayer.setRepeatMode(Player.REPEAT_MODE_ONE);
             mPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING);
-            mPlayer.addListener(new Player.Listener() {
-                @Override
-                public void onRenderedFirstFrame() {
-                    showViews();
-                }
-
-                @Override
-                public void onPlayerError(@NonNull PlaybackException error) {
-                    stop(); // a refused link (403) or the like: no preview for this one
-                }
-            });
+            mPlayer.addListener(mListener);
         }
         return mPlayer;
     }
+
+    private final Player.Listener mListener = new Player.Listener() {
+        @Override
+        public void onRenderedFirstFrame() {
+            showViews();
+        }
+
+        @Override
+        public void onPlayerError(@NonNull PlaybackException error) {
+            stop(); // a refused link (403) or the like: no preview for this one
+        }
+    };
+
+    /**
+     * NEWTUBE(autoplay-handoff): how far ahead of the preview the watch page's player loads. It
+     * waits there, paused, for the preview to catch up, and takes over on that frame.
+     */
+    private static final long HANDOFF_LEAD_MS = 2_500;
 
     // ---------------------------------------------------------------------------------
     // The views over the thumbnail
@@ -699,7 +707,15 @@ public final class FeedAutoplay {
         }
         ExoPlayer player = autoplay.mPlayer;
         long position = player.getCurrentPosition();
-        if (position > 1_000) {
+        long duration = player.getDuration();
+        // NEWTUBE(autoplay-handoff): a preview playing well before its end goes on playing, into
+        // the watch page (PreviewHandoff), instead of pausing for the page to start over.
+        boolean handoff = autoplay.mShown && player.getPlaybackState() == Player.STATE_READY
+                && player.getPlayWhenReady() && duration != C.TIME_UNSET
+                && position + HANDOFF_LEAD_MS + 3_000 < duration;
+        if (handoff) {
+            video.pendingPosMs = position + HANDOFF_LEAD_MS;
+        } else if (position > 1_000) {
             video.pendingPosMs = position;
         }
         if (autoplay.mShown && autoplay.mTexture != null && autoplay.mTexture.isAvailable() && thumbnail != null) {
@@ -718,6 +734,14 @@ public final class FeedAutoplay {
         }
         if (autoplay.mTexture != null) {
             autoplay.mTexture.setVisibility(View.INVISIBLE); // the still above is drawn instead
+        }
+        if (handoff) {
+            // The player is the watch page's now: this preview lets go of it (stop() leaves it).
+            player.removeListener(autoplay.mListener);
+            player.setRepeatMode(Player.REPEAT_MODE_OFF);
+            autoplay.mPlayer = null;
+            PreviewHandoff.offer(player, video.videoId, sMuted);
+            return;
         }
         player.setPlayWhenReady(false);
     }
