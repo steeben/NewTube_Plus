@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/assets/logo.png" width="112" height="112" alt="NewTube+ icon: a red circle with a play button">
+<img src=".github/assets/logo.png" width="112" height="112" alt="NewTube+ icon: a glossy red play circle on dark glass">
 
 # NewTube+
 
@@ -37,7 +37,7 @@ It keeps everything NewTube does and changes how the app looks, moves and previe
   scroll position and its thumbnails, tapping the tab you are on scrolls to the top, and tapping
   again at the top refreshes.
 - **Playlists in two columns**, with loading placeholders that match.
-- **New app icon and splash:** a red play circle, and a splash in your accent colour.
+- **New app icon and splash:** a glossy red play circle on dark glass (or a flat one), in your accent colour, and a splash to match.
 - **Ambient glow and vignette** around the player that follow the picture, in light and dark.
 
 ### Player
