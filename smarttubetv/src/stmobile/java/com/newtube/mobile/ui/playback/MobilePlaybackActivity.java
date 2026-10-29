@@ -644,6 +644,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // Over the loading still (the tapped card's picture): the preview's live frames.
         mPreviewView = new TextureView(this);
         mPreviewView.setOpaque(false);
+        setSpinnerShown(false); // the preview plays on: nothing is seen loading
         mPlayerView.getContentFrame().addView(mPreviewView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         preview.setVideoTextureView(mPreviewView);
@@ -780,6 +781,11 @@ public class MobilePlaybackActivity extends MobileActivity
                 ((ViewGroup) mPreviewView.getParent()).removeView(mPreviewView);
             }
             mPreviewView = null;
+            if (mSpinnerWanted && mProgressBar != null) {
+                // Still loading when the preview went: the spinner, after its usual wait.
+                mProgressBar.removeCallbacks(mSpinnerIn);
+                mProgressBar.postDelayed(mSpinnerIn, SPINNER_DELAY_MS);
+            }
         }
         mPreviewVideoId = null;
     }
@@ -8129,8 +8135,33 @@ public class MobilePlaybackActivity extends MobileActivity
     /** NEWTUBE(motion): the buffering spinner's state, see showProgressBar. */
     private boolean mSpinnerShown;
 
+    /** NEWTUBE(autoplay-handoff): a stall shorter than this shows no spinner (it only flashed). */
+    private static final long SPINNER_DELAY_MS = 300;
+    /** The spinner was asked for and waits out SPINNER_DELAY_MS. */
+    private boolean mSpinnerWanted;
+    private final Runnable mSpinnerIn = () -> {
+        if (mSpinnerWanted && mPreviewView == null) {
+            setSpinnerShown(true);
+        }
+    };
+
     @Override
     public void showProgressBar(boolean show) {
+        if (mProgressBar == null) {
+            return;
+        }
+        mSpinnerWanted = show;
+        mProgressBar.removeCallbacks(mSpinnerIn);
+        if (show && !mSpinnerShown) {
+            // Not while a feed preview plays on in the player's place (its picture is moving:
+            // nothing is loading as far as anyone can see), and not for a moment's stall.
+            mProgressBar.postDelayed(mSpinnerIn, SPINNER_DELAY_MS);
+        } else if (!show) {
+            setSpinnerShown(false);
+        }
+    }
+
+    private void setSpinnerShown(boolean show) {
         if (mProgressBar != null && show != mSpinnerShown) {
             // NEWTUBE(motion): fade in and out instead of popping, and take the play/pause glyph's
             // place rather than drawing over it (it spun around the pause bars on every open).
