@@ -230,6 +230,15 @@ final class AmbientMode {
         animator.start();
     }
 
+    /** Take the colours from the video now (a new picture just appeared), not at the next tick. */
+    void sampleSoon() {
+        if (!mRunning) {
+            return;
+        }
+        mHandler.removeCallbacks(mSample);
+        mHandler.post(mSample);
+    }
+
     private void sample() {
         if (!mRunning) {
             return;
@@ -252,11 +261,10 @@ final class AmbientMode {
             boxBlur(mPixels, mScratch, SAMPLE_WIDTH, SAMPLE_HEIGHT, 3);
         }
         if (mCurrent == null) {
+            // The first colours fade in from the plain page (a glow of the page's own colour shows
+            // nothing) instead of popping in.
             mCurrent = Bitmap.createBitmap(SAMPLE_WIDTH, SAMPLE_HEIGHT, Bitmap.Config.ARGB_8888);
-            mCurrent.setPixels(mPixels, 0, SAMPLE_WIDTH, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-            System.arraycopy(mPixels, 0, mTo, 0, mPixels.length);
-            invalidateAll();
-            return;
+            mCurrent.eraseColor(0xFF000000 | ContextCompat.getColor(mActivity, R.color.mobile_color_background));
         }
         // Fade from what is on screen now (even part-way through the last fade) to the new frame.
         // The two are blended pixel by pixel into one picture: drawing both with alpha (1 - t)

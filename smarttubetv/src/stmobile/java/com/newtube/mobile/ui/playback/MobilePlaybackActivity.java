@@ -647,6 +647,15 @@ public class MobilePlaybackActivity extends MobileActivity
         mPlayerView.getContentFrame().addView(mPreviewView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         preview.setVideoTextureView(mPreviewView);
+        preview.addListener(new Player.Listener() {
+            @Override
+            public void onRenderedFirstFrame() {
+                // The glow under the page takes the preview's colours as it opens.
+                if (mAmbient != null && mPreview == preview) {
+                    mAmbient.sampleSoon();
+                }
+            }
+        });
         mPlayer.setVolume(0f); // the page's player is silent while it waits (see watchPreview)
         if (muted) {
             // The preview played silent: its sound comes in as the page opens.
@@ -949,7 +958,8 @@ public class MobilePlaybackActivity extends MobileActivity
         mAmbient = new AmbientMode(this, new AmbientMode.Host() {
             @Override
             public TextureView videoTexture() {
-                return mVideoTexture;
+                // NEWTUBE(autoplay-handoff): the glow takes its colours from what is on screen.
+                return mPreviewView != null ? mPreviewView : mVideoTexture;
             }
 
             @Override
@@ -8074,6 +8084,11 @@ public class MobilePlaybackActivity extends MobileActivity
 
     @Override
     public void showOverlay(boolean show) {
+        if (show && mPreview != null) {
+            // NEWTUBE(autoplay-handoff): the page's player is held paused while the preview plays
+            // on; that pause is not the user's, so the controls stay hidden.
+            return;
+        }
         if (show) {
             showControlsInternal(true);
         } else if (!isHoldingSeekBar() && !isPlayerSheetShown()) {
