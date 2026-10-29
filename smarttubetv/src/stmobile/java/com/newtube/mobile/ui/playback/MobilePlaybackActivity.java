@@ -3076,8 +3076,8 @@ public class MobilePlaybackActivity extends MobileActivity
     }
 
     // ---------------------------------------------------------------------------------
-    // NEWTUBE(black-bars): crop black bars burnt into the picture - looked for at the start of a
-    // video (a few frames, until one is bright enough to tell), and on request; never continuously.
+    // NEWTUBE(black-bars): crop black bars burnt into the picture - on request only (the gear
+    // menu); a new video starts uncropped.
     // ---------------------------------------------------------------------------------
 
     /** The crop found for this video (null: none). */
@@ -3092,19 +3092,11 @@ public class MobilePlaybackActivity extends MobileActivity
     /** A panel over the page (comments, the playlist) wants the box at its normal size. */
     private boolean mCropSuspended;
     @Nullable
-    private BlackBars.Crop mCropSample;
-    @Nullable
     private String mCropVideoId;
-    private int mCropAttempt;
     private float mContentZoom = 1f;
     @Nullable
     private android.graphics.Bitmap mCropFrame;
-    /** The looks at a new video's picture: across its first 2.5 s (bars only on all of them count). */
-    private static final long[] CROP_SAMPLE_MS = {500, 1100, 1800, 2500};
-
-    private final Runnable mCropSampler = () -> detectBlackBars(false);
-
-    /** A new video's first frame: forget the last one's crop and look at this one's. */
+    /** A new video's first frame: forget the last one's crop. */
     private void onFirstFrameForCrop() {
         Video video = getVideo();
         String id = video != null ? video.videoId : null;
@@ -3112,23 +3104,11 @@ public class MobilePlaybackActivity extends MobileActivity
             return; // the same video (a quality switch, a seek): its crop stands
         }
         mCropVideoId = id;
-        mCropSample = null;
-        mCropAttempt = 0;
         setCrop(null);
-        if (mVideoArea != null) {
-            mVideoArea.removeCallbacks(mCropSampler);
-            if (id != null && com.newtube.mobile.ui.common.UiPrefs.isBlackBarDetection(this)
-                    && (video == null || !video.isLive)) {
-                mVideoArea.postDelayed(mCropSampler, CROP_SAMPLE_MS[0]);
-            }
-        }
     }
 
-    /**
-     * Look at the picture showing now. {@code manual}: from the gear menu - one look, applied
-     * whatever it finds, and said so. Otherwise one of the start's looks: two frames that agree.
-     */
-    private void detectBlackBars(boolean manual) {
+    /** From the gear menu: look at the picture showing now, apply whatever it finds, and say so. */
+    private void detectBlackBars() {
         if (mVideoTexture == null || !mVideoTexture.isAvailable() || !(mVideoAspect > 0f) || isFinishing()) {
             return;
         }
@@ -3144,29 +3124,13 @@ public class MobilePlaybackActivity extends MobileActivity
         } catch (RuntimeException e) {
             found = null;
         }
-        if (manual) {
-            if (mVideoArea != null) {
-                mVideoArea.removeCallbacks(mCropSampler);
-            }
-            if (found == null) {
-                android.widget.Toast.makeText(this, R.string.mobile_player_bars_unclear, android.widget.Toast.LENGTH_SHORT).show();
-                return;
-            }
-            setCrop(found);
-            android.widget.Toast.makeText(this, found.isNone() ? R.string.mobile_player_bars_none
-                    : R.string.mobile_player_bars_cropped, android.widget.Toast.LENGTH_SHORT).show();
+        if (found == null) {
+            android.widget.Toast.makeText(this, R.string.mobile_player_bars_unclear, android.widget.Toast.LENGTH_SHORT).show();
             return;
         }
-        mCropAttempt++;
-        if (found != null) {
-            // Only what every look agrees on is a bar (a dark sky in one frame is not).
-            mCropSample = mCropSample == null ? found : mCropSample.intersect(found);
-        }
-        if (mCropAttempt < CROP_SAMPLE_MS.length && mVideoArea != null) {
-            mVideoArea.postDelayed(mCropSampler, CROP_SAMPLE_MS[mCropAttempt] - CROP_SAMPLE_MS[mCropAttempt - 1]);
-        } else if (mCropSample != null) {
-            setCrop(mCropSample);
-        }
+        setCrop(found);
+        android.widget.Toast.makeText(this, found.isNone() ? R.string.mobile_player_bars_none
+                : R.string.mobile_player_bars_cropped, android.widget.Toast.LENGTH_SHORT).show();
     }
 
     private void setCrop(@Nullable BlackBars.Crop crop) {
@@ -4830,7 +4794,7 @@ public class MobilePlaybackActivity extends MobileActivity
                     null, false, () -> setCrop(null));
         } else {
             addMenuRow(content, sheet, R.drawable.ic_player_crop, R.string.mobile_player_detect_bars,
-                    null, false, () -> detectBlackBars(true));
+                    null, false, this::detectBlackBars);
         }
         addMenuRow(content, sheet, R.drawable.ic_mobile_settings, R.string.mobile_menu_more,
                 null, true, this::openPlayerMoreMenu);

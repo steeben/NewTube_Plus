@@ -116,7 +116,7 @@ public class PlayerTimeBar extends View implements TimeBar {
     private final Paint mScrubberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // NEWTUBE(wave): One UI's music-player wave over the played part (WaveProgress).
-    private static final float WAVE_DP = 11f;
+    private static final float WAVE_DP = 9f; // BitChord Dial's
     /** The waves drift while the position moves, and this long after (then hold still). */
     private static final long WAVE_MOVING_MS = 1200;
     @Nullable
@@ -649,7 +649,7 @@ public class PlayerTimeBar extends View implements TimeBar {
             float cx = Math.max(left + restRadius, Math.min(right - restRadius, playedX));
             float cy = (top + bottom) / 2f;
             if (wave && mWaveHumps && mWave != null) {
-                mWave.drawThumb(canvas, cx, cy, radius * 1.15f);
+                mWave.drawThumb(canvas, cx, cy, radius * 5f / 6f); // BitChord Dial's 5 dp bead at rest
             } else {
                 canvas.drawCircle(cx, cy, radius, mScrubberPaint);
             }

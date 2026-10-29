@@ -238,17 +238,6 @@ public final class UiPrefs {
         }
     }
 
-    // NEWTUBE(black-bars): look for black bars at the start of each video and crop them.
-    private static final String KEY_BLACK_BARS = "detect_black_bars";
-
-    public static boolean isBlackBarDetection(Context context) {
-        return prefs(context).getBoolean(KEY_BLACK_BARS, true);
-    }
-
-    public static void setBlackBarDetection(Context context, boolean on) {
-        prefs(context).edit().putBoolean(KEY_BLACK_BARS, on).apply();
-        notifyChanged();
-    }
 
     // NEWTUBE(wave): off - the colours on the bar only, no humps.
     private static final String KEY_WAVE_HUMPS = "wave_progress_humps";

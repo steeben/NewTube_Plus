@@ -217,13 +217,6 @@ final class PlayerPages {
 
         addProgressBarRows(context, rows);
 
-        // NEWTUBE(black-bars)
-        rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_picture)));
-        rows.add(SettingsRow.toggle(context.getString(R.string.mobile_settings_black_bars),
-                context.getString(R.string.mobile_settings_black_bars_summary),
-                () -> com.newtube.mobile.ui.common.UiPrefs.isBlackBarDetection(context),
-                on -> com.newtube.mobile.ui.common.UiPrefs.setBlackBarDetection(context, on)));
-
         // NEWTUBE(mini-style): how a minimized video docks (MiniPlayerStyle); applies to the next
         // minimize, and to a mini player already docked when its screen comes back.
         rows.add(SettingsRow.header(context.getString(R.string.mobile_settings_mini_player)));

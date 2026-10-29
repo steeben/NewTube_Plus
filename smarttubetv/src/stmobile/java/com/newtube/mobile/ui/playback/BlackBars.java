@@ -6,8 +6,8 @@ import androidx.annotation.Nullable;
 
 /**
  * NEWTUBE(black-bars): finds black bars burnt into a video's picture (a 2.39:1 film letterboxed in
- * a 16:9 upload, a square video pillarboxed in one...). Looks at one frame; the player asks only at
- * the start of a video (and when the user asks again from the gear menu), never continuously.
+ * a 16:9 upload, a square video pillarboxed in one...). Looks at one frame, only when the user asks
+ * from the gear menu.
  */
 final class BlackBars {
     /** Brighter than this is picture, not bar (0-255 luma). Compression noise in a bar stays below. */
@@ -40,12 +40,6 @@ final class BlackBars {
         /** The cropped picture's shape, for a picture of {@code aspect} (width / height). */
         float aspect(float aspect) {
             return aspect * (1f - left - right) / Math.max(0.01f, 1f - top - bottom);
-        }
-
-        /** The smaller bar of each pair of this and {@code other}: only what both frames show. */
-        Crop intersect(Crop other) {
-            return new Crop(Math.min(top, other.top), Math.min(bottom, other.bottom),
-                    Math.min(left, other.left), Math.min(right, other.right));
         }
 
         float[] toArray() {
