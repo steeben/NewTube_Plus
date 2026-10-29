@@ -733,11 +733,11 @@ public final class FeedAutoplay {
                     android.graphics.drawable.Drawable picture = thumbnail.getDrawable();
                     thumbnail.setImageBitmap(still);
                     sStills.put(thumbnail, Boolean.TRUE);
-                    android.graphics.drawable.Drawable frame = thumbnail.getDrawable();
+                    android.graphics.drawable.Drawable shown = thumbnail.getDrawable();
                     // Once the watch page has grown from the frame, the card shows its own picture
                     // again (it kept the frame until it was bound anew, often never).
                     thumbnail.postDelayed(() -> {
-                        if (thumbnail.getDrawable() == frame && picture != null && sStills.remove(thumbnail) != null) {
+                        if (thumbnail.getDrawable() == shown && picture != null && sStills.remove(thumbnail) != null) {
                             thumbnail.setImageDrawable(picture);
                         }
                     }, STILL_HOLD_MS);
