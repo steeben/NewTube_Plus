@@ -1247,12 +1247,13 @@ public class MobilePlaybackActivity extends MobileActivity
         mTimeBar.setCancelListener(armed ->
                 showTopPill(armed ? getString(R.string.mobile_player_release_to_cancel) : null));
 
-        // Start with the controls visible so the back button / title are immediately reachable on
-        // open; the auto-hide timer takes them away once playback is actually running.
-        mControlsVisible = true;
-        mControlsRoot.setVisibility(View.VISIBLE);
-        mControlsRoot.setAlpha(1f);
-        armAutoHide();
+        // Start with the controls hidden, as YouTube does: a video opens to its picture, and a tap
+        // brings the controls. (They used to start shown, until the auto-hide timer took them away
+        // once playback was running.)
+        mControlsVisible = false;
+        mControlsRoot.setVisibility(View.GONE);
+        mControlsRoot.setAlpha(0f);
+        mTimeBar.setShown(false, false);
     }
 
     private void setupWatchContent() {
@@ -1789,6 +1790,7 @@ public class MobilePlaybackActivity extends MobileActivity
             showHandoffStill(launch.frame, true);
             mStillAwaitFrame = false; // do not lift the source image before the morph completes
             adoptPreview(mPresenter != null ? mPresenter.getVideo() : null); // NEWTUBE(autoplay-handoff)
+            hideControls(); // a new video opens without its controls (left up by the last one)
             if (fromMini) {
                 // The old stream is still producing frames after its texture was re-parented.
                 // Keep those frames behind the selected video's thumbnail until the new load wins.
