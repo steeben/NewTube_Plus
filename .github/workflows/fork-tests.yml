@@ -1,0 +1,50 @@
+name: Fork unit tests
+
+# The full unit test run (the phone flavor's JVM tests), before a version bump. Run it from the
+# Actions tab (Run workflow); everyday pushes only build.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Run the unit tests
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace :smarttubetv:testStmobileDebugUnitTest 2>&1 | tee test.log
+
+      - name: Report failures
+        if: failure()
+        run: |
+          msg=$(grep -a -E "FAILED|error:|What went wrong|^\* What|tests completed" -A3 test.log | head -80)
+          msg=${msg//'%'/'%25'}
+          msg=${msg//$'\n'/'%0A'}
+          echo "::error title=Test failures::${msg}"
+
+      - name: Upload the test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NewTube-tests-${{ github.sha }}
+          path: smarttubetv/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 14
