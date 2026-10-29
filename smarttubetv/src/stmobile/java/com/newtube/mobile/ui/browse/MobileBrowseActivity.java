@@ -2274,9 +2274,12 @@ public class MobileBrowseActivity extends MobileActivity
         // spinner as tap feedback; it clears when the destination opens (onPause) or the fetch
         // ends/fails (LoadingManager -> showProgressBar(false)). Guarded on the routable shapes
         // so the "doesn't contain needed data" toast case can't leave it spinning.
+        // Only once the tap has waited a moment: a page that opens at once got the spinner's dark
+        // circle growing and shrinking over the feed for nothing.
+        mContentSwipe.removeCallbacks(mTapSpinner);
         if (!video.hasVideo()
                 && (video.hasChannel() || video.hasPlaylist() || video.hasNestedItems() || video.hasReloadPageKey())) {
-            mContentSwipe.setRefreshing(true);
+            mContentSwipe.postDelayed(mTapSpinner, TAP_SPINNER_DELAY_MS);
         }
 
         // Wave 2: real route. BrowsePresenter.onVideoItemClicked() -> VideoActionPresenter.apply()
@@ -2285,6 +2288,14 @@ public class MobileBrowseActivity extends MobileActivity
         // playlist items are routed elsewhere by the same presenter, which is fine here too.
         mPresenter.onVideoItemClicked(video);
     }
+
+    /** The tap-feedback spinner's wait (see onVideoClicked). */
+    private static final long TAP_SPINNER_DELAY_MS = 450;
+    private final Runnable mTapSpinner = () -> {
+        if (!isFinishing() && hasWindowFocus()) {
+            mContentSwipe.setRefreshing(true);
+        }
+    };
 
     /**
      * Wave 3: long-press = the touch equivalent of the TV D-pad OK-long-press context-menu
@@ -2953,6 +2964,7 @@ public class MobileBrowseActivity extends MobileActivity
 
         // Tap-feedback spinner (see onVideoClicked): the destination screen is opening (or the
         // user left) - never keep it spinning under the returning grid.
+        mContentSwipe.removeCallbacks(mTapSpinner);
         mContentSwipe.setRefreshing(false);
     }
 
@@ -3790,6 +3802,7 @@ public class MobileBrowseActivity extends MobileActivity
                 mContentSwipe.setRefreshing(false); // the skeleton says it
             }
             if (!show) {
+                mContentSwipe.removeCallbacks(mTapSpinner);
                 mContentSwipe.setRefreshing(false);
             }
         });

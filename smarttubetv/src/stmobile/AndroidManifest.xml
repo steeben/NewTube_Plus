@@ -559,7 +559,7 @@
             android:launchMode="singleTop"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden|uiMode"
             android:screenOrientation="unspecified"
-            android:theme="@style/Theme.NewTube" />
+            android:theme="@style/Theme.NewTube.Page" />
 
         <activity
             android:name="com.newtube.mobile.ui.channel.MobileChannelActivity"
@@ -583,7 +583,7 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection|keyboardHidden|uiMode"
             android:screenOrientation="unspecified"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.NewTube" />
+            android:theme="@style/Theme.NewTube.Page" />
 
         <!--
           Touch device-code sign-in screen (Wave 5, ARCHITECTURE.md section 7). Same

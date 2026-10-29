@@ -142,7 +142,9 @@ public class MobileSearchActivity extends MobileActivity
         mNavShown = com.newtube.mobile.ui.browse.BrowseNavMirror.hasTabs(); // before the insets
         setContentView(R.layout.activity_mobile_search);
 
-        registerBackHandler(this::handleBack);
+        // NEWTUBE(predictive-back): the page blurs and fades with the back gesture (closing the
+        // suggestions first is a step within it).
+        com.newtube.mobile.ui.common.PageBackPeek.install(this, () -> !closesSuggestions(), this::handleBack);
         setupNavMirror();
 
         bindViews();
@@ -746,8 +748,12 @@ public class MobileSearchActivity extends MobileActivity
     // (Previously it was also called here on back, so onFinish() ran twice per back press.)
     // The only local back handling: when the suggestion overlay covers existing RESULTS,
     // the first back dismisses the overlay instead of leaving the screen (YouTube-style).
+    private boolean closesSuggestions() {
+        return mSuggestions != null && mSuggestions.getVisibility() == View.VISIBLE && !mVideos.isEmpty();
+    }
+
     private void handleBack() {
-        if (mSuggestions.getVisibility() == View.VISIBLE && !mVideos.isEmpty()) {
+        if (closesSuggestions()) {
             hideKeyboard();
             mSearchInput.clearFocus();
             mSuggestions.setVisibility(View.GONE);

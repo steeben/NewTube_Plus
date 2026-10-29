@@ -262,6 +262,10 @@
         <item name="android:backgroundDimEnabled">false</item>
     </style>
 
+    <!-- NEWTUBE(predictive-back): a playlist or Search over the screen it was opened from, the
+         same way (PageBackPeek); the page colour is painted by the layout's root. -->
+    <style name="Theme.NewTube.Page" parent="Theme.NewTube.Settings" />
+
     <style name="Theme.NewTube.Dialog" parent="Theme.NewTube">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>

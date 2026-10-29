@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -105,15 +106,21 @@ public class MobileChannelUploadsActivity extends MobileActivity
         super.onCreate(savedInstanceState);
 
         mNavShown = com.newtube.mobile.ui.browse.BrowseNavMirror.hasTabs(); // before the insets
+        // NEWTUBE(pills): under the glass themes the top row floats over the list as pills.
+        mGlassTop = com.newtube.mobile.ui.common.Pills.isOn(this) && com.newtube.mobile.ui.common.Pills.isGlass(this);
         setContentView(R.layout.activity_mobile_channel_uploads);
 
-        registerBackHandler(this::handleBack);
+        // NEWTUBE(predictive-back): the page blurs and fades with the back gesture.
+        com.newtube.mobile.ui.common.PageBackPeek.install(this, () -> true, this::handleBack);
         setupNavMirror();
 
         bindViews();
         mMiniPlayer = new MobileMiniPlayerController(this);
         setupGrid();
         setupSwipeRefresh();
+        if (mGlassTop) {
+            applyGlassTop();
+        }
 
         mBackButton.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         mPlayAllButton.setOnClickListener(v -> playAll());
@@ -618,6 +625,120 @@ public class MobileChannelUploadsActivity extends MobileActivity
             mNavShown = shown;
             refreshContentInsets();
         }
+    }
+
+    // ---------------------------------------------------------------------------------
+    // NEWTUBE(pills): the top row as Home's - no bar, the back arrow in a round glass pill and
+    // the name in a glass pill beside it, over the list, which scrolls on under them
+    // ---------------------------------------------------------------------------------
+
+    private boolean mGlassTop;
+    /** How far the soft vignette under the status bar reaches below it (as Home's). */
+    private static final int STATUS_VIGNETTE_DP = 28;
+
+    @Override
+    protected boolean shouldInsetContentForStatusBar() {
+        return !mGlassTop;
+    }
+
+    private void applyGlassTop() {
+        View toolbar = findViewById(R.id.mobile_channel_uploads_toolbar);
+        if (toolbar == null || !(toolbar.getParent() instanceof ViewGroup)
+                || !(((ViewGroup) toolbar.getParent()).getParent() instanceof android.widget.FrameLayout)) {
+            return;
+        }
+        android.widget.LinearLayout row = (android.widget.LinearLayout) toolbar;
+        ViewGroup column = (ViewGroup) toolbar.getParent();
+        ViewGroup frame = (ViewGroup) column.getParent();
+        int pill = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.TOP_HEIGHT_DP);
+        int side = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.SIDE_DP);
+        int topMargin = com.newtube.mobile.ui.common.Pills.px(this, com.newtube.mobile.ui.common.Pills.TOP_MARGIN_DP);
+        int gap = com.newtube.mobile.ui.common.Pills.px(this, 8);
+        int vignetteHeight = com.newtube.mobile.ui.common.Pills.px(this, STATUS_VIGNETTE_DP);
+        boolean liquid = com.newtube.mobile.ui.common.Pills.isLiquid(this);
+        View source = mSwipe;
+
+        // Out of the column, over the list; a soft vignette under the status bar keeps its icons
+        // readable over the cards.
+        column.removeView(toolbar);
+        int page = getResources().getColor(R.color.mobile_color_background);
+        View vignette = new View(this);
+        vignette.setBackground(new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {(page & 0x00FFFFFF) | 0xB3000000, (page & 0x00FFFFFF) | 0x59000000, page & 0x00FFFFFF}));
+        vignette.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        android.widget.FrameLayout.LayoutParams vignetteParams = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, vignetteHeight, android.view.Gravity.TOP);
+        frame.addView(vignette, vignetteParams);
+        frame.addView(toolbar, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, android.view.Gravity.TOP));
+        toolbar.setBackground(null);
+        toolbar.setPaddingRelative(side, topMargin, side, 0);
+
+        // The back arrow: a round pill of its own.
+        android.widget.LinearLayout.LayoutParams back = (android.widget.LinearLayout.LayoutParams) mBackButton.getLayoutParams();
+        back.width = pill;
+        back.height = pill;
+        back.setMarginStart(0);
+        mBackButton.setLayoutParams(back);
+        int iconPadding = com.newtube.mobile.ui.common.Pills.px(this, 10);
+        mBackButton.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+        android.graphics.drawable.Drawable ripple = mBackButton.getBackground();
+        com.newtube.mobile.ui.common.Pills.shape(mBackButton,
+                com.newtube.mobile.ui.common.Pills.glassSurface(mBackButton, source), liquid);
+        mBackButton.setForeground(ripple);
+
+        // The name: a pill as wide as its text, beside it (a long name ellipsizes).
+        android.widget.LinearLayout.LayoutParams title = (android.widget.LinearLayout.LayoutParams) mTitleView.getLayoutParams();
+        title.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        title.weight = 0f;
+        title.height = pill;
+        title.setMarginStart(gap);
+        mTitleView.setLayoutParams(title);
+        mTitleView.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        int titleInset = com.newtube.mobile.ui.common.Pills.px(this, 16);
+        mTitleView.setPaddingRelative(titleInset, 0, titleInset, 0);
+        mTitleView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f);
+        com.newtube.mobile.ui.common.Pills.shape(mTitleView,
+                com.newtube.mobile.ui.common.Pills.glassSurface(mTitleView, source), liquid);
+
+        // Play all (channel uploads) stays at the row's end.
+        android.widget.Space spacer = new android.widget.Space(this);
+        row.addView(spacer, row.indexOfChild(mPlayAllButton), new android.widget.LinearLayout.LayoutParams(0, 1, 1f));
+        ((ViewGroup.MarginLayoutParams) mPlayAllButton.getLayoutParams()).setMarginEnd(0);
+        toolbar.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            int room = (r - l) - v.getPaddingLeft() - v.getPaddingRight() - pill - gap
+                    - (mPlayAllButton.getVisibility() == View.VISIBLE ? mPlayAllButton.getWidth() + gap : 0);
+            if (room > 0 && mTitleView.getMaxWidth() != room) {
+                v.post(() -> mTitleView.setMaxWidth(room));
+            }
+        });
+
+        // The list starts under the row and scrolls on under it; the glass shows it as it moves.
+        mGrid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                mBackButton.invalidate();
+                mTitleView.invalidate();
+            }
+        });
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(toolbar, (view, insets) -> {
+            int top = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()
+                    | androidx.core.view.WindowInsetsCompat.Type.displayCutout()).top;
+            view.setPaddingRelative(side, top + topMargin, side, 0);
+            if (vignetteParams.height != top + vignetteHeight) {
+                vignetteParams.height = top + vignetteHeight;
+                vignette.setLayoutParams(vignetteParams);
+            }
+            int listTop = top + topMargin + pill + gap;
+            if (mGrid.getPaddingTop() != listTop) {
+                mGrid.setPadding(mGrid.getPaddingLeft(), listTop, mGrid.getPaddingRight(), mGrid.getPaddingBottom());
+            }
+            float density = getResources().getDisplayMetrics().density;
+            mSwipe.setProgressViewOffset(false, listTop - Math.round(40 * density), listTop + Math.round(24 * density));
+            return insets;
+        });
+        androidx.core.view.ViewCompat.requestApplyInsets(toolbar);
     }
 
     /** The tabs reach the screen's bottom edge and pad themselves; without them, the content is inset. */

@@ -363,6 +363,38 @@ public final class Pills {
         return (nav.getHeight() > 0 ? nav.getHeight() : px(nav.getContext(), 56)) + navBottomMargin(nav);
     }
 
+    /** The Glass setting is a glass (Frosted or Liquid), not Solid. */
+    public static boolean isGlass(Context context) {
+        return UiPrefs.getGlassStyle(context) != UiPrefs.GLASS_SOLID;
+    }
+
+    /** The Glass setting is Liquid glass, and this device draws it. */
+    public static boolean isLiquid(Context context) {
+        return UiPrefs.getGlassStyle(context) == UiPrefs.GLASS_LIQUID && LiquidGlass.isSupported();
+    }
+
+    /**
+     * A list screen's top-row pill surface: the Glass setting's glass over {@code source} (the
+     * list's scrolling area), as on Home; null for Solid.
+     */
+    @Nullable
+    public static Drawable glassSurface(View host, View source) {
+        Context context = host.getContext();
+        int style = UiPrefs.getGlassStyle(context);
+        if (style == UiPrefs.GLASS_SOLID) {
+            return null;
+        }
+        int tint = style == UiPrefs.GLASS_LIQUID ? LiquidGlass.tint(context) : glassTint(context);
+        BackdropBlurDrawable glass = new BackdropBlurDrawable(source, host, page(context), tint);
+        glass.setLayers(out -> {
+            if (source.isShown() && source.getWidth() > 0) {
+                out.add(source);
+            }
+        });
+        glass.setLiquid(isLiquid(context));
+        return glass;
+    }
+
     /** Apply {@link #applyToNav} to a list screen's copy of the navigation, once. */
     public static void applyToNavOnce(BottomNavigationView nav) {
         if (nav.getTag(R.id.mobile_pill_applied) == null) {

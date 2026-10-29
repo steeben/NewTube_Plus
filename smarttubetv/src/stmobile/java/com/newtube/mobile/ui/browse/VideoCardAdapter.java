@@ -705,6 +705,11 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
                     || mThumbnail.getWidth() <= 0 || mThumbnail.getHeight() <= 0) {
                 return;
             }
+            // A preview's frame left on the card (an autoplay opened from it) is not its picture:
+            // remembered, it came back as the thumbnail of that video on every tab.
+            if (com.newtube.mobile.ui.playback.FeedAutoplay.isStill(mThumbnail)) {
+                return;
+            }
             if (TabPictures.get(mBoundThumbUrl, mThumbnail.getWidth()) != null) {
                 return;
             }
@@ -736,6 +741,10 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             // once, no load and no fade. A tab switch rebinds the whole grid, and Glide brought the
             // pictures back from its disk cache with a fade in, a moment after the tab landed.
             android.graphics.Bitmap held = !still ? TabPictures.get(thumbnailUrl, mThumbnail.getWidth()) : null;
+            // Remembered at another card width (the grid's columns changed with the tab - Playlists
+            // has two - and the card is not laid out at its new width yet): it is still the
+            // picture, so the load fades in over it instead of over a dark card.
+            android.graphics.Bitmap heldElsewhere = !still && held == null ? TabPictures.get(thumbnailUrl, 0) : null;
             if (held != null) {
                 Glide.with(context.getApplicationContext()).clear(mThumbnail); // a load still on its way
                 mThumbnail.setImageBitmap(held);
@@ -749,6 +758,9 @@ public class VideoCardAdapter extends ListAdapter<Video, RecyclerView.ViewHolder
             // coming - DeArrow, another size): the new one fades in over it, not over a dark card.
             android.graphics.drawable.Drawable previous = !still && mThumbReadyAt > 0 && mVideoIdShown != null
                     && mVideoIdShown.equals(video.videoId) ? copyOfShown() : null;
+            if (previous == null && heldElsewhere != null) {
+                previous = new android.graphics.drawable.BitmapDrawable(mThumbnail.getResources(), heldElsewhere);
+            }
             mThumbReadyAt = 0;
             mBoundThumbUrl = thumbnailUrl;
             mVideoIdShown = video.videoId;

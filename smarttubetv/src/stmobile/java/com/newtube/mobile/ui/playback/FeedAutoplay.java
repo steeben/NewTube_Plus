@@ -674,6 +674,11 @@ public final class FeedAutoplay {
         return sStills.remove(thumbnail) != null;
     }
 
+    /** True if {@code thumbnail} shows a preview's frame (the flag stays). */
+    public static boolean isStill(ImageView thumbnail) {
+        return sStills.containsKey(thumbnail);
+    }
+
     public static boolean hitsControls(float rawX, float rawY) {
         FeedAutoplay autoplay = sCurrent.get();
         if (autoplay == null || !autoplay.mShown) {
