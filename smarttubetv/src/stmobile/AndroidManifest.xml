@@ -87,9 +87,16 @@
     <application
         android:name="com.newtube.mobile.MobileMainApplication"
         android:theme="@style/Theme.NewTube"
+        android:icon="@mipmap/app_icon_glass"
+        android:roundIcon="@mipmap/app_icon_glass"
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="33"
-        tools:replace="android:name,android:theme">
+        tools:replace="android:name,android:theme,android:icon">
+
+        <!-- NEWTUBE(app-icon): the app's own icon is the Glass one, the App icon setting's default.
+             The system draws it wherever it shows the app rather than a launcher entry - notification
+             headers (Android 16 / OEM skins put it in a circle there), app info, recents - and it
+             cannot follow the setting, which only switches the launcher aliases below. -->
 
         <!-- The TV manifest makes Splash singleInstance, which puts it in a separate task and
              forces Android's non-overridable cross-task slide when it routes into mobile Home.
