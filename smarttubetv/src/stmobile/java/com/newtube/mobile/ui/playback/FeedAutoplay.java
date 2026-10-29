@@ -718,7 +718,9 @@ public final class FeedAutoplay {
         long duration = player.getDuration();
         // NEWTUBE(autoplay-handoff): a preview playing well before its end goes on playing, into
         // the watch page (PreviewHandoff), instead of pausing for the page to start over.
-        boolean handoff = autoplay.mShown && player.getPlaybackState() == Player.STATE_READY
+        // Not while casting: the video goes to the TV, nothing plays on (or out of) the phone.
+        boolean casting = com.newtube.mobile.casting.CastSessionManager.instance(autoplay.mContext).isConnected();
+        boolean handoff = !casting && autoplay.mShown && player.getPlaybackState() == Player.STATE_READY
                 && player.getPlayWhenReady() && duration != C.TIME_UNSET
                 && position + HANDOFF_LEAD_MS + 3_000 < duration;
         if (handoff) {

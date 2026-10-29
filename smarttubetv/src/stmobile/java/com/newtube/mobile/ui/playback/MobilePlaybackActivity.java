@@ -631,7 +631,9 @@ public class MobilePlaybackActivity extends MobileActivity
         if (preview == null) {
             return;
         }
-        if (mPlayerView == null || mPlayer == null) {
+        if (mPlayerView == null || mPlayer == null
+                || (mCastSessionManager != null && mCastSessionManager.isConnected())) {
+            // Casting: the TV plays the video - the preview's picture and sound stop here.
             preview.release();
             return;
         }
