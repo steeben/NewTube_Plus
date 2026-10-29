@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.newtube.mobile.ui.common.FrostedDialog;
 
 /**
  * The one entry point for opening the cast picker from any screen (player top bar, Browse top
@@ -68,7 +69,7 @@ public final class CastPickerLauncher {
 
     /**
      * Default presenter for non-player screens (Browse): same expanded-state + transparent-frame
-     * treatment as the player's {@code showPlayerSheet}, minus the immersive-window handling that
+     * treatment as the player's {@code showPlayerSheet} (glass included), minus the immersive-window handling that
      * only the landscape player needs.
      */
     public static void presentPlain(BottomSheetDialog dialog) {
@@ -79,6 +80,7 @@ public final class CastPickerLauncher {
                 behavior.setSkipCollapsed(true);
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
             }
+            FrostedDialog.applySheet(dialog, sheetView);
         });
         dialog.show();
     }

@@ -24,6 +24,7 @@ import com.liskovsoft.mediaserviceinterfaces.CastSenderService;
 import com.liskovsoft.sharedutils.helpers.MessageHelpers;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.newtube.mobile.casting.castv2.CastV2Discovery;
+import com.newtube.mobile.ui.common.UiPrefs;
 
 import java.util.Collections;
 import java.util.List;
@@ -76,6 +77,9 @@ public class CastPickerSheet {
     public void show(SheetPresenter presenter) {
         mDialog = new BottomSheetDialog(mActivity);
         View content = LayoutInflater.from(mActivity).inflate(R.layout.sheet_mobile_cast, null);
+        // NEWTUBE(glass): the sheet frame carries the glass (FrostedDialog.applySheet); the
+        // layout's own opaque panel on top of it would hide it.
+        if (UiPrefs.isFrostedGlass(mActivity)) content.setBackground(null);
         mDialog.setContentView(content);
         mListSection = content.findViewById(R.id.cast_sheet_list);
         mChooserSection = content.findViewById(R.id.cast_sheet_chooser);
