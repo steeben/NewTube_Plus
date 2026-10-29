@@ -666,6 +666,9 @@ public final class FeedAutoplay {
      * The preview's seek bar or speaker is under ({@code rawX}, {@code rawY}) (screen px): the
      * screen's own gestures (the tab swipe) leave that touch to them.
      */
+    /** How long a card keeps the preview's frame after it was opened (the page's open morph). */
+    private static final long STILL_HOLD_MS = 1_200;
+
     /** Thumbnails showing a preview's frame instead of their picture (to be loaded again). */
     private static final java.util.WeakHashMap<ImageView, Boolean> sStills = new java.util.WeakHashMap<>();
 
@@ -727,8 +730,17 @@ public final class FeedAutoplay {
             try {
                 Bitmap still = autoplay.mTexture.getBitmap();
                 if (still != null) {
+                    android.graphics.drawable.Drawable picture = thumbnail.getDrawable();
                     thumbnail.setImageBitmap(still);
                     sStills.put(thumbnail, Boolean.TRUE);
+                    android.graphics.drawable.Drawable frame = thumbnail.getDrawable();
+                    // Once the watch page has grown from the frame, the card shows its own picture
+                    // again (it kept the frame until it was bound anew, often never).
+                    thumbnail.postDelayed(() -> {
+                        if (thumbnail.getDrawable() == frame && picture != null && sStills.remove(thumbnail) != null) {
+                            thumbnail.setImageDrawable(picture);
+                        }
+                    }, STILL_HOLD_MS);
                 }
             } catch (RuntimeException ignored) {
                 // the thumbnail stays the thumbnail
