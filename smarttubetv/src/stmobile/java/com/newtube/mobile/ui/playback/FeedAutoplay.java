@@ -19,6 +19,7 @@ import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.MediaSource;
@@ -104,6 +105,11 @@ public final class FeedAutoplay {
     private ViewGroup mFrame;
     @Nullable
     private TextureView mTexture;
+    /** Black behind the picture, for the bars of a video that is not 16:9. */
+    @Nullable
+    private View mBackdrop;
+    /** The playing video's shape (width over height), 0 until the player knows it. */
+    private float mVideoAspect;
     @Nullable
     private ImageButton mSpeaker;
     @Nullable
@@ -395,6 +401,15 @@ public final class FeedAutoplay {
         }
 
         @Override
+        public void onVideoSizeChanged(@NonNull VideoSize size) {
+            // NEWTUBE(autoplay): a TextureView stretches the picture to its own size (the player's
+            // scaling mode is for SurfaceViews only), so a 1:1 or vertical video came out wide.
+            mVideoAspect = size.width > 0 && size.height > 0
+                    ? size.width * size.pixelWidthHeightRatio / size.height : 0f;
+            fitPicture();
+        }
+
+        @Override
         public void onPlayerError(@NonNull PlaybackException error) {
             stop(); // a refused link (403) or the like: no preview for this one
         }
@@ -412,10 +427,17 @@ public final class FeedAutoplay {
 
     private void attachViews(ViewGroup frame) {
         float density = mContext.getResources().getDisplayMetrics().density;
+        mVideoAspect = 0f;
+        mBackdrop = new View(mContext);
+        mBackdrop.setBackgroundColor(0xFF000000);
+        mBackdrop.setAlpha(0f);
+        frame.addView(mBackdrop, 1, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         mTexture = new TextureView(mContext);
         mTexture.setAlpha(0f);
-        frame.addView(mTexture, 1, new FrameLayout.LayoutParams(
+        frame.addView(mTexture, 2, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        mTexture.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> fitPicture());
 
         // The player's own seek bar, small: a line with its dot, and the dot can be dragged.
         mLine = new PlayerTimeBar(mContext);
@@ -498,6 +520,31 @@ public final class FeedAutoplay {
         frame.addView(mSpeaker, speakerParams);
     }
 
+    /** The picture whole and centred in the frame, its own shape kept, bars beside or above it. */
+    private void fitPicture() {
+        TextureView texture = mTexture;
+        if (texture == null) {
+            return;
+        }
+        int width = texture.getWidth();
+        int height = texture.getHeight();
+        if (mVideoAspect <= 0f || width <= 0 || height <= 0) {
+            texture.setTransform(null);
+            return;
+        }
+        float viewAspect = (float) width / height;
+        float scaleX = 1f;
+        float scaleY = 1f;
+        if (mVideoAspect < viewAspect) {
+            scaleX = mVideoAspect / viewAspect; // narrower than the frame: bars at the sides
+        } else {
+            scaleY = viewAspect / mVideoAspect; // wider than the frame: bars above and below
+        }
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        matrix.setScale(scaleX, scaleY, width / 2f, height / 2f);
+        texture.setTransform(matrix);
+    }
+
     private void updateSpeaker() {
         if (mSpeaker != null) {
             mSpeaker.setImageResource(sMuted ? R.drawable.ic_player_volume_off : R.drawable.ic_player_volume_up);
@@ -542,7 +589,7 @@ public final class FeedAutoplay {
         if (mFrame != null) {
             mFrame.postOnAnimation(mFrameLoop);
         }
-        for (View view : new View[] {mTexture, mSpeaker, mLine}) {
+        for (View view : new View[] {mBackdrop, mTexture, mSpeaker, mLine}) {
             if (view != null) {
                 view.animate().alpha(1f).setDuration(260).start();
             }
@@ -620,7 +667,7 @@ public final class FeedAutoplay {
         }
         ViewGroup frame = mFrame;
         if (frame != null) {
-            for (View view : new View[] {mTexture, mSpeaker, mLine}) {
+            for (View view : new View[] {mBackdrop, mTexture, mSpeaker, mLine}) {
                 if (view != null && view.getParent() instanceof ViewGroup) {
                     ((ViewGroup) view.getParent()).removeView(view);
                 }
@@ -635,6 +682,8 @@ public final class FeedAutoplay {
             restoreBadge();
         }
         mTexture = null;
+        mBackdrop = null;
+        mVideoAspect = 0f;
         mSpeaker = null;
         mLine = null;
         mLineScrubbing = false;
@@ -731,6 +780,13 @@ public final class FeedAutoplay {
         if (autoplay.mShown && autoplay.mTexture != null && autoplay.mTexture.isAvailable() && thumbnail != null) {
             try {
                 Bitmap still = autoplay.mTexture.getBitmap();
+                if (still != null && autoplay.mVideoAspect > 0f) {
+                    // The fitted picture leaves its bars clear: black under them, as in the preview.
+                    Bitmap onBlack = Bitmap.createBitmap(still.getWidth(), still.getHeight(), Bitmap.Config.ARGB_8888);
+                    onBlack.eraseColor(0xFF000000);
+                    new android.graphics.Canvas(onBlack).drawBitmap(still, 0f, 0f, null);
+                    still = onBlack;
+                }
                 if (still != null) {
                     android.graphics.drawable.Drawable picture = thumbnail.getDrawable();
                     thumbnail.setImageBitmap(still);
@@ -753,6 +809,9 @@ public final class FeedAutoplay {
         }
         if (autoplay.mTexture != null) {
             autoplay.mTexture.setVisibility(View.INVISIBLE); // the still above is drawn instead
+        }
+        if (autoplay.mBackdrop != null) {
+            autoplay.mBackdrop.setVisibility(View.INVISIBLE);
         }
         if (handoff) {
             // The player is the watch page's now: this preview lets go of it (stop() leaves it).
