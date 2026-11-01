@@ -436,8 +436,8 @@
     <string name="mobile_update_check_failed_title">Couldn\'t check for updates</string>
     <string name="mobile_update_check_failed_body">Check your connection and try again.</string>
     <string name="mobile_update_available_title">Update available</string>
-    <string name="mobile_update_app_version">NewTube %1$s</string>
-    <string name="mobile_update_app_version_size">NewTube %1$s · %2$s</string>
+    <string name="mobile_update_app_version">NewTube+ %1$s</string>
+    <string name="mobile_update_app_version_size">NewTube+ %1$s · %2$s</string>
     <string name="mobile_update_metered">You\'re on mobile data.</string>
     <string name="mobile_update_whats_new_in">What\'s new in %1$s</string>
     <string name="mobile_update_release_notes">Full release notes</string>

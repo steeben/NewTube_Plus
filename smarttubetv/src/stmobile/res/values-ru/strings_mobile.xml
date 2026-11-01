@@ -319,8 +319,8 @@
     <string name="mobile_update_check_failed_title">Не удалось проверить обновления</string>
     <string name="mobile_update_check_failed_body">Проверьте подключение и попробуйте снова.</string>
     <string name="mobile_update_available_title">Доступно обновление</string>
-    <string name="mobile_update_app_version">NewTube %1$s</string>
-    <string name="mobile_update_app_version_size">NewTube %1$s · %2$s</string>
+    <string name="mobile_update_app_version">NewTube+ %1$s</string>
+    <string name="mobile_update_app_version_size">NewTube+ %1$s · %2$s</string>
     <string name="mobile_update_metered">Вы используете мобильные данные.</string>
     <string name="mobile_update_whats_new_in">Что нового в %1$s</string>
     <string name="mobile_update_release_notes">Полные примечания к выпуску</string>

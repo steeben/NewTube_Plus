@@ -104,7 +104,7 @@ jobs:
           set -euo pipefail
           # Only this version: older CHANGELOG entries are upstream NewTube's (other version codes).
           python3 tools/update_manifest.py --tag "${{ steps.version.outputs.tag }}" --dist dist \
-            --out dist/newtube.json --versions 1
+            --out dist/newtube.json --versions 1 --notes RELEASE_NOTES.md
           cat dist/newtube.json
 
       - name: Publish the release

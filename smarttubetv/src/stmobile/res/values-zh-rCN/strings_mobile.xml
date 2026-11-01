@@ -312,8 +312,8 @@
     <string name="mobile_update_check_failed_title">无法检查更新</string>
     <string name="mobile_update_check_failed_body">检查你的连接后重试。</string>
     <string name="mobile_update_available_title">有可用更新</string>
-    <string name="mobile_update_app_version">NewTube %1$s</string>
-    <string name="mobile_update_app_version_size">NewTube %1$s · %2$s</string>
+    <string name="mobile_update_app_version">NewTube+ %1$s</string>
+    <string name="mobile_update_app_version_size">NewTube+ %1$s · %2$s</string>
     <string name="mobile_update_metered">你正在使用移动数据。</string>
     <string name="mobile_update_whats_new_in">%1$s 的更新内容</string>
     <string name="mobile_update_release_notes">完整发行说明</string>

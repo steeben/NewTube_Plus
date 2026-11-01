@@ -65,7 +65,11 @@ def parse_changelog(path):
             heading = re.match(r"## (\d+\.\d+\.\d+)\b", raw)
             bullet, section = None, ""
             current = heading.group(1) if heading else None  # "## Unreleased" belongs to no version
-            if current:
+            # NewTube+'s version names restart at 1.0, so older upstream NewTube entries further
+            # down reuse them (upstream's own 1.2.1 is far below the fork's): the newest one wins.
+            if current in versions:
+                current = None
+            elif current:
                 versions[current] = []
         elif raw.startswith("### "):
             flush()
@@ -82,12 +86,40 @@ def parse_changelog(path):
     return versions
 
 
+def parse_release_notes(path):
+    """The bullets of RELEASE_NOTES.md as plain lines, full text, without the Install section -
+    what the GitHub release page shows, so the app's What's new says the same."""
+    lines, section, bullet = [], "", None
+
+    def flush():
+        if bullet is not None and not re.match(r"install", section, re.IGNORECASE):
+            lines.append(plain(bullet.replace("**", "")))
+
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if raw.startswith("#"):
+            flush()
+            bullet = None
+            if raw.startswith("### "):
+                section = raw[4:]
+        elif raw.startswith("- "):
+            flush()
+            bullet = raw[2:]
+        elif bullet is not None and raw.startswith("  "):
+            bullet += " " + raw.strip()
+        else:
+            flush()
+            bullet = None
+    flush()
+    return lines
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True, help="release tag, e.g. v1.10.3")
     ap.add_argument("--dist", required=True, help="folder with the release APKs")
     ap.add_argument("--out", required=True)
     ap.add_argument("--versions", type=int, default=4, help="how many versions' changelogs to list")
+    ap.add_argument("--notes", help="RELEASE_NOTES.md: the newest version's lines come from it, in full")
     args = ap.parse_args()
 
     name = args.tag[1:] if args.tag.startswith("v") else args.tag
@@ -123,6 +155,9 @@ def main():
                  "changelog": english[version][:MAX_LINES_PER_VERSION]}
         if spanish.get(version):
             entry["changelog_es"] = spanish[version][:MAX_LINES_PER_VERSION]
+        if args.notes and version == name:
+            # The release page's notes, word for word; no Spanish copy of them exists.
+            entry = {"versionCode": version_code(version), "changelog": parse_release_notes(pathlib.Path(args.notes))}
         manifest[version] = entry
 
     pathlib.Path(args.out).write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

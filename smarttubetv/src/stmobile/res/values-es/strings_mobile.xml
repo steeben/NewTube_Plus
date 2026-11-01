@@ -392,8 +392,8 @@
     <string name="mobile_update_check_failed_title">No se han podido buscar actualizaciones</string>
     <string name="mobile_update_check_failed_body">Comprueba la conexión y vuelve a intentarlo.</string>
     <string name="mobile_update_available_title">Actualización disponible</string>
-    <string name="mobile_update_app_version">NewTube %1$s</string>
-    <string name="mobile_update_app_version_size">NewTube %1$s · %2$s</string>
+    <string name="mobile_update_app_version">NewTube+ %1$s</string>
+    <string name="mobile_update_app_version_size">NewTube+ %1$s · %2$s</string>
     <string name="mobile_update_metered">Estás usando datos móviles.</string>
     <string name="mobile_update_whats_new_in">Novedades de la %1$s</string>
     <string name="mobile_update_release_notes">Notas completas de la versión</string>

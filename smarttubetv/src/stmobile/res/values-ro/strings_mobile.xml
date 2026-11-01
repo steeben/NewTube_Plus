@@ -315,8 +315,8 @@
     <string name="mobile_update_check_failed_title">Nu s-au putut verifica actualizările</string>
     <string name="mobile_update_check_failed_body">Verifică conexiunea și încearcă din nou.</string>
     <string name="mobile_update_available_title">Actualizare disponibilă</string>
-    <string name="mobile_update_app_version">NewTube %1$s</string>
-    <string name="mobile_update_app_version_size">NewTube %1$s · %2$s</string>
+    <string name="mobile_update_app_version">NewTube+ %1$s</string>
+    <string name="mobile_update_app_version_size">NewTube+ %1$s · %2$s</string>
     <string name="mobile_update_metered">Utilizezi datele mobile.</string>
     <string name="mobile_update_whats_new_in">Noutăți în %1$s</string>
     <string name="mobile_update_release_notes">Note complete privind versiunea</string>

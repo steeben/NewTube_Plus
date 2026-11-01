@@ -103,20 +103,25 @@ final class BrowseTopBar {
                 return "";
             case com.newtube.mobile.ui.common.UiPrefs.HEADER_CUSTOM: {
                 String text = com.newtube.mobile.ui.common.UiPrefs.getHeaderText(context);
-                return text != null && !text.trim().isEmpty() ? text.trim() : context.getString(R.string.app_name);
+                return withPlus(text != null && !text.trim().isEmpty() ? text.trim() : context.getString(R.string.app_name));
             }
-            default: {
-                // NEWTUBE(logo-tint): the "+" of NewTube+ in the logo's gradient.
-                String name = context.getString(R.string.app_name);
-                if (name.endsWith("+")) {
-                    android.text.SpannableString text = new android.text.SpannableString(name);
-                    text.setSpan(mPlusSpan, name.length() - 1, name.length(),
-                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    return text;
-                }
-                return name;
-            }
+            default:
+                return withPlus(context.getString(R.string.app_name));
         }
+    }
+
+    /**
+     * NEWTUBE(logo-tint): a trailing "+" in the logo's gradient - NewTube+'s own, and a custom
+     * header text's too.
+     */
+    private CharSequence withPlus(String name) {
+        if (name.endsWith("+")) {
+            android.text.SpannableString text = new android.text.SpannableString(name);
+            text.setSpan(mPlusSpan, name.length() - 1, name.length(),
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return text;
+        }
+        return name;
     }
 
     /** The logo's gradient for {@code base}: the colour, getting subtly brighter. */
