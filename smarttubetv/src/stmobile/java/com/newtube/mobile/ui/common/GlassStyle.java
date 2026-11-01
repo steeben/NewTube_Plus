@@ -50,6 +50,21 @@ public final class GlassStyle {
         return new RippleDrawable(ColorStateList.valueOf(light ? 0x1F000000 : 0x33FFFFFF), glass, null);
     }
 
+    /**
+     * NEWTUBE(frosted): the comments' "Add a comment…" / "Add a reply…" field as glass: the
+     * bg_comment_compose_field pill (18dp ends, no inset), see-through with a fine light edge over
+     * the frosted comments sheet.
+     */
+    public static Drawable field(Context context) {
+        float density = context.getResources().getDisplayMetrics().density;
+        boolean light = ThemeMode.isLight(context);
+        GradientDrawable glass = new GradientDrawable();
+        glass.setCornerRadius(18 * density);
+        glass.setColor(light ? 0x8CFFFFFF : 0x1FFFFFFF);
+        glass.setStroke(Math.max(1, Math.round(density)), light ? 0x1F000000 : 0x38FFFFFF);
+        return new RippleDrawable(ColorStateList.valueOf(light ? 0x1F000000 : 0x33FFFFFF), glass, null);
+    }
+
     /** A view's pill background, made glass (and its padding kept). */
     public static void applyPill(View view) {
         if (view == null) {

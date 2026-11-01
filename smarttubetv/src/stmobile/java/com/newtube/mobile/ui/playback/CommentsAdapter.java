@@ -38,6 +38,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.liskovsoft.mediaserviceinterfaces.data.CommentItem;
 import com.liskovsoft.smartyoutubetv2.tv.R;
+import com.newtube.mobile.ui.common.GlassStyle;
 import com.newtube.mobile.ui.common.MetaSeparator;
 
 import java.util.ArrayList;
@@ -466,6 +467,15 @@ final class CommentsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             mAvatar = itemView.findViewById(R.id.comment_compose_avatar);
             mField = itemView.findViewById(R.id.comment_compose_field);
             mAvatarPx = itemView.getResources().getDimensionPixelSize(R.dimen.mobile_comment_avatar);
+            // NEWTUBE(frosted): with glass on, the field is glass over the frosted sheet, not grey.
+            if (GlassStyle.isOn(itemView.getContext())) {
+                int l = mField.getPaddingLeft();
+                int t = mField.getPaddingTop();
+                int r = mField.getPaddingRight();
+                int b = mField.getPaddingBottom();
+                mField.setBackground(GlassStyle.field(itemView.getContext()));
+                mField.setPadding(l, t, r, b);
+            }
         }
 
         void bind(int hint, @Nullable String photo) {
@@ -555,8 +565,14 @@ final class CommentsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             mLinkColor = ContextCompat.getColor(context, R.color.mobile_color_link);
 
             if (isParent) {
-                int ground = ContextCompat.getColor(context, R.color.mobile_color_comment_parent);
-                itemView.setBackgroundColor(ground);
+                // NEWTUBE(frosted): with glass on, the sheet is frosted and the thread's top comment
+                // sits on it like the rest (a solid band there hid the glass); Solid keeps the band.
+                boolean glass = GlassStyle.isOn(context);
+                int ground = glass ? ContextCompat.getColor(context, R.color.mobile_color_background)
+                        : ContextCompat.getColor(context, R.color.mobile_color_comment_parent);
+                if (!glass) {
+                    itemView.setBackgroundColor(ground);
+                }
                 itemView.setPadding(itemView.getPaddingLeft(), itemView.getPaddingTop(),
                         itemView.getPaddingRight(), itemView.getPaddingBottom() + dp(context, 6));
                 mMessage.setGroundColor(ground);
