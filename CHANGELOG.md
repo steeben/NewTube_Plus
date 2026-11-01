@@ -2,6 +2,23 @@
 
 All notable user-facing changes to NewTube, the phone app built on SmartTube.
 
+## 1.2.1 — 2026-11-01
+
+### Changed
+
+- **Comments wear the glass look further:** on a replies page the top comment
+  no longer sits on a solid band, and the "Add a comment…" / "Add a reply…"
+  field is frosted glass instead of solid grey (Frosted and Liquid glass).
+- **The cast picker is glass** in the Frosted and Liquid glass styles.
+- **Notifications, app info and recents show the Glass icon** when it is the
+  chosen app icon.
+
+### Fixed
+
+- Feed previews of videos that are not 16:9 are no longer stretched.
+- A preview tapped while casting no longer plays on into the video page; the
+  video goes straight to the TV.
+
 ## 1.2.0 — 2026-10-29
 
 ### New
