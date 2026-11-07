@@ -1863,7 +1863,8 @@ public class MobilePlaybackActivity extends MobileActivity
                             armExpandWatchdog();
                             MiniPlayerBridge.attachExpandDrag(mExpandDrag);
                         } else {
-                            animateMorph(0f, mBarPill ? 420 : 340, Motion.EMPHASIZED, this::finishExpand);
+                            animateMorph(0f, Math.round((mBarPill ? 420 : 340) * MINI_MORPH_SLOWDOWN),
+                                    Motion.EMPHASIZED, this::finishExpand);
                         }
                     };
                     // NEWTUBE(pills): the host's pill stays on screen under the expand (the video
@@ -1878,7 +1879,8 @@ public class MobilePlaybackActivity extends MobileActivity
                 FrameGate.afterNextFrame(mContainer, HOST_CARD_FOLD_WAIT_MS,
                         () -> MiniPlayerBridge.foldHostCard(() -> {
                             if (!isFinishing() && !isDestroyed() && mMorphAnimator == null) {
-                                animateMorph(0f, 250, Motion.EMPHASIZED, this::resetMorph);
+                                animateMorph(0f, Math.round(250 * MINI_MORPH_SLOWDOWN), Motion.EMPHASIZED,
+                                        this::resetMorph);
                             }
                         }));
             });
@@ -2294,7 +2296,7 @@ public class MobilePlaybackActivity extends MobileActivity
     // BACK_PREVIEW_FRACTION of the way (the page's text is gone by then, the video is visibly on its
     // way to the corner); letting go finishes it, cancelling springs it back.
     private static final float BACK_PREVIEW_FRACTION = 0.2f;
-    private static final long BACK_MINIMIZE_MS = 300;
+    private static final long BACK_MINIMIZE_MS = Math.round(300 * MINI_MORPH_SLOWDOWN);
     private boolean mBackPreview;
 
     private boolean canMinimizeByBack() {
@@ -2332,7 +2334,7 @@ public class MobilePlaybackActivity extends MobileActivity
             beginMinimizeMorph();
         }
         float remaining = Math.max(0f, 1f - mMorphFraction);
-        long durationMs = Math.max(120L, Math.round(BACK_MINIMIZE_MS * remaining));
+        long durationMs = Math.max(Math.round(120 * MINI_MORPH_SLOWDOWN), Math.round(BACK_MINIMIZE_MS * remaining));
         // Already moving under the finger: continue decelerating. From rest (the button, a key):
         // the gentle-start curve, as the open does.
         animateMorph(1f, durationMs, moving ? Motion.EMPHASIZED_DECELERATE : Motion.EMPHASIZED,
@@ -6687,14 +6689,20 @@ public class MobilePlaybackActivity extends MobileActivity
      * notification's half (owner, on the Pixel: at half it trailed the finger).
      */
     private static final float MINIMIZE_PULL = 0.75f;
-    private static final long SETTLE_MIN_MS = 90;
-    private static final long SETTLE_MAX_MS = 280;
+    /**
+     * NEWTUBE+(motion): every minimize/expand morph runs this many times longer than it was tuned
+     * (owner: the mini player's minimize and maximize were far too fast to follow).
+     */
+    static final float MINI_MORPH_SLOWDOWN = 2.2f;
+    private static final long SETTLE_MIN_MS = Math.round(90 * MINI_MORPH_SLOWDOWN);
+    private static final long SETTLE_MAX_MS = Math.round(280 * MINI_MORPH_SLOWDOWN);
     /**
      * NEWTUBE(haptics): the spring a released minimize drag lands on the card with (Motion.Spring):
      * it settles ~10 px past the card before coming to rest - the small landing of the Pixel's
      * recents flick.
      */
-    private static final float SETTLE_LAND_STIFFNESS = 800f;
+    // A spring's time scales with 1/sqrt(stiffness): divided by the slowdown squared.
+    private static final float SETTLE_LAND_STIFFNESS = 800f / (MINI_MORPH_SLOWDOWN * MINI_MORPH_SLOWDOWN);
     private static final float SETTLE_LAND_DAMPING = 0.85f;
     private boolean mMorphOverOwnBackdrop;
     /** NEWTUBE(motion): an open/expand morph is posted but has not placed its first frame yet. */
@@ -6725,6 +6733,12 @@ public class MobilePlaybackActivity extends MobileActivity
     private float mMorphOutlineFraction;
     /** NEWTUBE(mini-style): what the outline cuts off the top and the bottom of the box right now. */
     private float mOutlineCropLocalPx;
+    /**
+     * NEWTUBE(pills): what the outline cuts off the left and the right of the box. The plain pill's
+     * thumbnail is 16:9 whatever the box's shape: a wider box (a cropped picture, 2:1) lands at the
+     * thumbnail's height with its sides cut, as the docked mini player then shows it.
+     */
+    private float mOutlineCropXLocalPx;
     /** NEWTUBE(mini-style): the outline's top corners only (the video-background bar), local px. */
     private float mOutlineTopRadiusPx;
     /**
@@ -6743,15 +6757,16 @@ public class MobilePlaybackActivity extends MobileActivity
             int crop = Math.round(Math.min(height / 2f - 1f, Math.max(0f, mOutlineCropLocalPx)));
             crop = Math.max(0, crop);
             if (mOutlinePerEnd) {
+                int cropX = Math.max(0, Math.round(Math.min(view.getWidth() / 2f - 1f, mOutlineCropXLocalPx)));
                 float a = mOutlineStartRadiusPx;
                 float b = mOutlineEndRadiusPx;
                 if (android.os.Build.VERSION.SDK_INT >= 33 && Math.abs(a - b) > 0.5f) {
                     android.graphics.Path path = new android.graphics.Path();
-                    path.addRoundRect(0, crop, view.getWidth(), height - crop, new float[] {a, a, b, b, b, b, a, a},
-                            android.graphics.Path.Direction.CW);
+                    path.addRoundRect(cropX, crop, view.getWidth() - cropX, height - crop,
+                            new float[] {a, a, b, b, b, b, a, a}, android.graphics.Path.Direction.CW);
                     outline.setPath(path);
                 } else {
-                    outline.setRoundRect(0, crop, view.getWidth(), height - crop, a);
+                    outline.setRoundRect(cropX, crop, view.getWidth() - cropX, height - crop, a);
                 }
                 return;
             }
@@ -7080,6 +7095,7 @@ public class MobilePlaybackActivity extends MobileActivity
         float scale;
         float startRadius = 0f;
         float endRadius = 0f;
+        float cropX = 0f; // local px cut off each side (the plain pill's 16:9 thumbnail)
         if (mBarPill) {
             // NEWTUBE(pills): onto the whole pill - its width, its height, its rounded ends - and
             // then onto its thumbnail, whose left end stays concentric with the pill's.
@@ -7089,7 +7105,13 @@ public class MobilePlaybackActivity extends MobileActivity
             float width = lerp(lerp(video.width(), mBarPillWidth, down), mBarLandedWidth, sideways);
             bandTop = lerp(lerp(video.top, mBarTop, down), mBarTop + mBarInset, sideways);
             bandBottom = lerp(lerp(video.bottom, pillBottom, down), pillBottom - mBarInset, sideways);
-            scale = Math.max(0.01f, width / video.width());
+            // Never shorter than the band: a box wider than 16:9 (a cropped picture) fills the
+            // thumbnail's height and has its sides cut (mOutlineCropXLocalPx), as the docked mini
+            // player's FILL frame shows it - landing it at the thumbnail's width left it short and
+            // uncut, then it snapped to the card's crop at the hand-over.
+            float bandH = Math.max(1f, bandBottom - bandTop);
+            scale = Math.max(0.01f, Math.max(width / video.width(), bandH / video.height()));
+            cropX = Math.max(0f, (video.width() - width / scale) / 2f);
             startRadius = lerp(radius * down, radius - mBarInset, sideways);
             endRadius = lerp(radius * down, mBarThumbEndRadius, sideways);
         } else {
@@ -7108,10 +7130,11 @@ public class MobilePlaybackActivity extends MobileActivity
         mVideoArea.setPivotY(0f);
         mVideoArea.setScaleX(scale);
         mVideoArea.setScaleY(scale);
-        mVideoArea.setTranslationX(bandLeft - video.left);
+        mVideoArea.setTranslationX(bandLeft - cropX * scale - video.left);
         mVideoArea.setTranslationY(bandTop - cropLocal * scale - video.top);
         mVideoArea.setTranslationZ(0f);
         mOutlineCropLocalPx = cropLocal;
+        mOutlineCropXLocalPx = cropX;
         mOutlineTopRadiusPx = mBarRoundedTop ? MiniPlayerStyle.CARD_CORNER_DP * density * down / scale : 0f;
         if (mBarPill && mBarSplit < 1f) {
             boolean inPill = settled >= mBarSplit - 0.0005f;
@@ -7512,6 +7535,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // the box moves and shrinks on with it, but corners and fades stop at their card values.
         float settled = Math.min(1f, f);
         mOutlineCropLocalPx = mMorphCropLocalPx * Math.max(0f, settled); // NEWTUBE(mini-style)
+        mOutlineCropXLocalPx = 0f;
         applyMorphCorners(settled, Math.min(sx, sy), density);
 
         // Remove labels/cards early so they do not ghost over Browse, then fade the solid watch
@@ -7655,6 +7679,7 @@ public class MobilePlaybackActivity extends MobileActivity
         mMorphOverOwnBackdrop = false;
         mMorphCropLocalPx = 0f; // NEWTUBE(mini-style)
         mOutlineCropLocalPx = 0f;
+        mOutlineCropXLocalPx = 0f;
         mMorphCornerDp = MORPH_CORNER_DP;
         if (mWatchArea != null) {
             mWatchArea.setTranslationY(0f); // NEWTUBE(motion): the card morph slides it too
@@ -7837,9 +7862,9 @@ public class MobilePlaybackActivity extends MobileActivity
         float speedToward = to > mMorphFraction ? yVelocity : -yVelocity; // px/s, >0 = the way we go
         long durationMs;
         if (speedToward > 300f) {
-            durationMs = Math.round(2000f * distance * mDragTravelPx / speedToward);
+            durationMs = Math.round(2000f * distance * mDragTravelPx / speedToward * MINI_MORPH_SLOWDOWN);
         } else {
-            durationMs = Math.round(60f + 150f * distance);
+            durationMs = Math.round((60f + 150f * distance) * MINI_MORPH_SLOWDOWN);
         }
         durationMs = Math.max(SETTLE_MIN_MS, Math.min(SETTLE_MAX_MS, durationMs));
         if (to <= mMorphFraction) {

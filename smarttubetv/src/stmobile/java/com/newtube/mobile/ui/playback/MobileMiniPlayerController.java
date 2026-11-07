@@ -43,7 +43,7 @@ import com.newtube.mobile.ui.common.Motion;
  */
 public final class MobileMiniPlayerController {
     private static final long TICK_MS = 500;
-    private static final long ENTRY_DURATION_MS = 280;
+    private static final long ENTRY_DURATION_MS = Math.round(280 * MobilePlaybackActivity.MINI_MORPH_SLOWDOWN);
     /** NEWTUBE(motion): the longest the expanding player waits for this card to fold. */
     private static final long FOLD_WAIT_MS = 50;
     /** NEWTUBE(mini-style): the sound's fade when the mini player is closed (X, or past a swipe). */
