@@ -169,6 +169,11 @@ import java.util.Map;
 public class MobilePlaybackActivity extends MobileActivity
         implements PlaybackView, PlayerContainerLayout.SwipeListener, LiveChatSheet.Host {
 
+    /**
+     * NEWTUBE+(motion): every minimize/expand morph runs this many times longer than it was tuned
+     * (owner: the mini player's minimize and maximize were far too fast to follow).
+     */
+    static final float MINI_MORPH_SLOWDOWN = 2.2f;
     private static final long AUTO_HIDE_MS = 3_500;
     private static final long PROGRESS_UPDATE_MS = 500;
     /** Live-edge jump target: mirrors the shared VideoStateController's ~15s park behind the edge. */
@@ -6689,11 +6694,6 @@ public class MobilePlaybackActivity extends MobileActivity
      * notification's half (owner, on the Pixel: at half it trailed the finger).
      */
     private static final float MINIMIZE_PULL = 0.75f;
-    /**
-     * NEWTUBE+(motion): every minimize/expand morph runs this many times longer than it was tuned
-     * (owner: the mini player's minimize and maximize were far too fast to follow).
-     */
-    static final float MINI_MORPH_SLOWDOWN = 2.2f;
     private static final long SETTLE_MIN_MS = Math.round(90 * MINI_MORPH_SLOWDOWN);
     private static final long SETTLE_MAX_MS = Math.round(280 * MINI_MORPH_SLOWDOWN);
     /**
