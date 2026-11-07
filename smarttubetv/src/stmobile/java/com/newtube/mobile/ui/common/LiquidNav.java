@@ -48,8 +48,10 @@ public final class LiquidNav {
     /** The resting pill's inset in its tab's cell. */
     private static final float INSET_X_DP = 6f;
     private static final float INSET_Y_DP = 5f;
-    private static final float LENS_HEIGHT_DP = 12f;
-    private static final float LENS_AMOUNT_DP = 14f;
+    /** How far past the lifted pill its backdrop is recorded: what its rim can mirror. */
+    private static final float LENS_PAD_DP = 24f;
+    /** NEWTUBE(liquid): how much the lifted pill magnifies what is under its middle. */
+    private static final float LENS_ZOOM = 0.3f;
 
     private final BottomNavigationView mNav;
     private final ViewGroup mRoot;
@@ -58,6 +60,7 @@ public final class LiquidNav {
     private final int mPageColor;
     private final int mFillColor;
     private final float mDensity;
+    private final boolean mDark;
     private final Motion mMotion = new Motion();
     private final FlatPill mFlat = new FlatPill();
     @Nullable
@@ -70,6 +73,7 @@ public final class LiquidNav {
         mLayers = layers;
         mPageColor = pageColor;
         mDensity = nav.getResources().getDisplayMetrics().density;
+        mDark = !ThemeMode.isLight(nav.getContext());
         // BitChord's selected-tab fill: white in both themes, half in the light one, faint in the dark.
         mFillColor = ThemeMode.isLight(nav.getContext()) ? 0x80FFFFFF : 0x24FFFFFF;
         mLens = Build.VERSION.SDK_INT >= 31 ? new LensPill() : null;
@@ -463,8 +467,7 @@ public final class LiquidNav {
             int width = Math.max(1, Math.round(mPillRect.width()));
             int height = Math.max(1, Math.round(mPillRect.height()));
             float presence = mMotion.glassPresence;
-            float lensHeight = LENS_HEIGHT_DP * mDensity * presence;
-            int pad = Math.round(LENS_HEIGHT_DP * mDensity);
+            int pad = Math.round(LENS_PAD_DP * mDensity);
 
             mNode.setPosition(0, 0, width + 2 * pad, height + 2 * pad);
             RecordingCanvas recording = mNode.beginRecording(width + 2 * pad, height + 2 * pad);
@@ -517,8 +520,8 @@ public final class LiquidNav {
             } finally {
                 mNode.endRecording();
             }
-            Object lens = LiquidGlass.lensOnly(width, height, pad, lensHeight,
-                    LENS_AMOUNT_DP * mDensity * mMotion.material);
+            float glass = presence * mMotion.material;
+            Object lens = LiquidGlass.lensOnly(width, height, pad, glass, 1f + LENS_ZOOM * glass, mDensity, mDark);
             mNode.setRenderEffect((RenderEffect) lens);
 
             int save = canvas.save();
@@ -532,7 +535,7 @@ public final class LiquidNav {
             // The rim (and in BitChord a contact shadow) go first on landing.
             float rim = mMotion.material * Math.max(0f, Math.min(1f, (presence - 0.45f) / 0.55f));
             LiquidGlass.drawRim(canvas, mRim, left, top, left + width, top + height,
-                    (float) Math.ceil(LiquidGlass.RIM_DP * mDensity) * 2f, rim);
+                    LiquidGlass.RIM_DP * mDensity * 2f, rim, mDark);
         }
 
         @Override

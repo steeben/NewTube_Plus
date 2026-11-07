@@ -58,9 +58,10 @@ public final class BackdropBlurDrawable extends Drawable {
         float density = host.getResources().getDisplayMetrics().density;
         mBlurPx = BLUR_DP * density;
         mLiquidBlurPx = LiquidGlass.BLUR_DP * density;
-        mLensHeightPx = LiquidGlass.LENS_HEIGHT_DP * density;
-        mLensAmountPx = LiquidGlass.LENS_AMOUNT_DP * density;
-        mRimWidthPx = (float) Math.ceil(LiquidGlass.RIM_DP * density) * 2f;
+        mLiquidPadPx = LiquidGlass.PAD_DP * density;
+        mDensity = density;
+        mDark = !ThemeMode.isLight(host.getContext());
+        mRimWidthPx = LiquidGlass.RIM_DP * density * 2f;
         mNode = Build.VERSION.SDK_INT >= 31 ? Api31.newNode() : null;
     }
 
@@ -109,15 +110,17 @@ public final class BackdropBlurDrawable extends Drawable {
     }
 
     /**
-     * NEWTUBE(liquid): Liquid glass (Settings > Appearance > Glass), ported from BitChord Dial's
-     * (Kyant0/backdrop, Apache-2.0): the backdrop is saturated, lightly blurred and bent at the
-     * rim by a lens with a little colour dispersion (Android 13), then tinted, with a light rim
-     * that catches the light at 45 degrees. The shape is a pill (rounded ends).
+     * NEWTUBE(liquid): Liquid glass (Settings > Appearance > Glass), in css-liquid-glass's style
+     * (see {@link LiquidGlass}): the backdrop is lightly blurred, folded and lit at the rim and
+     * mirrors its surroundings there (Android 13), then thinly tinted, with a highlight on the
+     * edge that catches the light at 45 degrees. The shape is a pill (rounded ends).
      */
     private boolean mLiquid;
     private final float mLiquidBlurPx;
-    private final float mLensHeightPx;
-    private final float mLensAmountPx;
+    /** How far past each edge the backdrop is recorded: what the rim's reflection reaches. */
+    private final float mLiquidPadPx;
+    private final float mDensity;
+    private final boolean mDark;
     @Nullable
     private Paint mRimPaint;
     private final float mRimWidthPx;
@@ -208,10 +211,10 @@ public final class BackdropBlurDrawable extends Drawable {
                 mLayers.collect(mLayerViews);
                 mHost.getLocationInWindow(mHostOffset);
                 if (mLiquid) {
-                    float pad = mLensHeightPx;
+                    float pad = Math.round(mLiquidPadPx);
                     Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mLayers, mHostOffset, mPageColor,
                             LiquidGlass.effect(bounds.width(), bounds.height(), pad, mLiquidBlurPx,
-                                    mLensHeightPx, mLensAmountPx), pad, mAlpha);
+                                    mDensity, mDark), pad, mAlpha);
                 } else {
                     Api31.drawLayers(mNode, canvas, bounds, mLayerViews, mLayers, mHostOffset, mPageColor,
                             Api31.blur(Math.max(1f, mBlurPx * mBlurScale)), 0f, mAlpha);
@@ -250,7 +253,7 @@ public final class BackdropBlurDrawable extends Drawable {
             mRimPaint.setStyle(Paint.Style.STROKE);
         }
         LiquidGlass.drawRim(canvas, mRimPaint, bounds.left, bounds.top, bounds.right, bounds.bottom,
-                mRimWidthPx, mAlpha / 255f);
+                mRimWidthPx, mAlpha / 255f, mDark);
     }
 
     private void drawTint(Canvas canvas, Rect bounds) {
