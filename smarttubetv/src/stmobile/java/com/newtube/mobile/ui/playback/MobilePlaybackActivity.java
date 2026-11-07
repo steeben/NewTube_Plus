@@ -5078,6 +5078,9 @@ public class MobilePlaybackActivity extends MobileActivity
                     });
                 }
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                if (immersive) {
+                    keepSheetTopTight(sheetView);
+                }
             }
             com.newtube.mobile.ui.common.FrostedDialog.applySheet(dialog, sheetView);
             com.newtube.mobile.ui.common.SheetBackSlide.install(dialog, sheetView); // NEWTUBE(pills)
@@ -5087,6 +5090,38 @@ public class MobilePlaybackActivity extends MobileActivity
         });
 
         dialog.show();
+    }
+
+    /**
+     * NEWTUBE(sheet-landscape): over the fullscreen player the bars are hidden, so nothing may
+     * pad the top of a sheet for the status bar. A gear sheet that reached the top edge came up
+     * with a status bar's height of empty frame above its handle (the frame's own top padding
+     * or its scroll view's), while the same sheet opened a little lower had just the handle's
+     * 8dp. Any such padding is taken off whenever the sheet lays out.
+     */
+    private static void keepSheetTopTight(View sheetView) {
+        Runnable trim = () -> {
+            if (sheetView.getPaddingTop() != 0) {
+                sheetView.setPadding(sheetView.getPaddingLeft(), 0,
+                        sheetView.getPaddingRight(), sheetView.getPaddingBottom());
+            }
+            if (sheetView instanceof ViewGroup && ((ViewGroup) sheetView).getChildCount() > 0) {
+                View child = ((ViewGroup) sheetView).getChildAt(0);
+                if (child instanceof androidx.core.widget.NestedScrollView && child.getPaddingTop() != 0) {
+                    child.setPadding(child.getPaddingLeft(), 0,
+                            child.getPaddingRight(), child.getPaddingBottom());
+                }
+            }
+        };
+        trim.run();
+        sheetView.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            View child = v instanceof ViewGroup && ((ViewGroup) v).getChildCount() > 0
+                    ? ((ViewGroup) v).getChildAt(0) : null;
+            if (v.getPaddingTop() != 0
+                    || (child instanceof androidx.core.widget.NestedScrollView && child.getPaddingTop() != 0)) {
+                v.post(trim);
+            }
+        });
     }
 
     private void pruneShownSheets() {
