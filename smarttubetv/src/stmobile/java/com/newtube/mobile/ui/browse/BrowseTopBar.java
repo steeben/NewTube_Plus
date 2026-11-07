@@ -124,10 +124,13 @@ final class BrowseTopBar {
         return name;
     }
 
-    /** The logo's gradient for {@code base}: the colour, getting subtly brighter. */
+    /**
+     * The logo's fill for {@code base}: the colour itself, flat (a gradient of one colour, so the
+     * callers keep their shape). NEWTUBE(logo-color): it used to rise to the accent blended 30%
+     * toward white, which turned the default red (the progress bar's #FF0033) pink.
+     */
     static int[] logoGradient(int base) {
-        return new int[] {base | 0xFF000000,
-                androidx.core.graphics.ColorUtils.blendARGB(base, 0xFFFFFFFF, 0.3f) | 0xFF000000};
+        return new int[] {base | 0xFF000000, base | 0xFF000000};
     }
 
     /** The wordmark's "+" in the logo's gradient (brighter at the top). */
