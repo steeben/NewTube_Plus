@@ -2,6 +2,24 @@
 
 All notable user-facing changes to NewTube, the phone app built on SmartTube.
 
+## 1.2.2 — 2026-11-08
+
+### Changed
+
+- **Liquid glass looks more like real glass:** a clear middle, a bright folding
+  rim, reflections of what is around it and a lighter blur and tint.
+- **The nav bar's lifted bubble magnifies** what is under your finger.
+- **Minimizing and expanding the player is slower and smoother,** and the
+  picture lands cropped to fill the mini player's thumbnail instead of
+  snapping at the end.
+- **The logo red matches the progress bar** instead of leaning pink, and the
+  red Glass app icon follows it.
+
+### Fixed
+
+- Player settings in fullscreen no longer leave a status bar gap above the
+  sheet's handle.
+
 ## 1.2.1 — 2026-11-01
 
 ### Changed

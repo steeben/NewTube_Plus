@@ -1,13 +1,13 @@
-## NewTube+ 1.2.1
+## NewTube+ 1.2.2
 
 ### Install
 Download the APK for your phone: **arm64-v8a** fits almost every modern phone; **universal** works on any. Allow "Install unknown apps" when Android asks. It installs over earlier NewTube+ versions and keeps your settings; in the app, Settings → About → Check for updates finds it too.
 
 ### Changed
-- **Comments wear the glass look further:** on a replies page the top comment no longer sits on a solid band, and the "Add a comment…" / "Add a reply…" field is frosted glass instead of solid grey (Frosted and Liquid glass styles).
-- **The cast picker is glass** in the Frosted and Liquid glass styles.
-- **Notifications, app info and recents show the Glass icon** when it is the chosen app icon.
+- **Liquid glass looks more like real glass:** a clear middle, a bright folding rim, reflections of what is around it and a lighter blur and tint.
+- **The nav bar's lifted bubble magnifies** what is under your finger.
+- **Minimizing and expanding the player is slower and smoother,** and the picture now lands cropped to fill the mini player's thumbnail instead of snapping at the end.
+- **The logo red matches the progress bar** instead of leaning pink, and the red Glass app icon follows it.
 
 ### Fixed
-- Feed previews of videos that are not 16:9 (vertical, 4:3) are no longer stretched.
-- A preview tapped while casting no longer plays on into the video page; the video goes straight to the TV.
+- Player settings in fullscreen no longer leave a status bar gap above the sheet's handle.
