@@ -922,6 +922,12 @@ public class MobilePlaybackActivity extends MobileActivity
         // video's frame is far taller than the portrait box and spilled over the page.
         mPlayerView.setOutlineProvider(android.view.ViewOutlineProvider.BOUNDS);
         mPlayerView.setClipToOutline(true);
+        // NEWTUBE+(mini-handover): the shape the picture is drawn in, for the mini player's card.
+        mPlayerView.getContentFrame().addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (r - l > 0 && b - t > 0) {
+                mShownVideoAspect = (r - l) / (float) (b - t);
+            }
+        });
         mYouTubeOverlay = findViewById(R.id.mobile_player_yt_overlay);
         mControlsRoot = findViewById(R.id.mobile_controls_root);
         mTopScrim = findViewById(R.id.mobile_player_top_scrim);
@@ -3018,6 +3024,17 @@ public class MobilePlaybackActivity extends MobileActivity
         return Math.round(Math.max(width / 2.4f, Math.min(width * 1.25f, width / aspect)));
     }
 
+    /**
+     * NEWTUBE+(mini-handover): the shape (width / height, uncropped) the watch page's content frame
+     * draws the picture in - what the minimize lands with - or 0 when not known yet. The docked mini
+     * player fills its thumbnail with this shape, so the hand-over shows the same picture.
+     */
+    private float mShownVideoAspect;
+
+    float getShownVideoAspect() {
+        return mShownVideoAspect;
+    }
+
     /** The shape of what the box shows: the video's, cropped if its bars were found. */
     private float shownAspect() {
         if (!(mVideoAspect > 0f)) {
@@ -3040,6 +3057,7 @@ public class MobilePlaybackActivity extends MobileActivity
         // The crop, and the box's shape (16:9 until this video's size is reported - the card it
         // opens from is 16:9). Not the content frame's shape: forcing that stretched the picture.
         mVideoAspect = 0f;
+        mShownVideoAspect = 0f;
         mCrop = null;
         mCropShown = null;
         mCropFraction = 0f;
@@ -5520,6 +5538,11 @@ public class MobilePlaybackActivity extends MobileActivity
                 float aspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height;
                 boolean changed = Math.abs(aspect - mVideoAspect) > 0.001f;
                 mVideoAspect = aspect;
+                if (changed) {
+                    // Until the content frame is laid out in the new shape (never, while the
+                    // activity is in the background behind the mini player).
+                    mShownVideoAspect = aspect;
+                }
                 applyControlsInsets();
                 if (changed) {
                     animateBox(); // NEWTUBE(black-bars): the box takes the video's own shape

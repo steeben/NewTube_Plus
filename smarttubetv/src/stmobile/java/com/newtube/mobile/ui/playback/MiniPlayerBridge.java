@@ -505,11 +505,19 @@ public final class MiniPlayerBridge {
         if (player == null) {
             return false;
         }
-        VideoSize size = player.getVideoSize();
-        if (size.width <= 0 || size.height <= 0) {
-            return false;
+        // NEWTUBE+(mini-handover): the picture's shape as the watch page drew it, the shape the
+        // minimize lands with. Read from the player instead, the pill's thumbnail could crop the
+        // picture more than the landing did (12% of its width, on the owner's phone) and it
+        // jumped bigger the moment the docked card took over.
+        float raw = sActivity.get().getShownVideoAspect();
+        if (!(raw > 0f)) {
+            VideoSize size = player.getVideoSize();
+            if (size.width <= 0 || size.height <= 0) {
+                return false;
+            }
+            raw = size.width * size.pixelWidthHeightRatio / size.height;
         }
-        float aspect = croppedAspect(size.width * size.pixelWidthHeightRatio / size.height);
+        float aspect = croppedAspect(raw);
         Float shown = sFrameAspects.get(frame);
         if (shown != null && Math.abs(shown - aspect) < 0.0001f) {
             return false;
